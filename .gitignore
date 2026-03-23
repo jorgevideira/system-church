@@ -1,0 +1,13 @@
+# Python and Docker exclusions
+__pycache__/
+*.pyc
+.env
+venv/
+docker-compose.override.yml
+.vscode/
+.idea/
+models/
+*.pkl
+*.joblib
+temp/
+uploads/
