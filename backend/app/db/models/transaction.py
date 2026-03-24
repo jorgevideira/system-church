@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -41,7 +41,7 @@ class Transaction(Base):
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Nullable unique hash used for import deduplication
-    hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
+    dedup_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -79,6 +79,4 @@ class Transaction(Base):
         back_populates="transactions",
     )
 
-    __table_args__ = (
-        UniqueConstraint("hash", name="uq_transaction_hash"),
-    )
+    __table_args__ = ()
