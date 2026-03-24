@@ -43,17 +43,17 @@ PostgreSQL
 ### Core Entities
 
 - **User** — system accounts with hashed passwords and role information
-- **Category** — hierarchical transaction categories (income / expense / transfer)
+- **Category** — transaction categories with types: `income`, `expense`, or `both`
 - **Transaction** — individual financial entries linked to a user and category
-- **ImportJob** — tracks uploaded bank statement files and their processing state
+- **StatementFile** — tracks uploaded bank statement files and their processing state
 - **AuditLog** — immutable record of every data mutation (who, what, when)
 
 ### Key Relationships
 
 ```
 User ──< Transaction >── Category
-User ──< ImportJob
-ImportJob ──< Transaction
+User ──< StatementFile
+StatementFile ──< Transaction
 Transaction ──< AuditLog
 ```
 
@@ -73,7 +73,7 @@ Transaction ──< AuditLog
 ## File Processing Pipeline
 
 ```
-1. Upload        POST /api/v1/imports/upload
+1. Upload        POST /api/v1/upload/
                  ↓ validate MIME type & size
                  ↓ save to UPLOAD_DIR
                  ↓ create ImportJob (status=pending)
