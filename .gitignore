@@ -6,7 +6,9 @@ venv/
 docker-compose.override.yml
 .vscode/
 .idea/
-models/
+saved_models/
+# Un-ignore application source model packages
+!backend/app/db/models/
 *.pkl
 *.joblib
 temp/
