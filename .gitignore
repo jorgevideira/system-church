@@ -1,13 +1,24 @@
 # Python and Docker exclusions
 __pycache__/
 *.pyc
+*.pyo
 .env
 venv/
+.venv/
 docker-compose.override.yml
 .vscode/
 .idea/
-models/
+saved_models/
+# Un-ignore application source model packages
+!backend/app/db/models/
 *.pkl
 *.joblib
 temp/
 uploads/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+*.log
