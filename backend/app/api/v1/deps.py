@@ -1,10 +1,3 @@
-# API Dependency Injection Functions
+from app.db.session import get_db as _get_db  # re-export for convenience
 
-# Example Function
-
-def get_db():
-    db = DatabaseSession()
-    try:
-        yield db
-    finally:
-        db.close()
+get_db = _get_db
