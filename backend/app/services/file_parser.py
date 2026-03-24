@@ -17,15 +17,15 @@ def parse_csv(file_path: str) -> list[dict[str, Any]]:
     with open(file_path, newline="", encoding="utf-8-sig") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
-            # Normalise keys to lower-case without surrounding whitespace
-            normalised = {k.strip().lower(): v.strip() for k, v in row.items()}
+            # Normalize keys to lower-case without surrounding whitespace
+            normalized = {k.strip().lower(): v.strip() for k, v in row.items()}
             try:
                 transactions.append(
                     {
-                        "description": normalised.get("description") or normalised.get("memo", ""),
-                        "amount": normalised.get("amount", "0"),
-                        "date": normalised.get("date") or normalised.get("transaction_date", ""),
-                        "reference": normalised.get("reference") or normalised.get("ref"),
+                        "description": normalized.get("description") or normalized.get("memo", ""),
+                        "amount": normalized.get("amount", "0"),
+                        "date": normalized.get("date") or normalized.get("transaction_date", ""),
+                        "reference": normalized.get("reference") or normalized.get("ref"),
                     }
                 )
             except Exception as exc:

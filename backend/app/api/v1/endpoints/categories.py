@@ -16,7 +16,7 @@ def list_categories(
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
 ) -> List[Category]:
-    return db.query(Category).filter(Category.is_active == True).all()  # noqa: E712
+    return db.query(Category).filter(Category.is_active.is_(True)).all()
 
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)

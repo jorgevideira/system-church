@@ -1,8 +1,10 @@
 # Python and Docker exclusions
 __pycache__/
 *.pyc
+*.pyo
 .env
 venv/
+.venv/
 docker-compose.override.yml
 .vscode/
 .idea/
@@ -13,3 +15,10 @@ saved_models/
 *.joblib
 temp/
 uploads/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+*.log

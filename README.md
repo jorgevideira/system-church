@@ -7,7 +7,7 @@ A comprehensive financial management system for churches, featuring AI-powered t
 - **JWT Authentication** — Secure token-based auth with access and refresh tokens
 - **Transaction Management** — Create, edit, categorize, and search financial transactions
 - **AI Categorization** — Machine-learning model automatically classifies transactions by category
-- **File Upload & Parsing** — Import bank statements in OFX and PDF formats
+- **File Upload & Parsing** — Import bank statements in CSV and OFX formats; PDF support is planned for a future release
 - **Financial Reports** — Monthly summaries, category breakdowns, and exportable data
 - **Audit Trail** — Full history of changes to transactions and settings
 - **Async Processing** — Background jobs via Celery for heavy tasks (parsing, classification)

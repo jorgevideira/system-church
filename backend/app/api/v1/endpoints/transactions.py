@@ -59,7 +59,7 @@ def list_transactions(
 def create_transaction(
     transaction_in: TransactionCreate,
     db: Session = Depends(get_db),
-    current_user: Annotated[User, Depends(require_editor)] = None,
+    current_user: User = Depends(require_editor),
 ) -> TransactionResponse:
     return transaction_service.create_transaction(db, transaction_in, user_id=current_user.id)
 
@@ -81,7 +81,7 @@ def update_transaction(
     transaction_id: int,
     transaction_in: TransactionUpdate,
     db: Session = Depends(get_db),
-    current_user: Annotated[User, Depends(require_editor)] = None,
+    current_user: User = Depends(require_editor),
 ) -> TransactionResponse:
     tx = transaction_service.update_transaction(db, transaction_id, transaction_in, user_id=current_user.id)
     if not tx:

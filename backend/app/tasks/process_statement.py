@@ -32,7 +32,7 @@ def process_statement_task(self, file_id: int) -> dict:
         file_path = os.path.join(settings.UPLOAD_DIR, statement.filename)
         raw_transactions = parse_file(file_path, statement.file_type)
 
-        categories = db.query(Category).filter(Category.is_active == True).all()  # noqa: E712
+        categories = db.query(Category).filter(Category.is_active.is_(True)).all()
         category_dicts = [{"id": c.id, "name": c.name} for c in categories]
         category_name_to_id = {c.name: c.id for c in categories}
 
