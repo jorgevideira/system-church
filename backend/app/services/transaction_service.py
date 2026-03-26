@@ -1,8 +1,10 @@
 import hashlib
 from datetime import date
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 from app.db.models.transaction import Transaction
 from app.schemas.transaction import TransactionCreate, TransactionFilter, TransactionUpdate
@@ -14,7 +16,7 @@ def get_transactions(
     skip: int = 0,
     limit: int = 20,
 ) -> tuple[list[Transaction], int]:
-    q = db.query(Transaction)
+    q = db.query(Transaction).options(selectinload(Transaction.attachments))
     if filters:
         if filters.start_date:
             q = q.filter(Transaction.transaction_date >= filters.start_date)
@@ -42,6 +44,8 @@ def get_transaction(db: Session, transaction_id: int) -> Optional[Transaction]:
 
 def create_transaction(db: Session, transaction_create: TransactionCreate, user_id: int) -> Transaction:
     data = transaction_create.model_dump()
+    if data.get("transaction_type") != "expense":
+        data["ministry_id"] = None
     dedup = compute_dedup_hash(
         data.get("description", ""),
         str(data.get("amount", "")),
@@ -55,6 +59,34 @@ def create_transaction(db: Session, transaction_create: TransactionCreate, user_
     return tx
 
 
+def create_transaction_from_import(
+    db: Session,
+    transaction_create: TransactionCreate,
+    user_id: int,
+    statement_file_id: int,
+) -> Transaction:
+    data = transaction_create.model_dump()
+    if data.get("transaction_type") != "expense":
+        data["ministry_id"] = None
+    dedup = compute_dedup_hash(
+        data.get("description", ""),
+        str(data.get("amount", "")),
+        str(data.get("transaction_date", "")),
+        data.get("reference"),
+    )
+    tx = Transaction(
+        **data,
+        user_id=user_id,
+        statement_file_id=statement_file_id,
+        status="confirmed",
+        dedup_hash=dedup,
+    )
+    db.add(tx)
+    db.commit()
+    db.refresh(tx)
+    return tx
+
+
 def update_transaction(
     db: Session, transaction_id: int, transaction_update: TransactionUpdate, user_id: int
 ) -> Optional[Transaction]:
@@ -62,6 +94,11 @@ def update_transaction(
     if not tx:
         return None
     update_data = transaction_update.model_dump(exclude_unset=True)
+
+    effective_transaction_type = update_data.get("transaction_type", tx.transaction_type)
+    if effective_transaction_type != "expense":
+        update_data["ministry_id"] = None
+
     for field, value in update_data.items():
         setattr(tx, field, value)
     db.commit()
@@ -90,3 +127,28 @@ def compute_dedup_hash(
 
 def check_duplicate(db: Session, hash_value: str) -> bool:
     return db.query(Transaction).filter(Transaction.dedup_hash == hash_value).first() is not None
+
+
+def check_duplicate_same_day_amount(
+    db: Session,
+    *,
+    user_id: int,
+    transaction_date: date,
+    amount: Decimal,
+    transaction_type: Optional[str] = None,
+    exclude_statement_file_id: Optional[int] = None,
+) -> bool:
+    """Duplicate rule requested: same day and same amount for the same user."""
+    q = db.query(Transaction).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_date == transaction_date,
+        Transaction.amount == amount,
+    )
+    if transaction_type:
+        q = q.filter(Transaction.transaction_type == transaction_type)
+    if exclude_statement_file_id is not None:
+        q = q.filter(
+            (Transaction.statement_file_id.is_(None))
+            | (Transaction.statement_file_id != exclude_statement_file_id)
+        )
+    return q.first() is not None

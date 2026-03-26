@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Church Finance Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="grain"></div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-shell">
+      <aside class="login-hero">
+        <p class="eyebrow">Church Financial Management</p>
+        <h1>Controle financeiro com visao total</h1>
+        <p class="hint">Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.</p>
+        <ul class="hero-list">
+          <li>Resumo de saldo em tempo real</li>
+          <li>Lancamentos organizados por categoria</li>
+          <li>Upload de extratos CSV, OFX e PDF</li>
+        </ul>
+      </aside>
+
+      <div class="login-card">
+        <h2>Entrar</h2>
+        <form id="loginForm" class="stack">
+          <label>Email
+            <input type="email" id="email" value="admin@church.com" required>
+          </label>
+          <label>Senha
+            <input type="password" id="password" value="admin123" required>
+          </label>
+          <button class="btn" type="submit">Entrar no sistema</button>
+        </form>
+        <p id="authMessage" class="message"></p>
+        <p class="tiny">Padrao inicial: admin@church.com / admin123</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hide">
+    <header class="topbar">
+      <h2>Church Finance Console</h2>
+      <div class="session-box">
+        <span id="sessionUser">Nao autenticado</span>
+        <button id="logoutBtn" class="btn ghost">Sair</button>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <aside class="sidebar panel">
+        <p class="sidebar-title">Modulos</p>
+        <button class="nav-btn active" data-view="dashboardView">Dashboard</button>
+        <button class="nav-btn" data-view="transactionsView">Lancamentos</button>
+        <button class="nav-btn" data-view="categoriesView">Categorias</button>
+        <button class="nav-btn" data-view="ministriesView">Ministerios</button>
+        <button class="nav-btn" data-view="uploadView">Upload</button>
+        <button class="nav-btn" data-view="reportsView">Relatorios</button>
+      </aside>
+
+      <section class="content-stack">
+        <section class="panel view" id="dashboardView">
+          <div class="section-title">
+            <h3>Resumo Financeiro</h3>
+            <button id="refreshBtn" class="btn ghost">Atualizar</button>
+          </div>
+          <section class="dash-filters" aria-label="Filtros do dashboard">
+            <div class="dash-filters-grid">
+              <label>Data inicial
+                <input type="date" id="dashStartDate">
+              </label>
+              <label>Data final
+                <input type="date" id="dashEndDate">
+              </label>
+              <label>Tipo
+                <select id="dashTypeFilter">
+                  <option value="">Todos</option>
+                  <option value="income">Entrada</option>
+                  <option value="expense">Saida</option>
+                </select>
+              </label>
+              <label>Categoria
+                <select id="dashCategoryFilter">
+                  <option value="">Todas</option>
+                </select>
+              </label>
+              <label>Ministerio
+                <select id="dashMinistryFilter">
+                  <option value="">Todos</option>
+                </select>
+              </label>
+              <label>Banco
+                <select id="dashBankFilter">
+                  <option value="">Todos</option>
+                </select>
+              </label>
+            </div>
+            <div class="dash-filters-actions">
+              <span id="dashResultCount" class="tx-result-count"></span>
+              <button id="dashResetFiltersBtn" class="btn ghost btn-mini" type="button">Limpar filtros</button>
+            </div>
+          </section>
+          <div class="kpis">
+            <article class="kpi income">
+              <span>Total Entradas</span>
+              <strong id="kpiIncome">R$ 0,00</strong>
+            </article>
+            <article class="kpi expense">
+              <span>Total Saidas</span>
+              <strong id="kpiExpense">R$ 0,00</strong>
+            </article>
+            <article class="kpi balance">
+              <span>Saldo</span>
+              <strong id="kpiBalance">R$ 0,00</strong>
+            </article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="dashboard-card dash-line-card">
+              <div class="dash-card-head">
+                <h4>Evolucao Mensal (6 meses)</h4>
+                <select id="dashLineMetric" class="chart-metric-select">
+                  <option value="balance" selected>Saldo</option>
+                  <option value="income">Entradas</option>
+                  <option value="expense">Saidas</option>
+                </select>
+              </div>
+              <div id="dashLineChart" class="line-chart" aria-label="Grafico de linha da evolucao do saldo"></div>
+              <div id="dashLineTooltip" class="chart-tooltip hide"></div>
+            </article>
+
+            <article class="dashboard-card dash-pie-card">
+              <h4>Composicao de Despesas por Categoria</h4>
+              <div class="pie-wrap">
+                <div class="pie-shell">
+                  <div id="dashExpensePie" class="expense-pie" aria-label="Grafico de pizza de despesas"></div>
+                  <div id="dashExpensePieCenter" class="pie-center">R$ 0,00</div>
+                </div>
+                <ul id="dashExpensePieLegend" class="pie-legend"></ul>
+              </div>
+              <div id="dashPieTooltip" class="chart-tooltip hide"></div>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Comparativo Entrada x Saida</h4>
+              <div class="comparison-bars">
+                <div class="comparison-row">
+                  <span>Entradas</span>
+                  <div class="comparison-track"><div id="dashIncomeBar" class="comparison-fill income"></div></div>
+                  <strong id="dashIncomePercent">0%</strong>
+                </div>
+                <div class="comparison-row">
+                  <span>Saidas</span>
+                  <div class="comparison-track"><div id="dashExpenseBar" class="comparison-fill expense"></div></div>
+                  <strong id="dashExpensePercent">0%</strong>
+                </div>
+              </div>
+              <p id="dashEfficiencyNote" class="tiny">Sem dados para o periodo selecionado.</p>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Top Categorias (Despesas)</h4>
+              <ul id="dashTopCategories" class="upload-list"></ul>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Top Ministerios</h4>
+              <ul id="dashTopMinistries" class="upload-list"></ul>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Tendencia Mensal (6 meses)</h4>
+              <div id="dashMonthlyBars" class="monthly-bars" aria-label="Grafico mensal de entradas e saidas"></div>
+              <ul id="dashMonthlyTrend" class="upload-list"></ul>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Projecao de Fechamento do Mes</h4>
+              <div class="projection-grid">
+                <div>
+                  <span>Entrada projetada</span>
+                  <strong id="dashProjectedIncome">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Saida projetada</span>
+                  <strong id="dashProjectedExpense">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Saldo projetado</span>
+                  <strong id="dashProjectedBalance">R$ 0,00</strong>
+                </div>
+              </div>
+              <p id="dashProjectionNote" class="tiny">Projecao disponivel ao longo do mes atual.</p>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Comparativo Ultimos 6 Meses</h4>
+              <ul id="dashSixMonthComparison" class="comparison-list"></ul>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Orcamento Mensal</h4>
+              <form id="dashBudgetForm" class="dash-budget-form">
+                <label>Tipo
+                  <select id="dashBudgetType">
+                    <option value="category">Categoria</option>
+                    <option value="ministry">Ministerio</option>
+                  </select>
+                </label>
+                <label>Referencia
+                  <select id="dashBudgetRef"></select>
+                </label>
+                <label>Valor (R$)
+                  <input type="number" id="dashBudgetAmount" min="0" step="0.01" required>
+                </label>
+                <button class="btn btn-mini" type="submit">Salvar meta</button>
+              </form>
+              <p id="dashBudgetMessage" class="message"></p>
+              <ul id="dashBudgetList" class="comparison-list"></ul>
+            </article>
+
+            <article class="dashboard-card">
+              <h4>Central de Alertas</h4>
+              <ul id="dashAlertsList" class="comparison-list"></ul>
+            </article>
+          </div>
+          <p id="dashboardMessage" class="message"></p>
+        </section>
+
+        <section class="panel view hide" id="transactionsView">
+          <h3>Entradas e Saidas</h3>
+          <form id="transactionForm" class="grid-form">
+            <label>Descricao
+              <input type="text" id="txDescription" required>
+            </label>
+            <label>Valor
+              <input type="number" id="txAmount" min="0" step="0.01" required>
+            </label>
+            <label>Tipo
+              <select id="txType" required>
+                <option value="income">Entrada</option>
+                <option value="expense">Saida</option>
+              </select>
+            </label>
+            <label>Data
+              <input type="date" id="txDate" required>
+            </label>
+            <label>Categoria
+              <div class="inline-field-group">
+                <input type="text" id="txCategoryInput" list="txCategoryOptions" placeholder="Digite para buscar ou criar">
+                <button class="btn ghost btn-inline" type="button" id="txAddTypedCategoryBtn">Adicionar</button>
+              </div>
+              <input type="hidden" id="txCategoryId">
+              <datalist id="txCategoryOptions"></datalist>
+              <small class="input-hint">Se nao existir, clique em Adicionar para criar nova categoria.</small>
+            </label>
+            <label>Despesa
+              <select id="txExpenseProfile">
+                <option value="">Nao se aplica</option>
+                <option value="fixed">Fixa</option>
+                <option value="variable">Variavel</option>
+              </select>
+            </label>
+            <label>Ministerio
+              <select id="txMinistry">
+                <option value="">Nao se aplica</option>
+              </select>
+            </label>
+            <label>Banco
+              <select id="txBankName">
+                <option value="">Nao informado</option>
+              </select>
+            </label>
+            <button class="btn" type="submit">Adicionar</button>
+          </form>
+          <p id="txMessage" class="message"></p>
+          <section class="tx-filters" aria-label="Filtros de lancamentos">
+            <div class="tx-filters-grid">
+              <label>Buscar
+                <input type="text" id="txFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+              </label>
+              <label>Data inicial
+                <input type="date" id="txFilterStartDate">
+              </label>
+              <label>Data final
+                <input type="date" id="txFilterEndDate">
+              </label>
+              <label>Tipo
+                <select id="txFilterType">
+                  <option value="">Todos</option>
+                  <option value="income">Entrada</option>
+                  <option value="expense">Saida</option>
+                </select>
+              </label>
+              <label>Categoria
+                <select id="txFilterCategory">
+                  <option value="">Todas</option>
+                </select>
+              </label>
+              <label>Ministerio
+                <select id="txFilterMinistry">
+                  <option value="">Todos</option>
+                </select>
+              </label>
+              <label>Anexo
+                <select id="txFilterAttachment">
+                  <option value="">Todos</option>
+                  <option value="with">Com anexo</option>
+                  <option value="without">Sem anexo</option>
+                </select>
+              </label>
+              <label>Ordenar
+                <select id="txFilterSort">
+                  <option value="date_desc">Data (mais recente)</option>
+                  <option value="date_asc">Data (mais antiga)</option>
+                  <option value="amount_desc">Valor (maior)</option>
+                  <option value="amount_asc">Valor (menor)</option>
+                </select>
+              </label>
+            </div>
+            <div class="tx-filters-footer">
+              <div id="txFilterChips" class="filter-chips"></div>
+              <div class="tx-filter-actions">
+                <span id="txFilterResultCount" class="tx-result-count"></span>
+                <button id="txFilterResetBtn" class="btn ghost btn-mini" type="button">Limpar filtros</button>
+              </div>
+            </div>
+          </section>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th><button class="th-sort-btn" id="txHeaderDateSort" data-sort-base="date" type="button">Data</button></th>
+                  <th>Descricao</th>
+                  <th>Tipo</th>
+                  <th>Banco</th>
+                  <th>Categoria</th>
+                  <th>Ministerio</th>
+                  <th>Despesa</th>
+                  <th><button class="th-sort-btn" id="txHeaderAmountSort" data-sort-base="amount" type="button">Valor</button></th>
+                  <th>Anexo</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody"></tbody>
+            </table>
+          </div>
+          <div class="tx-pagination" aria-label="Paginacao de lancamentos">
+            <span class="tx-shortcuts-hint">Atalhos: / buscar | N novo lancamento | L limpar filtros | Esc limpar busca</span>
+            <div class="tx-pagination-actions">
+              <label class="tx-page-size-label">Itens
+                <select id="txPageSize">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button id="txPagePrevBtn" class="btn ghost btn-mini" type="button">Anterior</button>
+              <span id="txPageInfo" class="tx-result-count"></span>
+              <button id="txPageNextBtn" class="btn ghost btn-mini" type="button">Proxima</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="categoriesView">
+          <h3>Gestao de Categorias</h3>
+          <form id="categoryForm" class="grid-form">
+            <label>Nome
+              <input type="text" id="categoryName" placeholder="Ex: Aluguel, Dizimos" required>
+            </label>
+            <label>Tipo
+              <select id="categoryType" required>
+                <option value="expense">Despesa</option>
+                <option value="income">Receita</option>
+                <option value="both">Ambos</option>
+              </select>
+            </label>
+            <label>Descricao
+              <input type="text" id="categoryDescription" placeholder="Descricao opcional">
+            </label>
+            <div class="category-form-actions">
+              <button class="btn" type="submit" id="categorySaveBtn">Salvar categoria</button>
+              <button class="btn ghost" type="button" id="categoryCancelEditBtn">Limpar</button>
+            </div>
+          </form>
+          <p id="categoryMessage" class="message"></p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Descricao</th>
+                  <th>Sistema</th>
+                  <th>Ativa</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="categoryTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="ministriesView">
+          <h3>Gestao de Ministerios</h3>
+          <form id="ministryForm" class="grid-form">
+            <label>Nome
+              <input type="text" id="ministryName" placeholder="Ex: Louvor, Jovens, Infantil" required>
+            </label>
+            <label>Descricao
+              <input type="text" id="ministryDescription" placeholder="Descricao opcional">
+            </label>
+            <div class="category-form-actions">
+              <button class="btn" type="submit" id="ministrySaveBtn">Salvar ministerio</button>
+              <button class="btn ghost" type="button" id="ministryCancelEditBtn">Limpar</button>
+            </div>
+          </form>
+          <p id="ministryMessage" class="message"></p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Descricao</th>
+                  <th>Ativo</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="ministryTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="uploadView">
+          <h3>Upload de Relatorios/Extratos</h3>
+          <form id="uploadForm" class="stack">
+            <label>Arquivo (csv, ofx, pdf)
+              <input type="file" id="fileInput" accept=".csv,.ofx,.pdf" required>
+            </label>
+            <button class="btn" type="submit">Enviar arquivo</button>
+          </form>
+          <p id="uploadMessage" class="message"></p>
+        </section>
+
+        <section class="panel view hide" id="reportsView">
+          <div class="section-title">
+            <h3>Relatorios</h3>
+            <label>Ano
+              <input type="number" id="reportYear" min="2000" max="2100">
+            </label>
+          </div>
+          <div class="reports-grid">
+            <div class="report-card">
+              <h4>Por Categoria</h4>
+              <ul id="categoryReport"></ul>
+            </div>
+            <div class="report-card">
+              <h4>Mensal</h4>
+              <ul id="monthlyReport"></ul>
+            </div>
+          </div>
+          <p id="reportMessage" class="message"></p>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="uploadResultModal" class="modal-overlay hide">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Resultado do Upload</h3>
+        <button id="modalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalDuplicatesList" class="modal-duplicates-list hide"></div>
+      <div class="modal-actions">
+        <button id="modalKeepBothBtn" class="btn" type="button">Manter ambas duplicadas</button>
+        <button id="modalDiscardBtn" class="btn ghost" type="button">Desconsiderar duplicadas</button>
+        <button id="modalChooseOneBtn" class="btn ghost" type="button">Escolher uma por uma</button>
+        <button id="modalApplySelectionBtn" class="btn hide" type="button">Aplicar selecao</button>
+        <button id="modalOkBtn" class="btn" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editTransactionModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Editar Lancamento</h3>
+        <button id="editModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="editTransactionForm" class="grid-form modal-edit-form">
+        <label>Descricao
+          <input type="text" id="editTxDescription" required>
+        </label>
+        <label>Valor
+          <input type="number" id="editTxAmount" min="0" step="0.01" required>
+        </label>
+        <label>Tipo
+          <select id="editTxType" required>
+            <option value="income">Entrada</option>
+            <option value="expense">Saida</option>
+          </select>
+        </label>
+        <label>Data
+          <input type="date" id="editTxDate" required>
+        </label>
+        <label>Categoria
+          <select id="editTxCategory"></select>
+        </label>
+        <label>Despesa
+          <select id="editTxExpenseProfile">
+            <option value="">Nao se aplica</option>
+            <option value="fixed">Fixa</option>
+            <option value="variable">Variavel</option>
+          </select>
+        </label>
+        <label>Ministerio
+          <select id="editTxMinistry">
+            <option value="">Nao se aplica</option>
+          </select>
+        </label>
+        <label>Banco
+          <select id="editTxBankName">
+            <option value="">Nao informado</option>
+          </select>
+        </label>
+        <div class="attachment-block">
+          <p class="attachment-title">Anexos (Nota Fiscal / PDF)</p>
+          <div class="inline-field-group">
+            <input type="file" id="editTxAttachmentFile" accept="application/pdf,image/*">
+            <button class="btn ghost btn-inline" type="button" id="editTxUploadAttachmentBtn">Anexar</button>
+          </div>
+          <small class="input-hint">Os arquivos sao comprimidos para economizar espaco e podem ser baixados depois.</small>
+          <ul id="editTxAttachmentsList" class="attachment-list"></ul>
+        </div>
+        <div class="modal-actions edit-form-actions">
+          <button id="editModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+          <button class="btn" type="submit">Salvar alteracoes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="deleteCategoryModal" class="modal-overlay hide">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Confirmar exclusao</h3>
+        <button id="deleteCategoryCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteCategoryText">Tem certeza que deseja excluir esta categoria?</p>
+        <p>Esta acao nao pode ser desfeita.</p>
+      </div>
+      <div class="modal-actions">
+        <button id="deleteCategoryCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="deleteCategoryConfirmBtn" class="btn" type="button">Excluir categoria</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="attachmentPreviewModal" class="modal-overlay hide">
+    <div class="modal-card attachment-preview-card">
+      <div class="modal-header">
+        <h3 id="attachmentPreviewTitle">Visualizar anexo</h3>
+        <button id="attachmentPreviewCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <div class="attachment-preview-body">
+        <img id="attachmentPreviewImage" class="attachment-preview-image hide" alt="Preview de anexo">
+        <iframe id="attachmentPreviewPdf" class="attachment-preview-pdf hide" title="Preview PDF"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

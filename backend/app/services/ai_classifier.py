@@ -26,6 +26,18 @@ KEYWORD_MAP: dict[str, list[str]] = {
     ],
 }
 
+INCOME_HINTS = [
+    "rem:", "receb", "credito", "crédito", "pix recebido", "deposito", "depósito",
+    "oferta", "dizimo", "dízimo", "doacao", "doação", "contribuicao", "contribuição",
+    "transferencia recebida", "transferência recebida",
+]
+
+EXPENSE_HINTS = [
+    "des:", "pagto", "pagamento", "tarifa", "debito", "débito", "boleto",
+    "conta", "manutencao", "manutenção", "compra", "saque", "pix enviado",
+    "transferencia enviada", "transferência enviada",
+]
+
 
 def classify_transaction(
     description: str,
@@ -55,3 +67,33 @@ def classify_transaction(
                 break
 
     return best_category, best_score
+
+
+def infer_transaction_type(
+    description: str,
+    parsed_amount: float | None = None,
+) -> tuple[str, float]:
+    """Infer transaction type as (income|expense, confidence).
+
+    Priority:
+    1. Description hints (REM:/DES:/keywords)
+    2. Parsed amount sign fallback
+    3. Conservative default (expense)
+    """
+    lower_desc = (description or "").lower()
+
+    for hint in INCOME_HINTS:
+        if hint in lower_desc:
+            return "income", 0.9
+
+    for hint in EXPENSE_HINTS:
+        if hint in lower_desc:
+            return "expense", 0.9
+
+    if parsed_amount is not None:
+        if parsed_amount > 0:
+            return "income", 0.65
+        if parsed_amount < 0:
+            return "expense", 0.65
+
+    return "expense", 0.5

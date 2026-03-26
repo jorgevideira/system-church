@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # File uploads
     UPLOAD_DIR: str = "uploads"
+    ATTACHMENT_DIR: str = "uploads/transaction_attachments"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB
 
     # CORS

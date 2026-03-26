@@ -1,12 +1,39 @@
 """Initial setup: create default admin user and system categories."""
 
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.core.constants import DEFAULT_CATEGORIES
 from app.core.security import get_password_hash
+from app.db.base import Base
 from app.db.models.category import Category
 from app.db.models.user import User
+from app.db.session import engine
 from app.utils.logger import logger
+
+
+def ensure_runtime_schema_updates() -> None:
+    """Apply small forward-compatible schema updates for existing databases."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "transactions" not in tables:
+        return
+
+    transaction_columns = {col["name"] for col in inspector.get_columns("transactions")}
+    if "source_bank_name" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN source_bank_name VARCHAR(120)"))
+        logger.info("Schema update applied: transactions.source_bank_name added.")
+
+    if "expense_profile" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN expense_profile VARCHAR(20)"))
+        logger.info("Schema update applied: transactions.expense_profile added.")
+
+    if "ministry_id" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN ministry_id INTEGER"))
+        logger.info("Schema update applied: transactions.ministry_id added.")
 
 
 def create_default_admin(db: Session) -> None:
@@ -46,6 +73,8 @@ def create_default_categories(db: Session) -> None:
 
 
 def setup(db: Session) -> None:
+    Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema_updates()
     create_default_admin(db)
     create_default_categories(db)
 

@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1 import api_router
+from app.initial_setup import setup
+from app.db.session import SessionLocal
 from app.middleware.error_handler import add_exception_handlers
 
 app = FastAPI(
@@ -21,6 +23,15 @@ app.add_middleware(
 add_exception_handlers(app)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+@app.on_event("startup")
+def startup_init() -> None:
+    db = SessionLocal()
+    try:
+        setup(db)
+    finally:
+        db.close()
 
 
 @app.get("/health")

@@ -61,7 +61,17 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
 ) -> TransactionResponse:
-    return transaction_service.create_transaction(db, transaction_in, user_id=current_user.id)
+    tx = transaction_service.create_transaction(db, transaction_in, user_id=current_user.id)
+    from app.services.ai_learning_service import record_feedback
+
+    record_feedback(
+        db,
+        user_id=current_user.id,
+        description=tx.description,
+        category_id=tx.category_id,
+        transaction_type=tx.transaction_type,
+    )
+    return tx
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
@@ -86,6 +96,15 @@ def update_transaction(
     tx = transaction_service.update_transaction(db, transaction_id, transaction_in, user_id=current_user.id)
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    from app.services.ai_learning_service import record_feedback
+
+    record_feedback(
+        db,
+        user_id=current_user.id,
+        description=tx.description,
+        category_id=tx.category_id,
+        transaction_type=tx.transaction_type,
+    )
     return tx
 
 

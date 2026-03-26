@@ -1,0 +1,2459 @@
+const API_PREFIX = "/api/v1";
+const TX_FILTERS_STORAGE_KEY = "txFiltersV1";
+const TX_PAGINATION_STORAGE_KEY = "txPaginationV1";
+const DASH_BUDGETS_STORAGE_KEY = "dashBudgetsV1";
+
+const state = {
+  accessToken: localStorage.getItem("accessToken") || "",
+  refreshToken: localStorage.getItem("refreshToken") || "",
+  categories: [],
+  ministries: [],
+  transactionsRaw: [],
+  txFilters: {
+    search: "",
+    startDate: "",
+    endDate: "",
+    type: "",
+    categoryId: "",
+    ministryId: "",
+    attachment: "",
+    sort: "date_desc",
+  },
+  dashboardFilters: {
+    startDate: "",
+    endDate: "",
+    type: "",
+    categoryId: "",
+    ministryId: "",
+    bank: "",
+  },
+  budgetTargets: [],
+  txPagination: {
+    page: 1,
+    pageSize: 25,
+  },
+  editingTransactionId: null,
+  editingCategoryId: null,
+  editingMinistryId: null,
+  deletingCategoryId: null,
+  deletingCategoryName: "",
+  previewAttachmentUrl: "",
+};
+
+const el = {
+  loginScreen: document.getElementById("loginScreen"),
+  appShell: document.getElementById("appShell"),
+  dashboardView: document.getElementById("dashboardView"),
+  transactionsView: document.getElementById("transactionsView"),
+  categoriesView: document.getElementById("categoriesView"),
+  ministriesView: document.getElementById("ministriesView"),
+  uploadView: document.getElementById("uploadView"),
+  reportsView: document.getElementById("reportsView"),
+  navButtons: document.querySelectorAll(".nav-btn"),
+  sessionUser: document.getElementById("sessionUser"),
+  authMessage: document.getElementById("authMessage"),
+  dashboardMessage: document.getElementById("dashboardMessage"),
+  txMessage: document.getElementById("txMessage"),
+  categoryMessage: document.getElementById("categoryMessage"),
+  ministryMessage: document.getElementById("ministryMessage"),
+  uploadMessage: document.getElementById("uploadMessage"),
+  reportMessage: document.getElementById("reportMessage"),
+  loginForm: document.getElementById("loginForm"),
+  logoutBtn: document.getElementById("logoutBtn"),
+  refreshBtn: document.getElementById("refreshBtn"),
+  dashStartDate: document.getElementById("dashStartDate"),
+  dashEndDate: document.getElementById("dashEndDate"),
+  dashTypeFilter: document.getElementById("dashTypeFilter"),
+  dashCategoryFilter: document.getElementById("dashCategoryFilter"),
+  dashMinistryFilter: document.getElementById("dashMinistryFilter"),
+  dashBankFilter: document.getElementById("dashBankFilter"),
+  dashBudgetForm: document.getElementById("dashBudgetForm"),
+  dashBudgetType: document.getElementById("dashBudgetType"),
+  dashBudgetRef: document.getElementById("dashBudgetRef"),
+  dashBudgetAmount: document.getElementById("dashBudgetAmount"),
+  dashBudgetMessage: document.getElementById("dashBudgetMessage"),
+  dashBudgetList: document.getElementById("dashBudgetList"),
+  dashAlertsList: document.getElementById("dashAlertsList"),
+  dashResetFiltersBtn: document.getElementById("dashResetFiltersBtn"),
+  dashResultCount: document.getElementById("dashResultCount"),
+  dashIncomeBar: document.getElementById("dashIncomeBar"),
+  dashExpenseBar: document.getElementById("dashExpenseBar"),
+  dashIncomePercent: document.getElementById("dashIncomePercent"),
+  dashExpensePercent: document.getElementById("dashExpensePercent"),
+  dashEfficiencyNote: document.getElementById("dashEfficiencyNote"),
+  dashTopCategories: document.getElementById("dashTopCategories"),
+  dashLineMetric: document.getElementById("dashLineMetric"),
+  dashTopMinistries: document.getElementById("dashTopMinistries"),
+  dashLineChart: document.getElementById("dashLineChart"),
+  dashLineTooltip: document.getElementById("dashLineTooltip"),
+  dashExpensePie: document.getElementById("dashExpensePie"),
+  dashExpensePieCenter: document.getElementById("dashExpensePieCenter"),
+  dashExpensePieLegend: document.getElementById("dashExpensePieLegend"),
+  dashPieTooltip: document.getElementById("dashPieTooltip"),
+  dashMonthlyTrend: document.getElementById("dashMonthlyTrend"),
+  dashMonthlyBars: document.getElementById("dashMonthlyBars"),
+  dashProjectedIncome: document.getElementById("dashProjectedIncome"),
+  dashProjectedExpense: document.getElementById("dashProjectedExpense"),
+  dashProjectedBalance: document.getElementById("dashProjectedBalance"),
+  dashProjectionNote: document.getElementById("dashProjectionNote"),
+  dashSixMonthComparison: document.getElementById("dashSixMonthComparison"),
+  transactionForm: document.getElementById("transactionForm"),
+  uploadForm: document.getElementById("uploadForm"),
+  txTableBody: document.getElementById("txTableBody"),
+  txDescription: document.getElementById("txDescription"),
+  txFilterSearch: document.getElementById("txFilterSearch"),
+  txFilterStartDate: document.getElementById("txFilterStartDate"),
+  txFilterEndDate: document.getElementById("txFilterEndDate"),
+  txFilterType: document.getElementById("txFilterType"),
+  txFilterCategory: document.getElementById("txFilterCategory"),
+  txFilterMinistry: document.getElementById("txFilterMinistry"),
+  txFilterAttachment: document.getElementById("txFilterAttachment"),
+  txFilterSort: document.getElementById("txFilterSort"),
+  txFilterResetBtn: document.getElementById("txFilterResetBtn"),
+  txFilterChips: document.getElementById("txFilterChips"),
+  txFilterResultCount: document.getElementById("txFilterResultCount"),
+  txPageSize: document.getElementById("txPageSize"),
+  txPagePrevBtn: document.getElementById("txPagePrevBtn"),
+  txPageInfo: document.getElementById("txPageInfo"),
+  txPageNextBtn: document.getElementById("txPageNextBtn"),
+  txHeaderDateSort: document.getElementById("txHeaderDateSort"),
+  txHeaderAmountSort: document.getElementById("txHeaderAmountSort"),
+  txType: document.getElementById("txType"),
+  txBankName: document.getElementById("txBankName"),
+  txCategoryInput: document.getElementById("txCategoryInput"),
+  txCategoryId: document.getElementById("txCategoryId"),
+  txCategoryOptions: document.getElementById("txCategoryOptions"),
+  txAddTypedCategoryBtn: document.getElementById("txAddTypedCategoryBtn"),
+  txExpenseProfile: document.getElementById("txExpenseProfile"),
+  txMinistry: document.getElementById("txMinistry"),
+  categoryForm: document.getElementById("categoryForm"),
+  categoryName: document.getElementById("categoryName"),
+  categoryType: document.getElementById("categoryType"),
+  categoryDescription: document.getElementById("categoryDescription"),
+  categoryCancelEditBtn: document.getElementById("categoryCancelEditBtn"),
+  categoryTableBody: document.getElementById("categoryTableBody"),
+  ministryForm: document.getElementById("ministryForm"),
+  ministryName: document.getElementById("ministryName"),
+  ministryDescription: document.getElementById("ministryDescription"),
+  ministryCancelEditBtn: document.getElementById("ministryCancelEditBtn"),
+  ministryTableBody: document.getElementById("ministryTableBody"),
+  deleteCategoryModal: document.getElementById("deleteCategoryModal"),
+  deleteCategoryText: document.getElementById("deleteCategoryText"),
+  deleteCategoryCloseBtn: document.getElementById("deleteCategoryCloseBtn"),
+  deleteCategoryCancelBtn: document.getElementById("deleteCategoryCancelBtn"),
+  deleteCategoryConfirmBtn: document.getElementById("deleteCategoryConfirmBtn"),
+  categoryReport: document.getElementById("categoryReport"),
+  monthlyReport: document.getElementById("monthlyReport"),
+  reportYear: document.getElementById("reportYear"),
+  kpiIncome: document.getElementById("kpiIncome"),
+  kpiExpense: document.getElementById("kpiExpense"),
+  kpiBalance: document.getElementById("kpiBalance"),
+  uploadResultModal: document.getElementById("uploadResultModal"),
+  modalTitle: document.getElementById("modalTitle"),
+  modalBody: document.getElementById("modalBody"),
+  modalDuplicatesList: document.getElementById("modalDuplicatesList"),
+  modalKeepBothBtn: document.getElementById("modalKeepBothBtn"),
+  modalDiscardBtn: document.getElementById("modalDiscardBtn"),
+  modalChooseOneBtn: document.getElementById("modalChooseOneBtn"),
+  modalApplySelectionBtn: document.getElementById("modalApplySelectionBtn"),
+  modalCloseBtn: document.getElementById("modalCloseBtn"),
+  modalOkBtn: document.getElementById("modalOkBtn"),
+  editTransactionModal: document.getElementById("editTransactionModal"),
+  editTransactionForm: document.getElementById("editTransactionForm"),
+  editModalCloseBtn: document.getElementById("editModalCloseBtn"),
+  editModalCancelBtn: document.getElementById("editModalCancelBtn"),
+  editTxDescription: document.getElementById("editTxDescription"),
+  editTxAmount: document.getElementById("editTxAmount"),
+  editTxType: document.getElementById("editTxType"),
+  editTxDate: document.getElementById("editTxDate"),
+  editTxCategory: document.getElementById("editTxCategory"),
+  editTxExpenseProfile: document.getElementById("editTxExpenseProfile"),
+  editTxMinistry: document.getElementById("editTxMinistry"),
+  editTxBankName: document.getElementById("editTxBankName"),
+  editTxAttachmentFile: document.getElementById("editTxAttachmentFile"),
+  editTxUploadAttachmentBtn: document.getElementById("editTxUploadAttachmentBtn"),
+  editTxAttachmentsList: document.getElementById("editTxAttachmentsList"),
+  attachmentPreviewModal: document.getElementById("attachmentPreviewModal"),
+  attachmentPreviewTitle: document.getElementById("attachmentPreviewTitle"),
+  attachmentPreviewCloseBtn: document.getElementById("attachmentPreviewCloseBtn"),
+  attachmentPreviewImage: document.getElementById("attachmentPreviewImage"),
+  attachmentPreviewPdf: document.getElementById("attachmentPreviewPdf"),
+};
+
+function brl(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+}
+
+function toInputAmount(value) {
+  return Number(value || 0).toFixed(2);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function debounce(fn, wait = 300) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), wait);
+  };
+}
+
+function errorDetailToText(detail, fallback = "Erro inesperado") {
+  if (detail == null) {
+    return fallback;
+  }
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object") {
+          const loc = Array.isArray(item.loc) ? item.loc.join(".") : "campo";
+          const msg = item.msg || JSON.stringify(item);
+          return `${loc}: ${msg}`;
+        }
+        return String(item);
+      })
+      .join("; ");
+  }
+  if (typeof detail === "object") {
+    if (typeof detail.msg === "string") {
+      return detail.msg;
+    }
+    return JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
+function clearAttachmentPreview() {
+  if (state.previewAttachmentUrl) {
+    URL.revokeObjectURL(state.previewAttachmentUrl);
+    state.previewAttachmentUrl = "";
+  }
+  el.attachmentPreviewImage.src = "";
+  el.attachmentPreviewPdf.src = "";
+  el.attachmentPreviewImage.classList.add("hide");
+  el.attachmentPreviewPdf.classList.add("hide");
+}
+
+function closeAttachmentPreviewModal() {
+  clearAttachmentPreview();
+  el.attachmentPreviewModal.classList.add("hide");
+}
+
+async function previewTransactionAttachment(transactionId, attachment) {
+  const headers = new Headers();
+  if (state.accessToken) {
+    headers.set("Authorization", `Bearer ${state.accessToken}`);
+  }
+
+  const response = await fetch(
+    `${API_PREFIX}/transactions/${transactionId}/attachments/${attachment.id}/download`,
+    { method: "GET", headers },
+  );
+  if (!response.ok) {
+    throw new Error("Falha ao carregar preview do anexo.");
+  }
+
+  const blob = await response.blob();
+  clearAttachmentPreview();
+  state.previewAttachmentUrl = URL.createObjectURL(blob);
+  el.attachmentPreviewTitle.textContent = attachment.original_filename;
+
+  if ((attachment.mime_type || "").startsWith("image/")) {
+    el.attachmentPreviewImage.src = state.previewAttachmentUrl;
+    el.attachmentPreviewImage.classList.remove("hide");
+  } else if (attachment.mime_type === "application/pdf") {
+    el.attachmentPreviewPdf.src = state.previewAttachmentUrl;
+    el.attachmentPreviewPdf.classList.remove("hide");
+  } else {
+    throw new Error("Preview nao suportado para este tipo de arquivo.");
+  }
+
+  el.attachmentPreviewModal.classList.remove("hide");
+}
+
+function setMessage(node, text, isError = false) {
+  node.textContent = text;
+  node.style.color = isError ? "#b42318" : "#5f6b6d";
+}
+
+function showApp(isAuthed) {
+  el.loginScreen.classList.toggle("hide", isAuthed);
+  el.appShell.classList.toggle("hide", !isAuthed);
+}
+
+function setActiveView(viewId) {
+  const views = [el.dashboardView, el.transactionsView, el.categoriesView, el.ministriesView, el.uploadView, el.reportsView];
+  for (const view of views) {
+    view.classList.toggle("hide", view.id !== viewId);
+  }
+  for (const btn of el.navButtons) {
+    btn.classList.toggle("active", btn.dataset.view === viewId);
+  }
+}
+
+function setTransactionSort(sortValue) {
+  state.txFilters.sort = sortValue;
+  el.txFilterSort.value = sortValue;
+  state.txPagination.page = 1;
+  saveTransactionFilterState();
+}
+
+function toggleTransactionSort(base) {
+  const current = state.txFilters.sort;
+  if (base === "date") {
+    setTransactionSort(current === "date_desc" ? "date_asc" : "date_desc");
+  } else if (base === "amount") {
+    setTransactionSort(current === "amount_desc" ? "amount_asc" : "amount_desc");
+  }
+  renderTransactions();
+}
+
+function updateTransactionSortHeaderLabels() {
+  el.txHeaderDateSort.textContent = "Data";
+  el.txHeaderAmountSort.textContent = "Valor";
+  if (state.txFilters.sort === "date_desc") {
+    el.txHeaderDateSort.textContent = "Data ↓";
+  }
+  if (state.txFilters.sort === "date_asc") {
+    el.txHeaderDateSort.textContent = "Data ↑";
+  }
+  if (state.txFilters.sort === "amount_desc") {
+    el.txHeaderAmountSort.textContent = "Valor ↓";
+  }
+  if (state.txFilters.sort === "amount_asc") {
+    el.txHeaderAmountSort.textContent = "Valor ↑";
+  }
+}
+
+function populateTransactionFilterOptions() {
+  const selectedCategory = state.txFilters.categoryId;
+  const selectedMinistry = state.txFilters.ministryId;
+
+  el.txFilterCategory.innerHTML = "<option value=''>Todas</option>";
+  for (const cat of [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(cat.id);
+    option.textContent = cat.name;
+    el.txFilterCategory.appendChild(option);
+  }
+
+  el.txFilterMinistry.innerHTML = "<option value=''>Todos</option>";
+  for (const ministry of [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(ministry.id);
+    option.textContent = ministry.name;
+    el.txFilterMinistry.appendChild(option);
+  }
+
+  el.txFilterCategory.value = selectedCategory || "";
+  el.txFilterMinistry.value = selectedMinistry || "";
+}
+
+function saveTransactionFilterState() {
+  localStorage.setItem(TX_FILTERS_STORAGE_KEY, JSON.stringify(state.txFilters));
+  localStorage.setItem(TX_PAGINATION_STORAGE_KEY, JSON.stringify(state.txPagination));
+}
+
+function loadTransactionFilterState() {
+  try {
+    const rawFilters = localStorage.getItem(TX_FILTERS_STORAGE_KEY);
+    if (rawFilters) {
+      const parsed = JSON.parse(rawFilters);
+      state.txFilters = {
+        ...state.txFilters,
+        ...parsed,
+      };
+    }
+
+    const rawPagination = localStorage.getItem(TX_PAGINATION_STORAGE_KEY);
+    if (rawPagination) {
+      const parsedPagination = JSON.parse(rawPagination);
+      state.txPagination = {
+        ...state.txPagination,
+        ...parsedPagination,
+      };
+    }
+  } catch {
+    // Ignore malformed storage and keep defaults.
+  }
+
+  el.txFilterSearch.value = state.txFilters.search;
+  el.txFilterStartDate.value = state.txFilters.startDate;
+  el.txFilterEndDate.value = state.txFilters.endDate;
+  el.txFilterType.value = state.txFilters.type;
+  el.txFilterAttachment.value = state.txFilters.attachment;
+  el.txFilterSort.value = state.txFilters.sort;
+  el.txPageSize.value = String(state.txPagination.pageSize || 25);
+}
+
+function loadBudgetTargets() {
+  try {
+    const raw = localStorage.getItem(DASH_BUDGETS_STORAGE_KEY);
+    state.budgetTargets = raw ? JSON.parse(raw) : [];
+  } catch {
+    state.budgetTargets = [];
+  }
+}
+
+function saveBudgetTargets() {
+  localStorage.setItem(DASH_BUDGETS_STORAGE_KEY, JSON.stringify(state.budgetTargets));
+}
+
+function populateDashboardFilterOptions() {
+  const selectedCategory = state.dashboardFilters.categoryId;
+  const selectedMinistry = state.dashboardFilters.ministryId;
+
+  el.dashCategoryFilter.innerHTML = "<option value=''>Todas</option>";
+  for (const cat of [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(cat.id);
+    option.textContent = cat.name;
+    el.dashCategoryFilter.appendChild(option);
+  }
+
+  el.dashMinistryFilter.innerHTML = "<option value=''>Todos</option>";
+  for (const ministry of [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(ministry.id);
+    option.textContent = ministry.name;
+    el.dashMinistryFilter.appendChild(option);
+  }
+
+  el.dashCategoryFilter.value = selectedCategory || "";
+  el.dashMinistryFilter.value = selectedMinistry || "";
+}
+
+function ensureSelectHasOption(selectNode, value) {
+  if (!value) {
+    return;
+  }
+  const exists = Array.from(selectNode.options).some((opt) => opt.value === value);
+  if (!exists) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    selectNode.appendChild(option);
+  }
+}
+
+function populateBankDropdowns() {
+  const selectedTx = el.txBankName.value;
+  const selectedEdit = el.editTxBankName.value;
+  const selectedDash = state.dashboardFilters.bank || el.dashBankFilter.value;
+  const banks = new Set();
+
+  for (const tx of state.transactionsRaw) {
+    const bank = String(tx.source_bank || tx.source_bank_name || "").trim();
+    if (bank) {
+      banks.add(bank);
+    }
+  }
+
+  el.txBankName.innerHTML = "<option value=''>Nao informado</option>";
+  el.editTxBankName.innerHTML = "<option value=''>Nao informado</option>";
+  el.dashBankFilter.innerHTML = "<option value=''>Todos</option>";
+
+  for (const bank of [...banks].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+    const optionTx = document.createElement("option");
+    optionTx.value = bank;
+    optionTx.textContent = bank;
+    el.txBankName.appendChild(optionTx);
+
+    const optionEdit = document.createElement("option");
+    optionEdit.value = bank;
+    optionEdit.textContent = bank;
+    el.editTxBankName.appendChild(optionEdit);
+
+    const optionDash = document.createElement("option");
+    optionDash.value = bank;
+    optionDash.textContent = bank;
+    el.dashBankFilter.appendChild(optionDash);
+  }
+
+  ensureSelectHasOption(el.txBankName, selectedTx);
+  ensureSelectHasOption(el.editTxBankName, selectedEdit);
+  ensureSelectHasOption(el.dashBankFilter, selectedDash);
+
+  el.txBankName.value = selectedTx || "";
+  el.editTxBankName.value = selectedEdit || "";
+  el.dashBankFilter.value = selectedDash || "";
+}
+
+function populateBudgetReferenceOptions() {
+  const currentRef = el.dashBudgetRef.value;
+  const type = el.dashBudgetType.value;
+  const source = type === "ministry" ? state.ministries : state.categories;
+
+  el.dashBudgetRef.innerHTML = "";
+  for (const item of [...source].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    if (type === "category" && item.type === "income") {
+      continue;
+    }
+    const option = document.createElement("option");
+    option.value = String(item.id);
+    option.textContent = item.name;
+    el.dashBudgetRef.appendChild(option);
+  }
+
+  if (currentRef) {
+    el.dashBudgetRef.value = currentRef;
+  }
+}
+
+function syncDashboardFiltersFromUi() {
+  state.dashboardFilters.startDate = el.dashStartDate.value;
+  state.dashboardFilters.endDate = el.dashEndDate.value;
+  state.dashboardFilters.type = el.dashTypeFilter.value;
+  state.dashboardFilters.categoryId = el.dashCategoryFilter.value;
+  state.dashboardFilters.ministryId = el.dashMinistryFilter.value;
+  state.dashboardFilters.bank = el.dashBankFilter.value;
+}
+
+function resetDashboardFilters() {
+  state.dashboardFilters = {
+    startDate: "",
+    endDate: "",
+    type: "",
+    categoryId: "",
+    ministryId: "",
+    bank: "",
+  };
+
+  el.dashStartDate.value = "";
+  el.dashEndDate.value = "";
+  el.dashTypeFilter.value = "";
+  el.dashCategoryFilter.value = "";
+  el.dashMinistryFilter.value = "";
+  el.dashBankFilter.value = "";
+  renderDashboard();
+}
+
+function getDashboardFilteredTransactions() {
+  const f = state.dashboardFilters;
+  const bankSearch = normalizeText(f.bank);
+
+  return state.transactionsRaw.filter((tx) => {
+    if (f.startDate && tx.transaction_date < f.startDate) return false;
+    if (f.endDate && tx.transaction_date > f.endDate) return false;
+    if (f.type && tx.transaction_type !== f.type) return false;
+    if (f.categoryId && String(tx.category_id || "") !== String(f.categoryId)) return false;
+    if (f.ministryId && String(tx.ministry_id || "") !== String(f.ministryId)) return false;
+    if (bankSearch && normalizeText(tx.source_bank || tx.source_bank_name || "") !== bankSearch) return false;
+    return true;
+  });
+}
+
+function renderTopList(targetNode, rows, emptyMessage, labelBuilder) {
+  targetNode.innerHTML = "";
+  for (const row of rows) {
+    const li = document.createElement("li");
+    li.textContent = labelBuilder(row);
+    targetNode.appendChild(li);
+  }
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.textContent = emptyMessage;
+    targetNode.appendChild(li);
+  }
+}
+
+function renderMonthlyBars(trendRows) {
+  el.dashMonthlyBars.innerHTML = "";
+  if (!trendRows.length) {
+    const empty = document.createElement("div");
+    empty.className = "month-bar-label";
+    empty.textContent = "Sem dados mensais para exibir grafico.";
+    el.dashMonthlyBars.appendChild(empty);
+    return;
+  }
+
+  const maxValue = Math.max(
+    ...trendRows.map((row) => Math.max(Number(row.income || 0), Number(row.expense || 0))),
+    1,
+  );
+
+  for (const row of trendRows) {
+    const incomeWidth = (Number(row.income || 0) / maxValue) * 100;
+    const expenseWidth = (Number(row.expense || 0) / maxValue) * 100;
+    const wrap = document.createElement("div");
+    wrap.className = "month-bar-row";
+    wrap.innerHTML = `
+      <span class="month-bar-label">${row.month.slice(5)}/${row.month.slice(2, 4)}</span>
+      <div>
+        <div class="month-bar-track" title="Entrada ${brl(row.income)}">
+          <div class="month-bar-income" style="width:${incomeWidth.toFixed(1)}%"></div>
+        </div>
+        <div class="month-bar-track" style="margin-top:4px" title="Saida ${brl(row.expense)}">
+          <div class="month-bar-expense" style="width:${expenseWidth.toFixed(1)}%"></div>
+        </div>
+      </div>
+    `;
+    el.dashMonthlyBars.appendChild(wrap);
+  }
+}
+
+function renderLineChart(trendRows) {
+  if (!trendRows.length) {
+    el.dashLineChart.innerHTML = "<div class='month-bar-label'>Sem dados para grafico de linha.</div>";
+    return;
+  }
+
+  const metric = el.dashLineMetric.value || "balance";
+  const metricLabel = metric === "income" ? "Entradas" : metric === "expense" ? "Saidas" : "Saldo";
+  const points = trendRows.map((row) => ({
+    label: row.month,
+    value:
+      metric === "income"
+        ? Number(row.income || 0)
+        : metric === "expense"
+          ? Number(row.expense || 0)
+          : Number(row.income || 0) - Number(row.expense || 0),
+  }));
+
+  const minY = Math.min(...points.map((p) => p.value), 0);
+  const maxY = Math.max(...points.map((p) => p.value), 0);
+  const range = Math.max(maxY - minY, 1);
+
+  const width = 720;
+  const height = 240;
+  const padX = 44;
+  const padY = 24;
+  const chartW = width - padX * 2;
+  const chartH = height - padY * 2;
+
+  const toX = (idx) => padX + (points.length === 1 ? chartW / 2 : (idx / (points.length - 1)) * chartW);
+  const toY = (val) => padY + chartH - ((val - minY) / range) * chartH;
+
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(p.value).toFixed(1)}`).join(" ");
+  const zeroY = toY(0).toFixed(1);
+
+  const circles = points.map((p, i) => `
+    <circle class="line-point" data-idx="${i}" cx="${toX(i).toFixed(1)}" cy="${toY(p.value).toFixed(1)}" r="5" fill="#1565c0" stroke="#fff" stroke-width="2"></circle>
+  `).join("");
+
+  const labels = points.map((p, i) => `
+    <text x="${toX(i).toFixed(1)}" y="${(height - 6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#5a6f88">${p.label.slice(5)}</text>
+  `).join("");
+
+  el.dashLineChart.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" width="100%" height="250" role="img" aria-label="Evolucao mensal do saldo">
+      <line x1="${padX}" y1="${zeroY}" x2="${width - padX}" y2="${zeroY}" stroke="#cbd9ea" stroke-dasharray="4 3"></line>
+      <path d="${path}" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      ${circles}
+      ${labels}
+    </svg>
+  `;
+
+  const pointNodes = el.dashLineChart.querySelectorAll(".line-point");
+  for (const node of pointNodes) {
+    const idx = Number(node.getAttribute("data-idx") || 0);
+    const point = points[idx];
+    node.addEventListener("mousemove", (event) => {
+      const rect = el.dashLineChart.getBoundingClientRect();
+      el.dashLineTooltip.textContent = `${point.label} | ${metricLabel}: ${brl(point.value)}`;
+      el.dashLineTooltip.style.left = `${event.clientX - rect.left + 10}px`;
+      el.dashLineTooltip.style.top = `${event.clientY - rect.top - 18}px`;
+      el.dashLineTooltip.classList.remove("hide");
+    });
+    node.addEventListener("mouseleave", () => {
+      el.dashLineTooltip.classList.add("hide");
+    });
+  }
+}
+
+function renderExpensePie(categoryTotals) {
+  const entries = [...categoryTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const total = entries.reduce((sum, [, value]) => sum + Number(value || 0), 0);
+
+  if (total <= 0) {
+    el.dashExpensePie.style.background = "conic-gradient(#dde7f5 0deg 360deg)";
+    el.dashExpensePieCenter.textContent = "Sem despesas";
+    el.dashExpensePieLegend.innerHTML = "<li>Sem despesas para compor grafico.</li>";
+    el.dashPieTooltip.classList.add("hide");
+    return;
+  }
+
+  const palette = ["#1565c0", "#0a8f72", "#f39c12", "#8e44ad", "#e74c3c"];
+  let acc = 0;
+  const segments = [];
+  const segmentData = [];
+  const legendRows = [];
+
+  entries.forEach(([name, value], index) => {
+    const pct = (Number(value || 0) / total) * 100;
+    const start = acc;
+    const end = acc + pct;
+    const color = palette[index % palette.length];
+    segments.push(`${color} ${(start * 3.6).toFixed(2)}deg ${(end * 3.6).toFixed(2)}deg`);
+    segmentData.push({ name, value: Number(value || 0), pct, startDeg: start * 3.6, endDeg: end * 3.6, color });
+    legendRows.push(`<li><span style="color:${color}">●</span> ${name}: ${pct.toFixed(1)}%</li>`);
+    acc = end;
+  });
+
+  el.dashExpensePie.style.background = `conic-gradient(${segments.join(", ")})`;
+  el.dashExpensePieCenter.textContent = `Total\n${brl(total)}`;
+  el.dashExpensePieLegend.innerHTML = legendRows.join("");
+
+  el.dashExpensePie.onmousemove = (event) => {
+    const rect = el.dashExpensePie.getBoundingClientRect();
+    const x = event.clientX - rect.left - rect.width / 2;
+    const y = event.clientY - rect.top - rect.height / 2;
+    const angle = (Math.atan2(y, x) * 180) / Math.PI;
+    const deg = (angle + 450) % 360;
+    const match = segmentData.find((seg) => deg >= seg.startDeg && deg <= seg.endDeg);
+    if (!match) {
+      el.dashPieTooltip.classList.add("hide");
+      return;
+    }
+    const wrapRect = el.dashExpensePie.parentElement.getBoundingClientRect();
+    el.dashPieTooltip.textContent = `${match.name}: ${brl(match.value)} (${match.pct.toFixed(1)}%)`;
+    el.dashPieTooltip.style.left = `${event.clientX - wrapRect.left + 12}px`;
+    el.dashPieTooltip.style.top = `${event.clientY - wrapRect.top - 18}px`;
+    el.dashPieTooltip.classList.remove("hide");
+  };
+  el.dashExpensePie.onmouseleave = () => {
+    el.dashPieTooltip.classList.add("hide");
+  };
+}
+
+function buildLastMonthKeys(monthCount = 6) {
+  const keys = [];
+  const now = new Date();
+  for (let i = monthCount - 1; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    keys.push(key);
+  }
+  return keys;
+}
+
+function formatDeltaPercent(current, previous) {
+  if (previous === 0 && current === 0) {
+    return "0.0%";
+  }
+  if (previous === 0) {
+    return "novo";
+  }
+  const delta = ((current - previous) / Math.abs(previous)) * 100;
+  return `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
+}
+
+function deltaClass(deltaText) {
+  if (deltaText === "novo") {
+    return "delta-up";
+  }
+  return deltaText.startsWith("+") ? "delta-up" : "delta-down";
+}
+
+function renderSixMonthComparison(series) {
+  el.dashSixMonthComparison.innerHTML = "";
+  if (!series.length) {
+    const li = document.createElement("li");
+    li.textContent = "Sem dados para comparar.";
+    el.dashSixMonthComparison.appendChild(li);
+    return;
+  }
+
+  for (let i = 0; i < series.length; i += 1) {
+    const current = series[i];
+    const previous = i > 0 ? series[i - 1] : null;
+    const incomeDelta = previous ? formatDeltaPercent(current.income, previous.income) : "base";
+    const expenseDelta = previous ? formatDeltaPercent(current.expense, previous.expense) : "base";
+    const balanceDelta = previous
+      ? formatDeltaPercent(current.income - current.expense, previous.income - previous.expense)
+      : "base";
+
+    const li = document.createElement("li");
+    li.className = "comparison-item";
+    li.innerHTML = `
+      <strong>${current.month}</strong>
+      <div class="comparison-metrics">
+        <span>Entrada: ${brl(current.income)} <span class="${incomeDelta === "base" ? "" : deltaClass(incomeDelta)}">(${incomeDelta})</span></span>
+        <span>Saida: ${brl(current.expense)} <span class="${expenseDelta === "base" ? "" : deltaClass(expenseDelta)}">(${expenseDelta})</span></span>
+        <span>Saldo: ${brl(current.income - current.expense)} <span class="${balanceDelta === "base" ? "" : deltaClass(balanceDelta)}">(${balanceDelta})</span></span>
+      </div>
+    `;
+    el.dashSixMonthComparison.appendChild(li);
+  }
+}
+
+function openTransactionsWithFilters(nextFilters) {
+  setActiveView("transactionsView");
+  state.txFilters = {
+    ...state.txFilters,
+    ...nextFilters,
+  };
+  state.txPagination.page = 1;
+
+  el.txFilterSearch.value = state.txFilters.search || "";
+  el.txFilterStartDate.value = state.txFilters.startDate || "";
+  el.txFilterEndDate.value = state.txFilters.endDate || "";
+  el.txFilterType.value = state.txFilters.type || "";
+  el.txFilterCategory.value = state.txFilters.categoryId || "";
+  el.txFilterMinistry.value = state.txFilters.ministryId || "";
+  el.txFilterAttachment.value = state.txFilters.attachment || "";
+  el.txFilterSort.value = state.txFilters.sort || "date_desc";
+
+  saveTransactionFilterState();
+  renderTransactions();
+}
+
+function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
+  const monthLabel = new Date().toISOString().slice(0, 7);
+  const activeBudgets = state.budgetTargets.filter((item) => item.month === monthLabel);
+  el.dashBudgetList.innerHTML = "";
+
+  for (const budget of activeBudgets) {
+    const source = budget.type === "category" ? state.categories : state.ministries;
+    const ref = source.find((item) => String(item.id) === String(budget.refId));
+    if (!ref) {
+      continue;
+    }
+
+    const spent = budget.type === "category"
+      ? Number(categoryTotals.get(ref.name) || 0)
+      : Number(ministryTotals.get(ref.name) || 0);
+    const pct = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+    const li = document.createElement("li");
+    li.className = "comparison-item";
+    li.innerHTML = `
+      <strong>${budget.type === "category" ? "Categoria" : "Ministerio"}: ${ref.name}</strong>
+      <div class="comparison-metrics">
+        <span>Meta: ${brl(budget.amount)} | Realizado: ${brl(spent)}</span>
+        <span class="${pct >= 100 ? "delta-down" : "delta-up"}">${pct.toFixed(1)}% consumido</span>
+      </div>
+    `;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "btn ghost btn-mini";
+    removeBtn.type = "button";
+    removeBtn.textContent = "Remover meta";
+    removeBtn.addEventListener("click", () => {
+      state.budgetTargets = state.budgetTargets.filter(
+        (item) => !(item.month === budget.month && item.type === budget.type && String(item.refId) === String(budget.refId)),
+      );
+      saveBudgetTargets();
+      setMessage(el.dashBudgetMessage, "Meta removida com sucesso.");
+      renderDashboard();
+    });
+    li.appendChild(removeBtn);
+    el.dashBudgetList.appendChild(li);
+  }
+
+  if (!activeBudgets.length) {
+    el.dashBudgetList.innerHTML = "<li class='comparison-item alert-low'>Nenhuma meta cadastrada para o mes atual.</li>";
+  }
+
+  const alerts = [];
+  const uncategorized = rows.filter((tx) => tx.transaction_type === "expense" && !tx.category_id).length;
+  if (uncategorized > 0) alerts.push({ level: "high", text: `${uncategorized} despesa(s) sem categoria.` });
+
+  const noMinistry = rows.filter((tx) => tx.transaction_type === "expense" && !tx.ministry_id).length;
+  if (noMinistry > 0) alerts.push({ level: "medium", text: `${noMinistry} despesa(s) sem ministerio.` });
+
+  const noAttachment = rows.filter((tx) => tx.transaction_type === "expense" && (Number(tx.attachment_count || 0) <= 0 && tx.has_attachments !== true)).length;
+  if (noAttachment > 0) alerts.push({ level: "low", text: `${noAttachment} despesa(s) sem anexo.` });
+
+  for (const budget of activeBudgets) {
+    const source = budget.type === "category" ? state.categories : state.ministries;
+    const ref = source.find((item) => String(item.id) === String(budget.refId));
+    if (!ref) {
+      continue;
+    }
+    const spent = budget.type === "category"
+      ? Number(categoryTotals.get(ref.name) || 0)
+      : Number(ministryTotals.get(ref.name) || 0);
+    if (budget.amount > 0 && spent >= budget.amount) {
+      alerts.push({ level: "high", text: `Meta estourada em ${ref.name}: ${brl(spent)} de ${brl(budget.amount)}.` });
+    } else if (budget.amount > 0 && spent >= budget.amount * 0.8) {
+      alerts.push({ level: "medium", text: `Meta em 80% em ${ref.name}: ${brl(spent)} de ${brl(budget.amount)}.` });
+    }
+  }
+
+  el.dashAlertsList.innerHTML = "";
+  if (!alerts.length) {
+    el.dashAlertsList.innerHTML = "<li class='comparison-item alert-low'>Sem alertas criticos no periodo atual.</li>";
+    return;
+  }
+
+  for (const alert of alerts) {
+    const li = document.createElement("li");
+    li.className = `comparison-item alert-${alert.level}`;
+    li.textContent = alert.text;
+    el.dashAlertsList.appendChild(li);
+  }
+}
+
+function renderDashboard() {
+  const rows = getDashboardFilteredTransactions();
+
+  let income = 0;
+  let expense = 0;
+  let fixedExpense = 0;
+  let withAttachment = 0;
+  const categoryTotals = new Map();
+  const ministryTotals = new Map();
+  const monthlyTotals = new Map();
+
+  for (const tx of rows) {
+    const amount = Number(tx.amount || 0);
+    if (tx.transaction_type === "income") {
+      income += amount;
+    } else {
+      expense += amount;
+      if (tx.expense_profile === "fixed") {
+        fixedExpense += amount;
+      }
+    }
+
+    const hasAttachment = Number(tx.attachment_count || 0) > 0 || tx.has_attachments === true;
+    if (hasAttachment) {
+      withAttachment += 1;
+    }
+
+    if (tx.transaction_type === "expense") {
+      const categoryName = tx.category?.name || "Sem categoria";
+      categoryTotals.set(categoryName, (categoryTotals.get(categoryName) || 0) + amount);
+    }
+
+    if (tx.transaction_type === "expense" && tx.ministry?.name) {
+      const ministryName = tx.ministry.name;
+      ministryTotals.set(ministryName, (ministryTotals.get(ministryName) || 0) + amount);
+    }
+
+    const monthKey = String(tx.transaction_date || "").slice(0, 7);
+    if (monthKey.length === 7) {
+      const current = monthlyTotals.get(monthKey) || { income: 0, expense: 0 };
+      if (tx.transaction_type === "income") {
+        current.income += amount;
+      } else {
+        current.expense += amount;
+      }
+      monthlyTotals.set(monthKey, current);
+    }
+  }
+
+  const balance = income - expense;
+  const volume = income + expense;
+  const incomePct = volume > 0 ? (income / volume) * 100 : 0;
+  const expensePct = volume > 0 ? (expense / volume) * 100 : 0;
+  const fixedPct = expense > 0 ? (fixedExpense / expense) * 100 : 0;
+  const attachmentPct = rows.length > 0 ? (withAttachment / rows.length) * 100 : 0;
+
+  el.kpiIncome.textContent = brl(income);
+  el.kpiExpense.textContent = brl(expense);
+  el.kpiBalance.textContent = brl(balance);
+  el.dashIncomeBar.style.width = `${incomePct.toFixed(1)}%`;
+  el.dashExpenseBar.style.width = `${expensePct.toFixed(1)}%`;
+  el.dashIncomePercent.textContent = `${incomePct.toFixed(1)}%`;
+  el.dashExpensePercent.textContent = `${expensePct.toFixed(1)}%`;
+  el.dashResultCount.textContent = `Base: ${rows.length} lancamento(s)`;
+  el.dashEfficiencyNote.textContent = `Despesas fixas: ${fixedPct.toFixed(1)}% das saidas | Com anexo: ${attachmentPct.toFixed(1)}%`;
+
+  const topCategories = [...categoryTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, total]) => ({ name, total }));
+  el.dashTopCategories.innerHTML = "";
+  for (const row of topCategories) {
+    const li = document.createElement("li");
+    const cat = state.categories.find((item) => item.name === row.name);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = `${row.name}: ${brl(row.total)}`;
+    btn.addEventListener("click", () => {
+      openTransactionsWithFilters({
+        type: "expense",
+        categoryId: cat ? String(cat.id) : "",
+      });
+    });
+    li.appendChild(btn);
+    el.dashTopCategories.appendChild(li);
+  }
+  if (!topCategories.length) {
+    el.dashTopCategories.innerHTML = "<li>Sem despesas por categoria no periodo.</li>";
+  }
+
+  const topMinistries = [...ministryTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, total]) => ({ name, total }));
+  el.dashTopMinistries.innerHTML = "";
+  for (const row of topMinistries) {
+    const li = document.createElement("li");
+    const ministry = state.ministries.find((item) => item.name === row.name);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = `${row.name}: ${brl(row.total)}`;
+    btn.addEventListener("click", () => {
+      openTransactionsWithFilters({
+        type: "expense",
+        ministryId: ministry ? String(ministry.id) : "",
+      });
+    });
+    li.appendChild(btn);
+    el.dashTopMinistries.appendChild(li);
+  }
+  if (!topMinistries.length) {
+    el.dashTopMinistries.innerHTML = "<li>Sem despesas por ministerio no periodo.</li>";
+  }
+
+  const lastMonthKeys = buildLastMonthKeys(6);
+  const trendRows = lastMonthKeys.map((month) => {
+    const totals = monthlyTotals.get(month) || { income: 0, expense: 0 };
+    return { month, income: totals.income, expense: totals.expense };
+  });
+  renderLineChart(trendRows);
+  renderMonthlyBars(trendRows);
+  el.dashMonthlyTrend.innerHTML = "";
+  for (const row of trendRows) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = `${row.month}: Entrada ${brl(row.income)} | Saida ${brl(row.expense)} | Saldo ${brl(row.income - row.expense)}`;
+    btn.addEventListener("click", () => {
+      openTransactionsWithFilters({
+        startDate: `${row.month}-01`,
+        endDate: `${row.month}-31`,
+      });
+    });
+    li.appendChild(btn);
+    el.dashMonthlyTrend.appendChild(li);
+  }
+  if (!trendRows.length) {
+    el.dashMonthlyTrend.innerHTML = "<li>Sem dados mensais no periodo.</li>";
+  }
+  renderSixMonthComparison(trendRows);
+  renderExpensePie(categoryTotals);
+  renderBudgetAndAlerts(rows, categoryTotals, ministryTotals);
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  let currentIncome = 0;
+  let currentExpense = 0;
+  for (const tx of rows) {
+    if (String(tx.transaction_date || "").startsWith(currentMonth)) {
+      const amount = Number(tx.amount || 0);
+      if (tx.transaction_type === "income") {
+        currentIncome += amount;
+      } else {
+        currentExpense += amount;
+      }
+    }
+  }
+
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const elapsedRatio = Math.max(1 / daysInMonth, dayOfMonth / daysInMonth);
+  const projectedIncome = currentIncome / elapsedRatio;
+  const projectedExpense = currentExpense / elapsedRatio;
+  const projectedBalance = projectedIncome - projectedExpense;
+
+  el.dashProjectedIncome.textContent = brl(projectedIncome);
+  el.dashProjectedExpense.textContent = brl(projectedExpense);
+  el.dashProjectedBalance.textContent = brl(projectedBalance);
+
+  if (currentIncome === 0 && currentExpense === 0) {
+    el.dashProjectionNote.textContent = "Sem dados do mes atual dentro dos filtros para projetar fechamento.";
+  } else {
+    el.dashProjectionNote.textContent = `Base ate ${String(dayOfMonth).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}: Entrada ${brl(currentIncome)} | Saida ${brl(currentExpense)}.`;
+  }
+
+  setMessage(el.dashboardMessage, "Dashboard gerencial atualizado.");
+}
+
+function syncTransactionFiltersFromUi() {
+  state.txFilters.search = el.txFilterSearch.value.trim();
+  state.txFilters.startDate = el.txFilterStartDate.value;
+  state.txFilters.endDate = el.txFilterEndDate.value;
+  state.txFilters.type = el.txFilterType.value;
+  state.txFilters.categoryId = el.txFilterCategory.value;
+  state.txFilters.ministryId = el.txFilterMinistry.value;
+  state.txFilters.attachment = el.txFilterAttachment.value;
+  state.txFilters.sort = el.txFilterSort.value;
+  state.txPagination.page = 1;
+  saveTransactionFilterState();
+}
+
+function resetTransactionFilters() {
+  state.txFilters = {
+    search: "",
+    startDate: "",
+    endDate: "",
+    type: "",
+    categoryId: "",
+    ministryId: "",
+    attachment: "",
+    sort: "date_desc",
+  };
+  state.txPagination = {
+    page: 1,
+    pageSize: Number(el.txPageSize.value || 25),
+  };
+
+  el.txFilterSearch.value = "";
+  el.txFilterStartDate.value = "";
+  el.txFilterEndDate.value = "";
+  el.txFilterType.value = "";
+  el.txFilterCategory.value = "";
+  el.txFilterMinistry.value = "";
+  el.txFilterAttachment.value = "";
+  el.txFilterSort.value = "date_desc";
+
+  saveTransactionFilterState();
+  renderTransactions();
+}
+
+function renderTransactionFilterChips(filteredCount) {
+  const chips = [];
+  const f = state.txFilters;
+  if (f.search) chips.push(`Busca: ${f.search}`);
+  if (f.startDate) chips.push(`De: ${f.startDate}`);
+  if (f.endDate) chips.push(`Ate: ${f.endDate}`);
+  if (f.type) chips.push(`Tipo: ${f.type === "income" ? "Entrada" : "Saida"}`);
+  if (f.categoryId) {
+    const cat = state.categories.find((c) => String(c.id) === String(f.categoryId));
+    if (cat) chips.push(`Categoria: ${cat.name}`);
+  }
+  if (f.ministryId) {
+    const ministry = state.ministries.find((m) => String(m.id) === String(f.ministryId));
+    if (ministry) chips.push(`Ministerio: ${ministry.name}`);
+  }
+  if (f.attachment === "with") chips.push("Com anexo");
+  if (f.attachment === "without") chips.push("Sem anexo");
+
+  el.txFilterChips.innerHTML = "";
+  for (const chipText of chips) {
+    const chip = document.createElement("span");
+    chip.className = "filter-chip";
+    chip.textContent = chipText;
+    el.txFilterChips.appendChild(chip);
+  }
+  el.txFilterResultCount.textContent = `Mostrando ${filteredCount} de ${state.transactionsRaw.length}`;
+}
+
+function getFilteredAndSortedTransactions() {
+  const f = state.txFilters;
+  const search = normalizeText(f.search);
+
+  const filtered = state.transactionsRaw.filter((tx) => {
+    if (f.startDate && tx.transaction_date < f.startDate) return false;
+    if (f.endDate && tx.transaction_date > f.endDate) return false;
+    if (f.type && tx.transaction_type !== f.type) return false;
+    if (f.categoryId && String(tx.category_id || "") !== String(f.categoryId)) return false;
+    if (f.ministryId && String(tx.ministry_id || "") !== String(f.ministryId)) return false;
+
+    const hasAttachment = Number(tx.attachment_count || 0) > 0 || tx.has_attachments === true;
+    if (f.attachment === "with" && !hasAttachment) return false;
+    if (f.attachment === "without" && hasAttachment) return false;
+
+    if (search) {
+      const haystack = normalizeText([
+        tx.description,
+        tx.source_bank,
+        tx.category?.name,
+        tx.ministry?.name,
+      ].join(" "));
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (f.sort === "date_asc") {
+      return String(a.transaction_date).localeCompare(String(b.transaction_date));
+    }
+    if (f.sort === "date_desc") {
+      return String(b.transaction_date).localeCompare(String(a.transaction_date));
+    }
+    if (f.sort === "amount_asc") {
+      return Number(a.amount) - Number(b.amount);
+    }
+    if (f.sort === "amount_desc") {
+      return Number(b.amount) - Number(a.amount);
+    }
+    return 0;
+  });
+
+  return filtered;
+}
+
+function renderTransactions() {
+  const filteredRows = getFilteredAndSortedTransactions();
+  const pageSize = Number(state.txPagination.pageSize || 25);
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  if (state.txPagination.page > totalPages) {
+    state.txPagination.page = totalPages;
+  }
+  if (state.txPagination.page < 1) {
+    state.txPagination.page = 1;
+  }
+
+  const start = (state.txPagination.page - 1) * pageSize;
+  const end = start + pageSize;
+  const rows = filteredRows.slice(start, end);
+
+  el.txTableBody.innerHTML = "";
+
+  for (const tx of rows) {
+    const tr = document.createElement("tr");
+    const editBtn = `<button class="btn ghost" type="button" data-edit-tx="${tx.id}">Editar</button>`;
+    const attachmentCount = Number(tx.attachment_count || 0);
+    const hasAttachment = attachmentCount > 0 || tx.has_attachments === true;
+    const displayAttachmentCount = attachmentCount > 0 ? attachmentCount : 1;
+    const attachmentIcon = hasAttachment
+      ? `<span class="tx-attachment-badge" title="${displayAttachmentCount} anexo(s)" aria-label="${displayAttachmentCount} anexo(s)">&#128206; ${displayAttachmentCount}</span>`
+      : "-";
+    tr.innerHTML = `
+      <td>${tx.transaction_date}</td>
+      <td>${tx.description}</td>
+      <td>${tx.transaction_type === "income" ? "Entrada" : "Saida"}</td>
+      <td>${tx.source_bank || "-"}</td>
+      <td>${tx.category?.name || "-"}</td>
+      <td>${tx.transaction_type === "expense" ? (tx.ministry?.name || "-") : "-"}</td>
+      <td>${tx.transaction_type === "expense" ? toExpenseProfileLabel(tx.expense_profile) : "-"}</td>
+      <td>${brl(tx.amount)}</td>
+      <td>${attachmentIcon}</td>
+      <td>${editBtn}</td>
+    `;
+    el.txTableBody.appendChild(tr);
+  }
+
+  for (const button of el.txTableBody.querySelectorAll("button[data-edit-tx]")) {
+    button.addEventListener("click", async () => {
+      await openEditTransactionModal(Number(button.getAttribute("data-edit-tx")));
+    });
+  }
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td colspan='10'>Nenhum resultado para os filtros atuais. <button class='btn ghost btn-mini' type='button' id='txEmptyResetBtn'>Limpar filtros</button></td>";
+    el.txTableBody.appendChild(tr);
+    const resetEmptyBtn = document.getElementById("txEmptyResetBtn");
+    if (resetEmptyBtn) {
+      resetEmptyBtn.addEventListener("click", resetTransactionFilters);
+    }
+  }
+
+  updateTransactionSortHeaderLabels();
+  renderTransactionFilterChips(filteredRows.length);
+  el.txPageInfo.textContent = `Pag. ${state.txPagination.page}/${totalPages}`;
+  el.txPagePrevBtn.disabled = state.txPagination.page <= 1;
+  el.txPageNextBtn.disabled = state.txPagination.page >= totalPages;
+  saveTransactionFilterState();
+}
+
+function isAnyModalOpen() {
+  return !el.deleteCategoryModal.classList.contains("hide")
+    || !el.attachmentPreviewModal.classList.contains("hide")
+    || !el.editTransactionModal.classList.contains("hide")
+    || !el.uploadResultModal.classList.contains("hide");
+}
+
+function isTypingTarget(target) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return target.closest("input, textarea, select, [contenteditable='true']") !== null;
+}
+
+function categoryTypeLabel(value) {
+  if (value === "income") {
+    return "Receita";
+  }
+  if (value === "expense") {
+    return "Despesa";
+  }
+  return "Ambos";
+}
+
+function findCategoryByName(name) {
+  const typed = String(name || "").trim().toLowerCase();
+  if (!typed) {
+    return null;
+  }
+  return state.categories.find((cat) => cat.name.trim().toLowerCase() === typed) || null;
+}
+
+function clearCategoryForm() {
+  state.editingCategoryId = null;
+  el.categoryForm.reset();
+  el.categoryType.value = "expense";
+}
+
+function openDeleteCategoryModal(categoryId, categoryName) {
+  state.deletingCategoryId = categoryId;
+  state.deletingCategoryName = categoryName;
+  el.deleteCategoryText.textContent = `Tem certeza que deseja excluir a categoria \"${categoryName}\"?`;
+  el.deleteCategoryModal.classList.remove("hide");
+}
+
+function closeDeleteCategoryModal() {
+  state.deletingCategoryId = null;
+  state.deletingCategoryName = "";
+  el.deleteCategoryModal.classList.add("hide");
+}
+
+function renderCategoryTable() {
+  el.categoryTableBody.innerHTML = "";
+  const ordered = [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  for (const cat of ordered) {
+    const tr = document.createElement("tr");
+    const deleteDisabled = cat.is_system ? "disabled" : "";
+    const deleteTitle = cat.is_system ? "Categorias de sistema nao podem ser excluidas" : "Excluir categoria";
+    tr.innerHTML = `
+      <td>${cat.name}</td>
+      <td>${categoryTypeLabel(cat.type)}</td>
+      <td>${cat.description || "-"}</td>
+      <td>${cat.is_system ? "Sim" : "Nao"}</td>
+      <td>${cat.is_active ? "Sim" : "Nao"}</td>
+      <td>
+        <button class="btn ghost btn-mini" type="button" data-edit-category="${cat.id}">Editar</button>
+        <button class="btn ghost btn-mini" type="button" data-delete-category="${cat.id}" ${deleteDisabled} title="${deleteTitle}">Excluir</button>
+      </td>
+    `;
+    el.categoryTableBody.appendChild(tr);
+  }
+
+  if (!ordered.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td colspan='6'>Nenhuma categoria cadastrada.</td>";
+    el.categoryTableBody.appendChild(tr);
+  }
+}
+
+function renderTransactionCategoryOptions() {
+  el.txCategoryOptions.innerHTML = "";
+  const ordered = [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  for (const cat of ordered) {
+    const option = document.createElement("option");
+    option.value = cat.name;
+    option.setAttribute("data-id", String(cat.id));
+    el.txCategoryOptions.appendChild(option);
+  }
+}
+
+function syncTransactionCategoryFromInput() {
+  const match = findCategoryByName(el.txCategoryInput.value);
+  el.txCategoryId.value = match ? String(match.id) : "";
+}
+
+async function createCategoryFromTransactionInput() {
+  const name = el.txCategoryInput.value.trim();
+  if (!name) {
+    throw new Error("Digite o nome da categoria para adicionar.");
+  }
+
+  const alreadyExists = findCategoryByName(name);
+  if (alreadyExists) {
+    el.txCategoryId.value = String(alreadyExists.id);
+    el.txCategoryInput.value = alreadyExists.name;
+    return { category: alreadyExists, created: false };
+  }
+
+  const created = await api("/categories/", {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      type: el.txType.value === "income" ? "income" : "expense",
+    }),
+  });
+  await loadCategories();
+  el.txCategoryId.value = String(created.id);
+  el.txCategoryInput.value = created.name;
+  return { category: created, created: true };
+}
+
+function toExpenseProfileLabel(value) {
+  if (value === "fixed") {
+    return "Fixa";
+  }
+  if (value === "variable") {
+    return "Variavel";
+  }
+  return "-";
+}
+
+function syncExpenseProfileField(typeSelect, expenseProfileSelect) {
+  const isExpense = typeSelect.value === "expense";
+  expenseProfileSelect.disabled = !isExpense;
+  if (!isExpense) {
+    expenseProfileSelect.value = "";
+  }
+}
+
+function syncMinistryField(typeSelect, ministrySelect) {
+  const isExpense = typeSelect.value === "expense";
+  ministrySelect.disabled = !isExpense;
+  if (!isExpense) {
+    ministrySelect.value = "";
+  }
+}
+
+function clearMinistryForm() {
+  state.editingMinistryId = null;
+  el.ministryForm.reset();
+}
+
+function renderMinistryTable() {
+  el.ministryTableBody.innerHTML = "";
+  const ordered = [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  for (const ministry of ordered) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${ministry.name}</td>
+      <td>${ministry.description || "-"}</td>
+      <td>${ministry.is_active ? "Sim" : "Nao"}</td>
+      <td>
+        <button class="btn ghost btn-mini" type="button" data-edit-ministry="${ministry.id}">Editar</button>
+        <button class="btn ghost btn-mini" type="button" data-delete-ministry="${ministry.id}">Excluir</button>
+      </td>
+    `;
+    el.ministryTableBody.appendChild(tr);
+  }
+
+  if (!ordered.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td colspan='4'>Nenhum ministerio cadastrado.</td>";
+    el.ministryTableBody.appendChild(tr);
+  }
+}
+
+function populateMinistrySelects() {
+  el.txMinistry.innerHTML = "<option value=''>Nao se aplica</option>";
+  el.editTxMinistry.innerHTML = "<option value=''>Nao se aplica</option>";
+
+  const ordered = [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  for (const ministry of ordered) {
+    const txOption = document.createElement("option");
+    txOption.value = ministry.id;
+    txOption.textContent = ministry.name;
+    el.txMinistry.appendChild(txOption);
+
+    const editOption = document.createElement("option");
+    editOption.value = ministry.id;
+    editOption.textContent = ministry.name;
+    el.editTxMinistry.appendChild(editOption);
+  }
+}
+
+async function api(path, options = {}, isForm = false) {
+  const headers = new Headers(options.headers || {});
+  if (!isForm) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (state.accessToken) {
+    headers.set("Authorization", `Bearer ${state.accessToken}`);
+  }
+
+  const response = await fetch(`${API_PREFIX}${path}`, { ...options, headers });
+  if (!response.ok) {
+    let detail = `Erro ${response.status}`;
+    try {
+      const body = await response.json();
+      detail = errorDetailToText(body.detail ?? body, detail);
+    } catch {
+      // no-op
+    }
+    throw new Error(detail);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+  return response.json();
+}
+
+async function login(email, password) {
+  const form = new URLSearchParams();
+  form.set("username", email);
+  form.set("password", password);
+
+  const response = await fetch(`${API_PREFIX}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(errorDetailToText(body.detail ?? body, "Falha no login"));
+  }
+
+  const data = await response.json();
+  state.accessToken = data.access_token;
+  state.refreshToken = data.refresh_token;
+  localStorage.setItem("accessToken", data.access_token);
+  localStorage.setItem("refreshToken", data.refresh_token);
+}
+
+function logout() {
+  state.accessToken = "";
+  state.refreshToken = "";
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  el.sessionUser.textContent = "Nao autenticado";
+  setMessage(el.authMessage, "");
+  showApp(false);
+}
+
+async function loadMe() {
+  const me = await api("/auth/me");
+  el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
+}
+
+async function loadSummary() {
+  renderDashboard();
+}
+
+async function loadCategories() {
+  const categories = await api("/categories/");
+  state.categories = categories;
+
+  renderTransactionCategoryOptions();
+  syncTransactionCategoryFromInput();
+
+  el.editTxCategory.innerHTML = "<option value=''>Sem categoria</option>";
+  for (const cat of categories) {
+    const option = document.createElement("option");
+    option.value = cat.id;
+    option.textContent = cat.name;
+    el.editTxCategory.appendChild(option);
+  }
+
+  renderCategoryTable();
+  populateTransactionFilterOptions();
+  populateDashboardFilterOptions();
+  populateBudgetReferenceOptions();
+}
+
+async function loadMinistries() {
+  const ministries = await api("/ministries/");
+  state.ministries = ministries;
+  populateMinistrySelects();
+  renderMinistryTable();
+  populateTransactionFilterOptions();
+  populateDashboardFilterOptions();
+  populateBudgetReferenceOptions();
+  syncMinistryField(el.txType, el.txMinistry);
+  syncMinistryField(el.editTxType, el.editTxMinistry);
+}
+
+async function loadTransactions() {
+  const pageSize = 100;
+  const maxPages = 20;
+  const allItems = [];
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const data = await api(`/transactions/?page=${page}&size=${pageSize}`);
+    const items = data.items || [];
+    allItems.push(...items);
+    if (items.length < pageSize) {
+      break;
+    }
+  }
+
+  state.transactionsRaw = allItems;
+  populateBankDropdowns();
+  renderTransactions();
+  renderDashboard();
+}
+
+async function openEditTransactionModal(transactionId) {
+  const tx = await api(`/transactions/${transactionId}`);
+  state.editingTransactionId = tx.id;
+  el.editTxDescription.value = tx.description || "";
+  el.editTxAmount.value = toInputAmount(tx.amount);
+  el.editTxType.value = tx.transaction_type || "expense";
+  syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
+  syncMinistryField(el.editTxType, el.editTxMinistry);
+  el.editTxExpenseProfile.value = tx.expense_profile || "";
+  el.editTxMinistry.value = tx.ministry_id ? String(tx.ministry_id) : "";
+  el.editTxDate.value = tx.transaction_date;
+  el.editTxCategory.value = tx.category_id ? String(tx.category_id) : "";
+  ensureSelectHasOption(el.editTxBankName, tx.source_bank_name || tx.source_bank || "");
+  el.editTxBankName.value = tx.source_bank_name || tx.source_bank || "";
+  el.editTransactionModal.classList.remove("hide");
+  try {
+    await loadTransactionAttachments(tx.id);
+  } catch (error) {
+    el.editTxAttachmentsList.innerHTML = "<li>Nao foi possivel carregar anexos.</li>";
+    setMessage(el.txMessage, error.message, true);
+  }
+}
+
+function closeEditTransactionModal() {
+  state.editingTransactionId = null;
+  el.editTransactionForm.reset();
+  el.editTxAttachmentsList.innerHTML = "";
+  closeAttachmentPreviewModal();
+  el.editTransactionModal.classList.add("hide");
+}
+
+async function loadTransactionAttachments(transactionId) {
+  const attachments = await api(`/transactions/${transactionId}/attachments`);
+  el.editTxAttachmentsList.innerHTML = "";
+
+  for (const attachment of attachments) {
+    const li = document.createElement("li");
+    const nameBtn = document.createElement("button");
+    nameBtn.className = "attachment-name-btn";
+    nameBtn.type = "button";
+    nameBtn.textContent = attachment.original_filename;
+    nameBtn.addEventListener("click", async () => {
+      try {
+        await previewTransactionAttachment(transactionId, attachment);
+      } catch (error) {
+        setMessage(el.txMessage, error.message, true);
+      }
+    });
+
+    const downloadBtn = document.createElement("button");
+    downloadBtn.className = "btn ghost btn-mini";
+    downloadBtn.type = "button";
+    downloadBtn.textContent = "Baixar";
+    downloadBtn.addEventListener("click", async () => {
+      try {
+        const headers = new Headers();
+        if (state.accessToken) {
+          headers.set("Authorization", `Bearer ${state.accessToken}`);
+        }
+        const response = await fetch(`${API_PREFIX}/transactions/${transactionId}/attachments/${attachment.id}/download`, {
+          method: "GET",
+          headers,
+        });
+        if (!response.ok) {
+          throw new Error("Falha ao baixar anexo.");
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = attachment.original_filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        setMessage(el.txMessage, error.message, true);
+      }
+    });
+
+    li.appendChild(nameBtn);
+    li.appendChild(downloadBtn);
+    el.editTxAttachmentsList.appendChild(li);
+  }
+
+  if (!attachments.length) {
+    const li = document.createElement("li");
+    li.textContent = "Nenhum anexo neste lancamento.";
+    el.editTxAttachmentsList.appendChild(li);
+  }
+}
+
+async function uploadAttachmentForEditingTransaction(showSuccessMessage = true) {
+  if (!state.editingTransactionId) {
+    throw new Error("Selecione um lancamento para anexar arquivos.");
+  }
+
+  const file = el.editTxAttachmentFile.files?.[0];
+  if (!file) {
+    return false;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  await api(
+    `/transactions/${state.editingTransactionId}/attachments`,
+    { method: "POST", body: formData },
+    true,
+  );
+
+  el.editTxAttachmentFile.value = "";
+  await loadTransactionAttachments(state.editingTransactionId);
+  await loadTransactions();
+
+  if (showSuccessMessage) {
+    setMessage(el.txMessage, "Anexo enviado com sucesso. Arquivo armazenado de forma compactada.");
+  }
+  return true;
+}
+
+function openUploadModal() {
+  el.uploadResultModal.classList.remove("hide");
+}
+
+function closeUploadModal() {
+  el.uploadResultModal.classList.add("hide");
+}
+
+function extractDuplicateCount(errorMessage) {
+  const msg = String(errorMessage || "");
+  const match = msg.match(/duplicadas=(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function renderUploadModalStatus(record, fileName) {
+  const duplicates = extractDuplicateCount(record.error_message);
+  el.modalTitle.textContent = `Resultado do Upload: ${fileName}`;
+  el.modalBody.innerHTML = `
+    <p>Status: <strong>${record.status}</strong></p>
+    <p>Transacoes importadas: <strong>${record.transactions_count || 0}</strong></p>
+    <p>${record.error_message || "Processamento concluido sem avisos."}</p>
+  `;
+
+  const showDecision = duplicates > 0;
+  el.modalKeepBothBtn.classList.toggle("hide", !showDecision);
+  el.modalDiscardBtn.classList.toggle("hide", !showDecision);
+  el.modalChooseOneBtn.classList.toggle("hide", !showDecision);
+  el.modalApplySelectionBtn.classList.add("hide");
+  el.modalDuplicatesList.classList.add("hide");
+  el.modalDuplicatesList.innerHTML = "";
+  el.modalOkBtn.classList.toggle("hide", showDecision);
+
+  return duplicates;
+}
+
+function renderDuplicateOptions(duplicates) {
+  el.modalDuplicatesList.innerHTML = "";
+  for (const dup of duplicates) {
+    const row = document.createElement("label");
+    row.className = "dup-row";
+    const incomingBank = dup.source_bank || "-";
+    const existingBank = dup.existing?.source_bank || "-";
+    row.innerHTML = `
+      <input type="checkbox" data-dup-key="${dup.key}" checked>
+      <span>
+        <strong>${dup.date} - ${dup.transaction_type === "income" ? "Entrada" : "Saida"} - ${brl(dup.amount)}</strong><br>
+        <div class="dup-compare">
+          <div class="dup-card incoming">
+            <b>Novo</b>
+            <div>${dup.description || "Sem descricao"}</div>
+            <small>Banco: ${incomingBank} | Ref: ${dup.reference || "-"}</small>
+          </div>
+          <div class="dup-card existing">
+            <b>Existente</b>
+            <div>${dup.existing?.description || "-"}</div>
+            <small>Banco: ${existingBank} | Ref: ${dup.existing?.reference || "-"}</small>
+          </div>
+        </div>
+      </span>
+    `;
+    el.modalDuplicatesList.appendChild(row);
+  }
+  el.modalDuplicatesList.classList.remove("hide");
+  el.modalApplySelectionBtn.classList.remove("hide");
+}
+
+async function loadDuplicatePreview(fileId) {
+  const data = await api(`/upload/${fileId}/duplicates-preview`);
+  return data.duplicates || [];
+}
+
+function collectSelectedDuplicateKeys() {
+  const checked = el.modalDuplicatesList.querySelectorAll("input[type='checkbox']:checked");
+  return Array.from(checked).map((node) => node.getAttribute("data-dup-key"));
+}
+
+async function waitUploadCompletion(fileId, fileName) {
+  let tries = 0;
+  while (tries < 90) {
+    const rec = await api(`/upload/${fileId}`);
+    if (rec.status === "completed" || rec.status === "failed") {
+      return renderUploadModalStatus(rec, fileName);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    tries += 1;
+  }
+  el.modalTitle.textContent = `Upload em processamento: ${fileName}`;
+  el.modalBody.innerHTML = "<p>O processamento está demorando mais que o esperado. Voce pode fechar e verificar depois.</p>";
+  el.modalKeepBothBtn.classList.add("hide");
+  el.modalDiscardBtn.classList.add("hide");
+  el.modalOkBtn.classList.remove("hide");
+  return 0;
+}
+
+async function loadReports() {
+  const year = Number(el.reportYear.value) || new Date().getFullYear();
+  const [byCategory, monthly] = await Promise.all([
+    api("/reports/by-category"),
+    api(`/reports/monthly?year=${year}`),
+  ]);
+
+  el.categoryReport.innerHTML = "";
+  for (const row of byCategory) {
+    const li = document.createElement("li");
+    li.textContent = `${row.category} (${row.transaction_type}): ${brl(row.total)} em ${row.count} item(ns)`;
+    el.categoryReport.appendChild(li);
+  }
+  if (!byCategory.length) {
+    el.categoryReport.innerHTML = "<li>Sem dados por categoria.</li>";
+  }
+
+  el.monthlyReport.innerHTML = "";
+  for (const row of monthly) {
+    const month = String(row.month).padStart(2, "0");
+    const li = document.createElement("li");
+    li.textContent = `${year}-${month} (${row.transaction_type}): ${brl(row.total)}`;
+    el.monthlyReport.appendChild(li);
+  }
+  if (!monthly.length) {
+    el.monthlyReport.innerHTML = "<li>Sem dados mensais.</li>";
+  }
+
+  setMessage(el.reportMessage, `Relatorios carregados para ${year}.`);
+}
+
+async function initializeApp() {
+  if (!state.accessToken) {
+    showApp(false);
+    return;
+  }
+
+  try {
+    showApp(true);
+    setActiveView("dashboardView");
+    el.reportYear.value = new Date().getFullYear();
+    await loadMe();
+    await Promise.all([loadSummary(), loadCategories(), loadMinistries(), loadTransactions(), loadReports()]);
+  } catch (error) {
+    logout();
+    const msg = error instanceof Error ? error.message : errorDetailToText(error, "Falha ao validar sessao");
+    setMessage(el.authMessage, `Sessao invalida: ${msg}`, true);
+  }
+}
+
+el.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    await login(email, password);
+    setMessage(el.authMessage, "Login realizado com sucesso.");
+    await initializeApp();
+  } catch (error) {
+    setMessage(el.authMessage, error.message, true);
+  }
+});
+
+el.logoutBtn.addEventListener("click", () => {
+  logout();
+  setMessage(el.authMessage, "Sessao encerrada.");
+});
+
+el.refreshBtn.addEventListener("click", async () => {
+  try {
+    await Promise.all([loadTransactions(), loadReports()]);
+  } catch (error) {
+    setMessage(el.dashboardMessage, error.message, true);
+  }
+});
+
+for (const node of [
+  el.dashStartDate,
+  el.dashEndDate,
+  el.dashTypeFilter,
+  el.dashCategoryFilter,
+  el.dashMinistryFilter,
+  el.dashBankFilter,
+]) {
+  node.addEventListener("change", () => {
+    syncDashboardFiltersFromUi();
+    renderDashboard();
+  });
+}
+
+el.dashResetFiltersBtn.addEventListener("click", () => {
+  resetDashboardFilters();
+  setMessage(el.dashboardMessage, "Filtros do dashboard limpos.");
+});
+
+el.dashBudgetType.addEventListener("change", populateBudgetReferenceOptions);
+el.dashLineMetric.addEventListener("change", () => {
+  el.dashLineChart.classList.add("metric-transition");
+  renderDashboard();
+  window.setTimeout(() => {
+    el.dashLineChart.classList.remove("metric-transition");
+  }, 360);
+});
+el.dashBudgetForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const month = new Date().toISOString().slice(0, 7);
+  const type = el.dashBudgetType.value;
+  const refId = el.dashBudgetRef.value;
+  const amount = Number(el.dashBudgetAmount.value || 0);
+
+  if (!refId || amount <= 0) {
+    setMessage(el.dashBudgetMessage, "Informe referencia e valor de meta validos.", true);
+    return;
+  }
+
+  const existing = state.budgetTargets.find(
+    (item) => item.month === month && item.type === type && String(item.refId) === String(refId),
+  );
+  if (existing) {
+    existing.amount = amount;
+  } else {
+    state.budgetTargets.push({ month, type, refId: String(refId), amount });
+  }
+
+  saveBudgetTargets();
+  setMessage(el.dashBudgetMessage, "Meta salva com sucesso.");
+  renderDashboard();
+});
+
+el.transactionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = {
+      description: document.getElementById("txDescription").value,
+      amount: Number(document.getElementById("txAmount").value),
+      transaction_type: el.txType.value,
+      transaction_date: document.getElementById("txDate").value,
+      source_bank_name: el.txBankName.value || null,
+      expense_profile: el.txType.value === "expense" ? (el.txExpenseProfile.value || null) : null,
+      ministry_id: el.txType.value === "expense" && el.txMinistry.value ? Number(el.txMinistry.value) : null,
+      notes: null,
+      reference: null,
+    };
+
+    syncTransactionCategoryFromInput();
+    const catId = el.txCategoryId.value;
+    if (catId) {
+      payload.category_id = Number(catId);
+    } else if (el.txCategoryInput.value.trim()) {
+      throw new Error("Categoria nao encontrada. Clique em Adicionar para criar.");
+    }
+
+    await api("/transactions/", { method: "POST", body: JSON.stringify(payload) });
+    setMessage(el.txMessage, "Lancamento criado com sucesso.");
+    event.target.reset();
+    el.txCategoryId.value = "";
+    el.txCategoryInput.value = "";
+    syncExpenseProfileField(el.txType, el.txExpenseProfile);
+    syncMinistryField(el.txType, el.txMinistry);
+    await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+  } catch (error) {
+    setMessage(el.txMessage, error.message, true);
+  }
+});
+
+el.txAddTypedCategoryBtn.addEventListener("click", async () => {
+  try {
+    const result = await createCategoryFromTransactionInput();
+    if (result.created) {
+      setMessage(el.txMessage, `Categoria \"${result.category.name}\" criada com sucesso.`);
+      return;
+    }
+    setMessage(el.txMessage, `Categoria \"${result.category.name}\" ja existe e foi selecionada.`);
+  } catch (error) {
+    setMessage(el.txMessage, error.message, true);
+  }
+});
+
+el.txCategoryInput.addEventListener("input", syncTransactionCategoryFromInput);
+el.txCategoryInput.addEventListener("change", syncTransactionCategoryFromInput);
+
+const debouncedTransactionSearch = debounce(() => {
+  syncTransactionFiltersFromUi();
+  renderTransactions();
+}, 300);
+
+el.txFilterSearch.addEventListener("input", debouncedTransactionSearch);
+el.txFilterSearch.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    syncTransactionFiltersFromUi();
+    renderTransactions();
+  }
+});
+
+for (const node of [
+  el.txFilterStartDate,
+  el.txFilterEndDate,
+  el.txFilterType,
+  el.txFilterCategory,
+  el.txFilterMinistry,
+  el.txFilterAttachment,
+  el.txFilterSort,
+]) {
+  node.addEventListener("change", () => {
+    syncTransactionFiltersFromUi();
+    renderTransactions();
+  });
+}
+
+el.txFilterResetBtn.addEventListener("click", resetTransactionFilters);
+el.txHeaderDateSort.addEventListener("click", () => toggleTransactionSort("date"));
+el.txHeaderAmountSort.addEventListener("click", () => toggleTransactionSort("amount"));
+el.txPageSize.addEventListener("change", () => {
+  state.txPagination.pageSize = Number(el.txPageSize.value || 25);
+  state.txPagination.page = 1;
+  saveTransactionFilterState();
+  renderTransactions();
+});
+el.txPagePrevBtn.addEventListener("click", () => {
+  state.txPagination.page = Math.max(1, state.txPagination.page - 1);
+  renderTransactions();
+});
+el.txPageNextBtn.addEventListener("click", () => {
+  state.txPagination.page += 1;
+  renderTransactions();
+});
+
+el.categoryForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = {
+      name: el.categoryName.value.trim(),
+      type: el.categoryType.value,
+      description: el.categoryDescription.value.trim() || null,
+    };
+
+    if (!payload.name) {
+      throw new Error("Informe o nome da categoria.");
+    }
+
+    if (state.editingCategoryId) {
+      await api(`/categories/${state.editingCategoryId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.categoryMessage, "Categoria atualizada com sucesso.");
+    } else {
+      await api("/categories/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.categoryMessage, "Categoria criada com sucesso.");
+    }
+
+    clearCategoryForm();
+    await loadCategories();
+  } catch (error) {
+    setMessage(el.categoryMessage, error.message, true);
+  }
+});
+
+el.categoryCancelEditBtn.addEventListener("click", () => {
+  clearCategoryForm();
+  setMessage(el.categoryMessage, "");
+});
+
+el.categoryTableBody.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const editId = target.getAttribute("data-edit-category");
+  if (editId) {
+    const categoryId = Number(editId);
+    const cat = state.categories.find((item) => item.id === categoryId);
+    if (!cat) {
+      return;
+    }
+    state.editingCategoryId = categoryId;
+    el.categoryName.value = cat.name;
+    el.categoryType.value = cat.type || "expense";
+    el.categoryDescription.value = cat.description || "";
+    setMessage(el.categoryMessage, `Editando categoria: ${cat.name}`);
+    return;
+  }
+
+  const deleteId = target.getAttribute("data-delete-category");
+  if (deleteId) {
+    try {
+      const categoryId = Number(deleteId);
+      const cat = state.categories.find((item) => item.id === categoryId);
+      if (cat?.is_system) {
+        throw new Error("Categorias de sistema nao podem ser excluidas.");
+      }
+      openDeleteCategoryModal(categoryId, cat?.name || "categoria");
+    } catch (error) {
+      setMessage(el.categoryMessage, error.message, true);
+    }
+  }
+});
+
+el.ministryForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = {
+      name: el.ministryName.value.trim(),
+      description: el.ministryDescription.value.trim() || null,
+    };
+
+    if (!payload.name) {
+      throw new Error("Informe o nome do ministerio.");
+    }
+
+    if (state.editingMinistryId) {
+      await api(`/ministries/${state.editingMinistryId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.ministryMessage, "Ministerio atualizado com sucesso.");
+    } else {
+      await api("/ministries/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.ministryMessage, "Ministerio criado com sucesso.");
+    }
+
+    clearMinistryForm();
+    await loadMinistries();
+  } catch (error) {
+    setMessage(el.ministryMessage, error.message, true);
+  }
+});
+
+el.ministryCancelEditBtn.addEventListener("click", () => {
+  clearMinistryForm();
+  setMessage(el.ministryMessage, "");
+});
+
+el.ministryTableBody.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const editId = target.getAttribute("data-edit-ministry");
+  if (editId) {
+    const ministryId = Number(editId);
+    const ministry = state.ministries.find((item) => item.id === ministryId);
+    if (!ministry) {
+      return;
+    }
+    state.editingMinistryId = ministryId;
+    el.ministryName.value = ministry.name;
+    el.ministryDescription.value = ministry.description || "";
+    setMessage(el.ministryMessage, `Editando ministerio: ${ministry.name}`);
+    return;
+  }
+
+  const deleteId = target.getAttribute("data-delete-ministry");
+  if (deleteId) {
+    try {
+      const ministryId = Number(deleteId);
+      if (!window.confirm("Tem certeza que deseja excluir este ministerio?")) {
+        return;
+      }
+      await api(`/ministries/${ministryId}`, { method: "DELETE" });
+      setMessage(el.ministryMessage, "Ministerio excluido com sucesso.");
+      clearMinistryForm();
+      await loadMinistries();
+    } catch (error) {
+      setMessage(el.ministryMessage, error.message, true);
+    }
+  }
+});
+
+el.deleteCategoryCloseBtn.addEventListener("click", closeDeleteCategoryModal);
+el.deleteCategoryCancelBtn.addEventListener("click", closeDeleteCategoryModal);
+el.attachmentPreviewCloseBtn.addEventListener("click", closeAttachmentPreviewModal);
+
+el.deleteCategoryModal.addEventListener("click", (event) => {
+  if (event.target === el.deleteCategoryModal) {
+    closeDeleteCategoryModal();
+  }
+});
+
+el.uploadResultModal.addEventListener("click", (event) => {
+  if (event.target === el.uploadResultModal) {
+    closeUploadModal();
+  }
+});
+
+el.attachmentPreviewModal.addEventListener("click", (event) => {
+  if (event.target === el.attachmentPreviewModal) {
+    closeAttachmentPreviewModal();
+  }
+});
+
+el.editTransactionModal.addEventListener("click", (event) => {
+  if (event.target === el.editTransactionModal) {
+    closeEditTransactionModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const key = String(event.key || "").toLowerCase();
+
+  if (
+    key === "n"
+    && !event.ctrlKey
+    && !event.metaKey
+    && !event.altKey
+    && !isTypingTarget(event.target)
+    && !isAnyModalOpen()
+    && !el.transactionsView.classList.contains("hide")
+  ) {
+    event.preventDefault();
+    el.txDescription.focus();
+    el.txDescription.select();
+    return;
+  }
+
+  if (
+    key === "l"
+    && !event.ctrlKey
+    && !event.metaKey
+    && !event.altKey
+    && !isTypingTarget(event.target)
+    && !isAnyModalOpen()
+    && !el.transactionsView.classList.contains("hide")
+  ) {
+    event.preventDefault();
+    resetTransactionFilters();
+    setMessage(el.txMessage, "Filtros limpos.");
+    return;
+  }
+
+  if (
+    event.key === "/"
+    && !event.ctrlKey
+    && !event.metaKey
+    && !event.altKey
+    && !isTypingTarget(event.target)
+    && !isAnyModalOpen()
+    && !el.transactionsView.classList.contains("hide")
+  ) {
+    event.preventDefault();
+    el.txFilterSearch.focus();
+    el.txFilterSearch.select();
+    return;
+  }
+
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  if (!el.deleteCategoryModal.classList.contains("hide")) {
+    closeDeleteCategoryModal();
+    return;
+  }
+
+  if (!el.attachmentPreviewModal.classList.contains("hide")) {
+    closeAttachmentPreviewModal();
+    return;
+  }
+
+  if (!el.editTransactionModal.classList.contains("hide")) {
+    closeEditTransactionModal();
+    return;
+  }
+
+  if (!el.uploadResultModal.classList.contains("hide")) {
+    closeUploadModal();
+    return;
+  }
+
+  if (!el.transactionsView.classList.contains("hide") && el.txFilterSearch.value) {
+    el.txFilterSearch.value = "";
+    syncTransactionFiltersFromUi();
+    renderTransactions();
+  }
+});
+
+el.deleteCategoryConfirmBtn.addEventListener("click", async () => {
+  try {
+    if (!state.deletingCategoryId) {
+      return;
+    }
+    await api(`/categories/${state.deletingCategoryId}`, { method: "DELETE" });
+    closeDeleteCategoryModal();
+    setMessage(el.categoryMessage, "Categoria excluida com sucesso.");
+    clearCategoryForm();
+    await loadCategories();
+  } catch (error) {
+    setMessage(el.categoryMessage, error.message, true);
+  }
+});
+
+el.uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) {
+      throw new Error("Selecione um arquivo antes de enviar.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const uploaded = await api("/upload/", { method: "POST", body: formData }, true);
+    setMessage(el.uploadMessage, "Arquivo enviado. Processando...");
+    event.target.reset();
+
+    openUploadModal();
+    const duplicates = await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
+
+    el.modalKeepBothBtn.onclick = async () => {
+      try {
+        await api(`/upload/${uploaded.id}/retry?include_duplicates=true&reset_existing=true`, { method: "POST" });
+        el.modalBody.innerHTML += "<p>Reprocessando para manter ambas as transacoes duplicadas...</p>";
+        await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
+        await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+      } catch (error) {
+        setMessage(el.uploadMessage, error.message, true);
+      }
+    };
+
+    el.modalDiscardBtn.onclick = async () => {
+      closeUploadModal();
+      setMessage(el.uploadMessage, `Duplicadas desconsideradas (${duplicates}).`);
+      await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+    };
+
+    el.modalChooseOneBtn.onclick = async () => {
+      try {
+        const list = await loadDuplicatePreview(uploaded.id);
+        if (!list.length) {
+          el.modalBody.innerHTML += "<p>Nao ha duplicatas elegiveis para selecao manual.</p>";
+          return;
+        }
+        renderDuplicateOptions(list);
+      } catch (error) {
+        setMessage(el.uploadMessage, error.message, true);
+      }
+    };
+
+    el.modalApplySelectionBtn.onclick = async () => {
+      try {
+        const selectedKeys = collectSelectedDuplicateKeys();
+        await api(`/upload/${uploaded.id}/retry?include_duplicates=true&reset_existing=true`, { method: "POST" });
+        await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
+        await api(`/upload/${uploaded.id}/duplicate-selection`, {
+          method: "POST",
+          body: JSON.stringify({ selected_keys: selectedKeys }),
+        });
+        closeUploadModal();
+        setMessage(el.uploadMessage, "Selecao de duplicatas aplicada com sucesso.");
+        await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+      } catch (error) {
+        setMessage(el.uploadMessage, error.message, true);
+      }
+    };
+
+    el.modalOkBtn.onclick = async () => {
+      closeUploadModal();
+      await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+    };
+  } catch (error) {
+    setMessage(el.uploadMessage, error.message, true);
+  }
+});
+
+el.modalCloseBtn.addEventListener("click", closeUploadModal);
+
+el.editModalCloseBtn.addEventListener("click", closeEditTransactionModal);
+el.editModalCancelBtn.addEventListener("click", closeEditTransactionModal);
+
+el.editTransactionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    if (!state.editingTransactionId) {
+      throw new Error("Nenhum lancamento selecionado para edicao.");
+    }
+
+    const amountValue = Number(el.editTxAmount.value);
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      throw new Error("Informe um valor valido maior que zero.");
+    }
+
+    const payload = {
+      description: el.editTxDescription.value.trim(),
+      amount: amountValue,
+      transaction_type: el.editTxType.value,
+      transaction_date: el.editTxDate.value,
+      source_bank_name: el.editTxBankName.value || null,
+      expense_profile: el.editTxType.value === "expense" ? (el.editTxExpenseProfile.value || null) : null,
+      ministry_id: el.editTxType.value === "expense" && el.editTxMinistry.value ? Number(el.editTxMinistry.value) : null,
+      category_id: el.editTxCategory.value ? Number(el.editTxCategory.value) : null,
+    };
+
+    await api(`/transactions/${state.editingTransactionId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+
+    const attachmentUploaded = await uploadAttachmentForEditingTransaction(false);
+
+    closeEditTransactionModal();
+    setMessage(
+      el.txMessage,
+      attachmentUploaded
+        ? "Lancamento atualizado e anexo enviado com sucesso."
+        : "Lancamento atualizado e aprendizado registrado.",
+    );
+    await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+  } catch (error) {
+    setMessage(el.txMessage, error.message, true);
+  }
+});
+
+el.editTxUploadAttachmentBtn.addEventListener("click", async () => {
+  try {
+    const sent = await uploadAttachmentForEditingTransaction(true);
+    if (!sent) {
+      throw new Error("Selecione um arquivo PDF ou imagem para anexar.");
+    }
+  } catch (error) {
+    setMessage(el.txMessage, error.message, true);
+  }
+});
+
+el.reportYear.addEventListener("change", async () => {
+  try {
+    await loadReports();
+  } catch (error) {
+    setMessage(el.reportMessage, error.message, true);
+  }
+});
+
+for (const btn of el.navButtons) {
+  btn.addEventListener("click", () => {
+    setActiveView(btn.dataset.view);
+  });
+}
+
+el.txType.addEventListener("change", () => {
+  syncExpenseProfileField(el.txType, el.txExpenseProfile);
+  syncMinistryField(el.txType, el.txMinistry);
+  syncTransactionCategoryFromInput();
+});
+
+el.editTxType.addEventListener("change", () => {
+  syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
+  syncMinistryField(el.editTxType, el.editTxMinistry);
+});
+
+document.getElementById("txDate").value = new Date().toISOString().slice(0, 10);
+loadTransactionFilterState();
+loadBudgetTargets();
+populateBudgetReferenceOptions();
+syncExpenseProfileField(el.txType, el.txExpenseProfile);
+syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
+syncMinistryField(el.txType, el.txMinistry);
+syncMinistryField(el.editTxType, el.editTxMinistry);
+initializeApp();
