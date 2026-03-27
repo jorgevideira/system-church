@@ -759,6 +759,18 @@ select:focus {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.kpi.payables-overdue {
+  background: linear-gradient(145deg, #ffebee, #fff5f7);
+  border-color: #ef5350;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kpi.payables-overdue:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 .kpi.receivables {
   background: linear-gradient(145deg, #e6fff3, #f4fffa);
   border-color: #b8e6d0;
@@ -767,6 +779,18 @@ select:focus {
 }
 
 .kpi.receivables:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.kpi.receivables-overdue {
+  background: linear-gradient(145deg, #fff5f5, #fffbfb);
+  border-color: #ef5350;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kpi.receivables-overdue:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

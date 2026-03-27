@@ -46,6 +46,7 @@ const state = {
   budgetTargets: [],
   budgetHealthMetrics: [],
   cashFlowForecast: null,
+  dashboardTrendRows: [],
   txPagination: {
     page: 1,
     pageSize: 25,
@@ -243,9 +244,13 @@ const el = {
   kpiPayablesPending: document.getElementById("kpiPayablesPending"),
   kpiPayablesAlert: document.getElementById("kpiPayablesAlert"),
   kpiPayablesCard: document.querySelector(".kpi.payables"),
+  kpiPayablesOverdue: document.getElementById("kpiPayablesOverdue"),
+  kpiPayablesOverdueCard: document.querySelector(".kpi.payables-overdue"),
   kpiReceivablesPending: document.getElementById("kpiReceivablesPending"),
   kpiReceivablesAlert: document.getElementById("kpiReceivablesAlert"),
   kpiReceivablesCard: document.querySelector(".kpi.receivables"),
+  kpiReceivablesOverdue: document.getElementById("kpiReceivablesOverdue"),
+  kpiReceivablesOverdueCard: document.querySelector(".kpi.receivables-overdue"),
   uploadResultModal: document.getElementById("uploadResultModal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -1219,6 +1224,7 @@ function renderPayablesKpi() {
   const overdueCount = Number(summary.overdue || 0);
 
   el.kpiPayablesPending.textContent = String(pendingCount);
+  el.kpiPayablesOverdue.textContent = String(overdueCount);
 
   if (overdueCount > 0) {
     el.kpiPayablesAlert.textContent = `${overdueCount} vencida(s)!`;
@@ -1356,6 +1362,10 @@ function renderDashboard() {
     const totals = monthlyTotals.get(month) || { income: 0, expense: 0 };
     return { month, income: totals.income, expense: totals.expense };
   });
+  
+  // Store for use in metric change listener
+  state.dashboardTrendRows = trendRows;
+  
   renderLineChart(trendRows);
   renderMonthlyBars(trendRows);
   el.dashMonthlyTrend.innerHTML = "";
@@ -2353,6 +2363,7 @@ function renderReceivablesKpi() {
   const overdueCount = Number(summary.overdue || 0);
 
   el.kpiReceivablesPending.textContent = String(pendingCount);
+  el.kpiReceivablesOverdue.textContent = String(overdueCount);
 
   if (overdueCount > 0) {
     el.kpiReceivablesAlert.textContent = `${overdueCount} vencida(s)!`;
@@ -2859,6 +2870,10 @@ el.kpiPayablesAlert.addEventListener("click", (event) => {
   }
 });
 
+el.kpiPayablesOverdueCard.addEventListener("click", () => {
+  openPayablesWithFilters({ status: "overdue" });
+});
+
 el.kpiReceivablesCard.addEventListener("click", () => {
   openReceivablesWithFilters({ status: "pending" });
 });
@@ -2867,6 +2882,10 @@ el.kpiReceivablesAlert.addEventListener("click", (event) => {
   if (el.kpiReceivablesAlert.textContent.toLowerCase().includes("vencida")) {
     openReceivablesWithFilters({ status: "overdue" });
   }
+});
+
+el.kpiReceivablesOverdueCard.addEventListener("click", () => {
+  openReceivablesWithFilters({ status: "overdue" });
 });
 
 for (const node of [
@@ -2891,7 +2910,7 @@ el.dashResetFiltersBtn.addEventListener("click", () => {
 el.dashBudgetType.addEventListener("change", populateBudgetReferenceOptions);
 el.dashLineMetric.addEventListener("change", () => {
   el.dashLineChart.classList.add("metric-transition");
-  renderDashboard();
+  renderLineChart(state.dashboardTrendRows);
   window.setTimeout(() => {
     el.dashLineChart.classList.remove("metric-transition");
   }, 360);

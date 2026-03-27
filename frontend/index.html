@@ -124,10 +124,18 @@
               <strong id="kpiPayablesPending">0</strong>
               <small id="kpiPayablesAlert" style="display:block; margin-top:0.25rem; color:#d32f2f; font-weight:bold;"></small>
             </article>
+            <article class="kpi payables-overdue">
+              <span>Contas Vencidas</span>
+              <strong id="kpiPayablesOverdue">0</strong>
+            </article>
             <article class="kpi receivables">
               <span>Contas a Receber</span>
               <strong id="kpiReceivablesPending">0</strong>
               <small id="kpiReceivablesAlert" style="display:block; margin-top:0.25rem; color:#d32f2f; font-weight:bold;"></small>
+            </article>
+            <article class="kpi receivables-overdue">
+              <span>Contas Vencidas</span>
+              <strong id="kpiReceivablesOverdue">0</strong>
             </article>
           </div>
           <div class="dashboard-grid">
@@ -753,6 +761,73 @@
         </div>
         <div class="modal-actions edit-form-actions">
           <button id="editModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+          <button class="btn" type="submit">Salvar alteracoes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editPayableModal" class="modal-overlay hide">
+    <div class="modal-card edit-payable-modal-card">
+      <div class="modal-header">
+        <h3>Editar Conta a Pagar</h3>
+        <button id="editPayableCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="editPayableForm" class="grid-form modal-edit-form">
+        <label>Descricao
+          <input type="text" id="editPayableDescription" required>
+        </label>
+        <label>Valor
+          <input type="number" id="editPayableAmount" min="0" step="0.01" required>
+        </label>
+        <label>Vencimento
+          <input type="date" id="editPayableDueDate" required>
+        </label>
+        <label>Categoria
+          <select id="editPayableCategory">
+            <option value="">Sem categoria</option>
+          </select>
+        </label>
+        <label>Ministerio
+          <select id="editPayableMinistry">
+            <option value="">Nao se aplica</option>
+          </select>
+        </label>
+        <label>Banco
+          <select id="editPayableBankName">
+            <option value="">Nao informado</option>
+          </select>
+        </label>
+        <label>Perfil da despesa
+          <select id="editPayableExpenseProfile">
+            <option value="">Nao informado</option>
+            <option value="fixed">Fixa</option>
+            <option value="variable">Variavel</option>
+          </select>
+        </label>
+        <label>Recorrente
+          <select id="editPayableRecurringType">
+            <option value="">Nao</option>
+            <option value="weekly">Semanal</option>
+            <option value="monthly">Mensal</option>
+            <option value="yearly">Anual</option>
+          </select>
+        </label>
+        <div id="editPayableAttachmentBlockCurrent" class="payable-attachment-current hide">
+          <p class="attachment-current-label">Boleto anexado:</p>
+          <div class="attachment-current-info">
+            <span id="editPayableAttachmentCurrentName" class="attachment-current-name"></span>
+            <button class="btn ghost btn-mini" type="button" id="editPayableRemoveCurrentAttachmentBtn">Remover</button>
+          </div>
+        </div>
+        <label>Anexo do boleto (opcional)
+          <input type="file" id="editPayableAttachmentFile" accept="application/pdf,image/*">
+        </label>
+        <label>Observacoes
+          <input type="text" id="editPayableNotes" placeholder="Opcional">
+        </label>
+        <div class="modal-actions edit-form-actions">
+          <button id="editPayableCancelBtn" class="btn ghost" type="button">Cancelar</button>
           <button class="btn" type="submit">Salvar alteracoes</button>
         </div>
       </form>
