@@ -750,11 +750,31 @@ select:focus {
 .kpi.payables {
   background: linear-gradient(145deg, #fff8e1, #fffce0);
   border-color: #ffd54f;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kpi.payables:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .kpi.receivables {
   background: linear-gradient(145deg, #e6fff3, #f4fffa);
   border-color: #b8e6d0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kpi.receivables:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#kpiPayablesAlert:not(:empty),
+#kpiReceivablesAlert:not(:empty) {
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .table-wrap {
@@ -1003,6 +1023,45 @@ th {
 
 .edit-modal-card {
   width: min(680px, 96vw);
+}
+
+.edit-payable-modal-card {
+  width: min(680px, 96vw);
+}
+
+.payable-paid-modal-card {
+  width: min(520px, 96vw);
+}
+
+.payable-attachment-current {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  background: #f0f4f8;
+  border: 1px solid #d8e1ec;
+  border-radius: 10px;
+  margin-bottom: 0.8rem;
+}
+
+.attachment-current-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #324b65;
+  margin: 0;
+}
+
+.attachment-current-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.attachment-current-name {
+  font-size: 0.9rem;
+  color: #2c3e50;
+  word-break: break-word;
+  flex: 1;
 }
 
 .payable-paid-modal-card {

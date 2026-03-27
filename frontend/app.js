@@ -242,8 +242,10 @@ const el = {
   kpiBalance: document.getElementById("kpiBalance"),
   kpiPayablesPending: document.getElementById("kpiPayablesPending"),
   kpiPayablesAlert: document.getElementById("kpiPayablesAlert"),
+  kpiPayablesCard: document.querySelector(".kpi.payables"),
   kpiReceivablesPending: document.getElementById("kpiReceivablesPending"),
   kpiReceivablesAlert: document.getElementById("kpiReceivablesAlert"),
+  kpiReceivablesCard: document.querySelector(".kpi.receivables"),
   uploadResultModal: document.getElementById("uploadResultModal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -1066,6 +1068,36 @@ function openTransactionsWithFilters(nextFilters) {
 
   saveTransactionFilterState();
   renderTransactions();
+}
+
+function openPayablesWithFilters(nextFilters) {
+  setActiveView("payablesView");
+  state.payableFilters = {
+    ...state.payableFilters,
+    ...nextFilters,
+  };
+
+  el.payableFilterSearch.value = state.payableFilters.search || "";
+  el.payableFilterStatus.value = state.payableFilters.status || "";
+  el.payableFilterStartDate.value = state.payableFilters.startDate || "";
+  el.payableFilterEndDate.value = state.payableFilters.endDate || "";
+
+  renderPayables();
+}
+
+function openReceivablesWithFilters(nextFilters) {
+  setActiveView("receivablesView");
+  state.receivableFilters = {
+    ...state.receivableFilters,
+    ...nextFilters,
+  };
+
+  el.receivableFilterSearch.value = state.receivableFilters.search || "";
+  el.receivableFilterStatus.value = state.receivableFilters.status || "";
+  el.receivableFilterStartDate.value = state.receivableFilters.startDate || "";
+  el.receivableFilterEndDate.value = state.receivableFilters.endDate || "";
+
+  renderReceivables();
 }
 
 function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
@@ -2814,6 +2846,26 @@ el.refreshBtn.addEventListener("click", async () => {
     renderDashboard();
   } catch (error) {
     setMessage(el.dashboardMessage, error.message, true);
+  }
+});
+
+el.kpiPayablesCard.addEventListener("click", () => {
+  openPayablesWithFilters({ status: "pending" });
+});
+
+el.kpiPayablesAlert.addEventListener("click", (event) => {
+  if (el.kpiPayablesAlert.textContent.toLowerCase().includes("vencida")) {
+    openPayablesWithFilters({ status: "overdue" });
+  }
+});
+
+el.kpiReceivablesCard.addEventListener("click", () => {
+  openReceivablesWithFilters({ status: "pending" });
+});
+
+el.kpiReceivablesAlert.addEventListener("click", (event) => {
+  if (el.kpiReceivablesAlert.textContent.toLowerCase().includes("vencida")) {
+    openReceivablesWithFilters({ status: "overdue" });
   }
 });
 
