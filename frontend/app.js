@@ -288,6 +288,21 @@ function debounce(fn, wait = 300) {
   };
 }
 
+function positionTooltip(tooltipNode, event, offsetX = 12, offsetY = -18) {
+  const maxWidthPad = 8;
+  const rawLeft = event.clientX + offsetX;
+  const rawTop = event.clientY + offsetY;
+
+  const width = tooltipNode.offsetWidth || 180;
+  const height = tooltipNode.offsetHeight || 36;
+
+  const left = Math.max(maxWidthPad, Math.min(rawLeft, window.innerWidth - width - maxWidthPad));
+  const top = Math.max(maxWidthPad, Math.min(rawTop, window.innerHeight - height - maxWidthPad));
+
+  tooltipNode.style.left = `${left}px`;
+  tooltipNode.style.top = `${top}px`;
+}
+
 function errorDetailToText(detail, fallback = "Erro inesperado") {
   if (detail == null) {
     return fallback;
@@ -769,11 +784,9 @@ function renderLineChart(trendRows) {
     const idx = Number(node.getAttribute("data-idx") || 0);
     const point = points[idx];
     node.addEventListener("mousemove", (event) => {
-      const rect = el.dashLineTooltip.parentElement.getBoundingClientRect();
       el.dashLineTooltip.textContent = `${point.label} | ${metricLabel}: ${brl(point.value)}`;
-      el.dashLineTooltip.style.left = `${event.clientX - rect.left + 10}px`;
-      el.dashLineTooltip.style.top = `${event.clientY - rect.top - 18}px`;
       el.dashLineTooltip.classList.remove("hide");
+      positionTooltip(el.dashLineTooltip, event, 10, -18);
     });
     node.addEventListener("mouseleave", () => {
       el.dashLineTooltip.classList.add("hide");
@@ -827,11 +840,9 @@ function renderExpensePie(categoryTotals) {
       el.dashPieTooltip.classList.add("hide");
       return;
     }
-    const wrapRect = el.dashPieTooltip.parentElement.getBoundingClientRect();
     el.dashPieTooltip.textContent = `${match.name}: ${brl(match.value)} (${match.pct.toFixed(1)}%)`;
-    el.dashPieTooltip.style.left = `${event.clientX - wrapRect.left + 12}px`;
-    el.dashPieTooltip.style.top = `${event.clientY - wrapRect.top - 18}px`;
     el.dashPieTooltip.classList.remove("hide");
+    positionTooltip(el.dashPieTooltip, event, 12, -18);
   };
   el.dashExpensePie.onmouseleave = () => {
     el.dashPieTooltip.classList.add("hide");

@@ -474,7 +474,7 @@ select:focus {
 }
 
 .chart-tooltip {
-  position: absolute;
+  position: fixed;
   z-index: 3;
   pointer-events: none;
   background: rgba(14, 33, 58, 0.94);
