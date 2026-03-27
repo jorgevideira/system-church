@@ -769,7 +769,7 @@ function renderLineChart(trendRows) {
     const idx = Number(node.getAttribute("data-idx") || 0);
     const point = points[idx];
     node.addEventListener("mousemove", (event) => {
-      const rect = el.dashLineChart.getBoundingClientRect();
+      const rect = el.dashLineTooltip.parentElement.getBoundingClientRect();
       el.dashLineTooltip.textContent = `${point.label} | ${metricLabel}: ${brl(point.value)}`;
       el.dashLineTooltip.style.left = `${event.clientX - rect.left + 10}px`;
       el.dashLineTooltip.style.top = `${event.clientY - rect.top - 18}px`;
@@ -827,7 +827,7 @@ function renderExpensePie(categoryTotals) {
       el.dashPieTooltip.classList.add("hide");
       return;
     }
-    const wrapRect = el.dashExpensePie.parentElement.getBoundingClientRect();
+    const wrapRect = el.dashPieTooltip.parentElement.getBoundingClientRect();
     el.dashPieTooltip.textContent = `${match.name}: ${brl(match.value)} (${match.pct.toFixed(1)}%)`;
     el.dashPieTooltip.style.left = `${event.clientX - wrapRect.left + 12}px`;
     el.dashPieTooltip.style.top = `${event.clientY - wrapRect.top - 18}px`;
