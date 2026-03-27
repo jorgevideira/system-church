@@ -21,6 +21,14 @@ from app.schemas.transaction import (
     TransactionFilter,
     PaginatedTransactions,
 )
+from app.schemas.payable import (
+    PayableBase,
+    PayableCreate,
+    PayableUpdate,
+    MarkPayablePaidRequest,
+    PayableResponse,
+    PayableAlertsSummary,
+)
 
 __all__ = [
     "UserBase",
@@ -40,4 +48,10 @@ __all__ = [
     "TransactionResponse",
     "TransactionFilter",
     "PaginatedTransactions",
+    "PayableBase",
+    "PayableCreate",
+    "PayableUpdate",
+    "MarkPayablePaidRequest",
+    "PayableResponse",
+    "PayableAlertsSummary",
 ]

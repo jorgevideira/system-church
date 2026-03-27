@@ -408,6 +408,10 @@ select:focus {
   grid-column: span 1;
 }
 
+.dash-bank-card {
+  grid-column: span 2;
+}
+
 .line-chart {
   position: relative;
   width: 100%;
@@ -512,6 +516,65 @@ select:focus {
 }
 
 .comparison-fill.expense {
+  background: linear-gradient(90deg, #c0392b, #e16b5d);
+}
+
+.bank-bars {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bank-bar-row {
+  border: 1px solid #d8e4f1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.45rem;
+}
+
+.bank-bar-row.clickable {
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.bank-bar-row.clickable:hover {
+  transform: translateY(-1px);
+  border-color: #bcd3ec;
+  box-shadow: 0 8px 16px rgba(16, 44, 78, 0.08);
+}
+
+.bank-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #455f7c;
+  margin-bottom: 0.25rem;
+}
+
+.bank-bar-tracks {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.bank-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e7eef7;
+  overflow: hidden;
+}
+
+.bank-bar-fill-income,
+.bank-bar-fill-expense {
+  height: 100%;
+  min-width: 2px;
+}
+
+.bank-bar-fill-income {
+  background: linear-gradient(90deg, #0a8f72, #35b596);
+}
+
+.bank-bar-fill-expense {
   background: linear-gradient(90deg, #c0392b, #e16b5d);
 }
 
@@ -683,6 +746,11 @@ select:focus {
   border-color: #c7dcff;
 }
 
+.kpi.payables {
+  background: linear-gradient(145deg, #fff8e1, #fffce0);
+  border-color: #ffd54f;
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
@@ -798,6 +866,40 @@ select:focus {
   background: #edf5ff;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.payable-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.14rem 0.48rem;
+  border: 1px solid transparent;
+}
+
+.payable-status.pending {
+  background: #f6f8ff;
+  color: #35527a;
+  border-color: #d7e3f3;
+}
+
+.payable-status.overdue {
+  background: #fff2f0;
+  color: #a4332a;
+  border-color: #f0c9c4;
+}
+
+.payable-status.paid {
+  background: #eefcf6;
+  color: #0f7059;
+  border-color: #c5e9dc;
+}
+
+.payable-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 table {
@@ -1030,6 +1132,7 @@ th {
   }
 
   .dash-line-card,
+  .dash-bank-card,
   .dash-pie-card {
     grid-column: auto;
   }

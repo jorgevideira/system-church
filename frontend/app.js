@@ -9,6 +9,14 @@ const state = {
   categories: [],
   ministries: [],
   transactionsRaw: [],
+  payables: [],
+  payableAlertsSummary: {
+    overdue: 0,
+    due_today: 0,
+    due_in_3_days: 0,
+    due_in_7_days: 0,
+    pending_total: 0,
+  },
   txFilters: {
     search: "",
     startDate: "",
@@ -32,7 +40,14 @@ const state = {
     page: 1,
     pageSize: 25,
   },
+  payableFilters: {
+    search: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  },
   editingTransactionId: null,
+  editingPayableId: null,
   editingCategoryId: null,
   editingMinistryId: null,
   deletingCategoryId: null,
@@ -45,6 +60,7 @@ const el = {
   appShell: document.getElementById("appShell"),
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
+  payablesView: document.getElementById("payablesView"),
   categoriesView: document.getElementById("categoriesView"),
   ministriesView: document.getElementById("ministriesView"),
   uploadView: document.getElementById("uploadView"),
@@ -54,6 +70,7 @@ const el = {
   authMessage: document.getElementById("authMessage"),
   dashboardMessage: document.getElementById("dashboardMessage"),
   txMessage: document.getElementById("txMessage"),
+  payableMessage: document.getElementById("payableMessage"),
   categoryMessage: document.getElementById("categoryMessage"),
   ministryMessage: document.getElementById("ministryMessage"),
   uploadMessage: document.getElementById("uploadMessage"),
@@ -81,6 +98,7 @@ const el = {
   dashIncomePercent: document.getElementById("dashIncomePercent"),
   dashExpensePercent: document.getElementById("dashExpensePercent"),
   dashEfficiencyNote: document.getElementById("dashEfficiencyNote"),
+  dashBankBars: document.getElementById("dashBankBars"),
   dashTopCategories: document.getElementById("dashTopCategories"),
   dashLineMetric: document.getElementById("dashLineMetric"),
   dashTopMinistries: document.getElementById("dashTopMinistries"),
@@ -120,6 +138,24 @@ const el = {
   txHeaderAmountSort: document.getElementById("txHeaderAmountSort"),
   txType: document.getElementById("txType"),
   txBankName: document.getElementById("txBankName"),
+  payableForm: document.getElementById("payableForm"),
+  payableDescription: document.getElementById("payableDescription"),
+  payableAmount: document.getElementById("payableAmount"),
+  payableDueDate: document.getElementById("payableDueDate"),
+  payableCategory: document.getElementById("payableCategory"),
+  payableMinistry: document.getElementById("payableMinistry"),
+  payableBankName: document.getElementById("payableBankName"),
+  payableRecurringType: document.getElementById("payableRecurringType"),
+  payableNotes: document.getElementById("payableNotes"),
+  payableSaveBtn: document.getElementById("payableSaveBtn"),
+  payableCancelEditBtn: document.getElementById("payableCancelEditBtn"),
+  payableFilterSearch: document.getElementById("payableFilterSearch"),
+  payableFilterStatus: document.getElementById("payableFilterStatus"),
+  payableFilterStartDate: document.getElementById("payableFilterStartDate"),
+  payableFilterEndDate: document.getElementById("payableFilterEndDate"),
+  payableFilterResultCount: document.getElementById("payableFilterResultCount"),
+  payableFilterResetBtn: document.getElementById("payableFilterResetBtn"),
+  payableTableBody: document.getElementById("payableTableBody"),
   txCategoryInput: document.getElementById("txCategoryInput"),
   txCategoryId: document.getElementById("txCategoryId"),
   txCategoryOptions: document.getElementById("txCategoryOptions"),
@@ -148,6 +184,8 @@ const el = {
   kpiIncome: document.getElementById("kpiIncome"),
   kpiExpense: document.getElementById("kpiExpense"),
   kpiBalance: document.getElementById("kpiBalance"),
+  kpiPayablesPending: document.getElementById("kpiPayablesPending"),
+  kpiPayablesAlert: document.getElementById("kpiPayablesAlert"),
   uploadResultModal: document.getElementById("uploadResultModal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -294,7 +332,15 @@ function showApp(isAuthed) {
 }
 
 function setActiveView(viewId) {
-  const views = [el.dashboardView, el.transactionsView, el.categoriesView, el.ministriesView, el.uploadView, el.reportsView];
+  const views = [
+    el.dashboardView,
+    el.transactionsView,
+    el.payablesView,
+    el.categoriesView,
+    el.ministriesView,
+    el.uploadView,
+    el.reportsView,
+  ];
   for (const view of views) {
     view.classList.toggle("hide", view.id !== viewId);
   }
@@ -730,6 +776,66 @@ function renderExpensePie(categoryTotals) {
   };
 }
 
+function renderBankBars(rows) {
+  const bankTotals = new Map();
+
+  for (const tx of rows) {
+    const bank = (tx.source_bank || tx.source_bank_name || "Nao informado").trim() || "Nao informado";
+    const current = bankTotals.get(bank) || { income: 0, expense: 0 };
+    const amount = Number(tx.amount || 0);
+    if (tx.transaction_type === "income") {
+      current.income += amount;
+    } else {
+      current.expense += amount;
+    }
+    bankTotals.set(bank, current);
+  }
+
+  const rowsByBank = [...bankTotals.entries()]
+    .map(([bank, totals]) => ({ bank, ...totals, volume: totals.income + totals.expense }))
+    .sort((a, b) => b.volume - a.volume)
+    .slice(0, 8);
+
+  el.dashBankBars.innerHTML = "";
+  if (!rowsByBank.length) {
+    el.dashBankBars.innerHTML = "<div class='bank-bar-row'>Sem movimentacoes por banco no periodo.</div>";
+    return;
+  }
+
+  const maxValue = Math.max(...rowsByBank.map((item) => Math.max(item.income, item.expense)), 1);
+
+  for (const item of rowsByBank) {
+    const incomeWidth = (item.income / maxValue) * 100;
+    const expenseWidth = (item.expense / maxValue) * 100;
+    const rowNode = document.createElement("div");
+    rowNode.className = "bank-bar-row clickable";
+    rowNode.title = `Abrir lancamentos filtrados por banco: ${item.bank}`;
+    rowNode.innerHTML = `
+      <div class="bank-bar-head">
+        <strong>${item.bank}</strong>
+        <span>Entrada ${brl(item.income)} | Saida ${brl(item.expense)}</span>
+      </div>
+      <div class="bank-bar-tracks">
+        <div class="bank-bar-track" title="Entrada ${brl(item.income)}">
+          <div class="bank-bar-fill-income" style="width:${incomeWidth.toFixed(1)}%"></div>
+        </div>
+        <div class="bank-bar-track" title="Saida ${brl(item.expense)}">
+          <div class="bank-bar-fill-expense" style="width:${expenseWidth.toFixed(1)}%"></div>
+        </div>
+      </div>
+    `;
+    rowNode.addEventListener("click", () => {
+      openTransactionsWithFilters({
+        search: item.bank,
+        startDate: state.dashboardFilters.startDate || "",
+        endDate: state.dashboardFilters.endDate || "",
+      });
+      setMessage(el.txMessage, `Filtro aplicado para banco: ${item.bank}`);
+    });
+    el.dashBankBars.appendChild(rowNode);
+  }
+}
+
 function buildLastMonthKeys(monthCount = 6) {
   const keys = [];
   const now = new Date();
@@ -884,6 +990,19 @@ function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
     }
   }
 
+  if (Number(state.payableAlertsSummary.overdue || 0) > 0) {
+    alerts.push({ level: "high", text: `${state.payableAlertsSummary.overdue} conta(s) vencida(s) aguardando pagamento.` });
+  }
+  if (Number(state.payableAlertsSummary.due_today || 0) > 0) {
+    alerts.push({ level: "medium", text: `${state.payableAlertsSummary.due_today} conta(s) vencem hoje.` });
+  }
+  if (Number(state.payableAlertsSummary.due_in_3_days || 0) > 0) {
+    alerts.push({ level: "medium", text: `${state.payableAlertsSummary.due_in_3_days} conta(s) vencem em ate 3 dias.` });
+  }
+  if (Number(state.payableAlertsSummary.due_in_7_days || 0) > 0) {
+    alerts.push({ level: "low", text: `${state.payableAlertsSummary.due_in_7_days} conta(s) vencem em ate 7 dias.` });
+  }
+
   el.dashAlertsList.innerHTML = "";
   if (!alerts.length) {
     el.dashAlertsList.innerHTML = "<li class='comparison-item alert-low'>Sem alertas criticos no periodo atual.</li>";
@@ -895,6 +1014,37 @@ function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
     li.className = `comparison-item alert-${alert.level}`;
     li.textContent = alert.text;
     el.dashAlertsList.appendChild(li);
+  }
+}
+
+function renderPayablesKpi() {
+  const summary = state.payableAlertsSummary || {
+    overdue: 0,
+    due_today: 0,
+    due_in_3_days: 0,
+    due_in_7_days: 0,
+    pending_total: 0,
+  };
+
+  const pendingCount = Number(summary.pending_total || 0);
+  const overdueCount = Number(summary.overdue || 0);
+
+  el.kpiPayablesPending.textContent = String(pendingCount);
+
+  if (overdueCount > 0) {
+    el.kpiPayablesAlert.textContent = `${overdueCount} vencida(s)!`;
+    el.kpiPayablesAlert.style.display = "block";
+  } else if (Number(summary.due_today || 0) > 0) {
+    el.kpiPayablesAlert.textContent = `${summary.due_today} vence hoje`;
+    el.kpiPayablesAlert.style.display = "block";
+    el.kpiPayablesAlert.style.color = "#f57c00";
+  } else if (Number(summary.due_in_3_days || 0) > 0) {
+    el.kpiPayablesAlert.textContent = `${summary.due_in_3_days} em 3 dias`;
+    el.kpiPayablesAlert.style.display = "block";
+    el.kpiPayablesAlert.style.color = "#f57c00";
+  } else {
+    el.kpiPayablesAlert.textContent = "";
+    el.kpiPayablesAlert.style.display = "none";
   }
 }
 
@@ -1039,7 +1189,9 @@ function renderDashboard() {
   }
   renderSixMonthComparison(trendRows);
   renderExpensePie(categoryTotals);
+  renderBankBars(rows);
   renderBudgetAndAlerts(rows, categoryTotals, ministryTotals);
+  renderPayablesKpi();
 
   const now = new Date();
   const currentMonth = now.toISOString().slice(0, 7);
@@ -1453,6 +1605,186 @@ function populateMinistrySelects() {
   }
 }
 
+function payableStatusLabel(value) {
+  if (value === "paid") {
+    return "Paga";
+  }
+  if (value === "overdue") {
+    return "Vencida";
+  }
+  return "Pendente";
+}
+
+function payableRecurringLabel(value) {
+  if (value === "weekly") {
+    return "Semanal";
+  }
+  if (value === "monthly") {
+    return "Mensal";
+  }
+  if (value === "yearly") {
+    return "Anual";
+  }
+  return "Nao";
+}
+
+function clearPayableForm() {
+  state.editingPayableId = null;
+  el.payableForm.reset();
+  el.payableCategory.value = "";
+  el.payableMinistry.value = "";
+  el.payableBankName.value = "";
+  el.payableRecurringType.value = "";
+  el.payableDueDate.value = new Date().toISOString().slice(0, 10);
+  el.payableSaveBtn.textContent = "Salvar conta";
+}
+
+function populatePayableFormOptions() {
+  const selectedCategory = el.payableCategory.value;
+  const selectedMinistry = el.payableMinistry.value;
+  const selectedBank = el.payableBankName.value;
+
+  el.payableCategory.innerHTML = "<option value=''>Sem categoria</option>";
+  for (const cat of [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(cat.id);
+    option.textContent = cat.name;
+    el.payableCategory.appendChild(option);
+  }
+  if (selectedCategory) {
+    el.payableCategory.value = selectedCategory;
+  }
+
+  el.payableMinistry.innerHTML = "<option value=''>Nao se aplica</option>";
+  for (const ministry of [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(ministry.id);
+    option.textContent = ministry.name;
+    el.payableMinistry.appendChild(option);
+  }
+  if (selectedMinistry) {
+    el.payableMinistry.value = selectedMinistry;
+  }
+
+  el.payableBankName.innerHTML = "<option value=''>Nao informado</option>";
+  const banks = new Set();
+  for (const tx of state.transactionsRaw) {
+    const name = String(tx.source_bank || tx.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const payable of state.payables) {
+    const name = String(payable.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const bank of [...banks].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = bank;
+    option.textContent = bank;
+    el.payableBankName.appendChild(option);
+  }
+  if (selectedBank) {
+    ensureSelectHasOption(el.payableBankName, selectedBank);
+    el.payableBankName.value = selectedBank;
+  }
+}
+
+function syncPayableFiltersFromUi() {
+  state.payableFilters.search = el.payableFilterSearch.value.trim();
+  state.payableFilters.status = el.payableFilterStatus.value;
+  state.payableFilters.startDate = el.payableFilterStartDate.value;
+  state.payableFilters.endDate = el.payableFilterEndDate.value;
+}
+
+function resetPayableFilters() {
+  state.payableFilters = {
+    search: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  };
+  el.payableFilterSearch.value = "";
+  el.payableFilterStatus.value = "";
+  el.payableFilterStartDate.value = "";
+  el.payableFilterEndDate.value = "";
+  renderPayables();
+}
+
+function getFilteredPayables() {
+  const f = state.payableFilters;
+  const search = normalizeText(f.search);
+
+  return state.payables.filter((payable) => {
+    if (f.status && payable.status !== f.status) return false;
+    if (f.startDate && payable.due_date < f.startDate) return false;
+    if (f.endDate && payable.due_date > f.endDate) return false;
+
+    if (search) {
+      const haystack = normalizeText([
+        payable.description,
+        payable.source_bank_name,
+        payable.category?.name,
+        payable.ministry?.name,
+      ].join(" "));
+      if (!haystack.includes(search)) return false;
+    }
+
+    return true;
+  }).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)));
+}
+
+function renderPayables() {
+  const rows = getFilteredPayables();
+  el.payableTableBody.innerHTML = "";
+
+  for (const payable of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${payable.due_date}</td>
+      <td>${payable.description}</td>
+      <td><span class="payable-status ${payable.status}">${payableStatusLabel(payable.status)}</span></td>
+      <td>${payable.category?.name || "-"}</td>
+      <td>${payable.ministry?.name || "-"}</td>
+      <td>${payable.source_bank_name || "-"}</td>
+      <td>${brl(payable.amount)}</td>
+      <td>${payableRecurringLabel(payable.recurrence_type)}</td>
+      <td>
+        <div class="payable-actions">
+          <button class="btn ghost btn-mini" type="button" data-edit-payable="${payable.id}">Editar</button>
+          ${payable.status !== "paid" ? `<button class="btn btn-mini" type="button" data-mark-payable-paid="${payable.id}">Marcar paga</button>` : ""}
+          <button class="btn ghost btn-mini" type="button" data-delete-payable="${payable.id}">Excluir</button>
+        </div>
+      </td>
+    `;
+    el.payableTableBody.appendChild(tr);
+  }
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td colspan='9'>Nenhuma conta encontrada para os filtros atuais.</td>";
+    el.payableTableBody.appendChild(tr);
+  }
+
+  el.payableFilterResultCount.textContent = `Mostrando ${rows.length} de ${state.payables.length}`;
+}
+
+function openEditPayable(payable) {
+  state.editingPayableId = payable.id;
+  el.payableDescription.value = payable.description || "";
+  el.payableAmount.value = toInputAmount(payable.amount);
+  el.payableDueDate.value = payable.due_date || "";
+  el.payableCategory.value = payable.category_id ? String(payable.category_id) : "";
+  el.payableMinistry.value = payable.ministry_id ? String(payable.ministry_id) : "";
+  ensureSelectHasOption(el.payableBankName, payable.source_bank_name || "");
+  el.payableBankName.value = payable.source_bank_name || "";
+  el.payableRecurringType.value = payable.recurrence_type || "";
+  el.payableNotes.value = payable.notes || "";
+  el.payableSaveBtn.textContent = "Salvar alteracoes";
+}
+
 async function api(path, options = {}, isForm = false) {
   const headers = new Headers(options.headers || {});
   if (!isForm) {
@@ -1541,6 +1873,8 @@ async function loadCategories() {
   populateTransactionFilterOptions();
   populateDashboardFilterOptions();
   populateBudgetReferenceOptions();
+  populatePayableFormOptions();
+  renderPayables();
 }
 
 async function loadMinistries() {
@@ -1551,6 +1885,8 @@ async function loadMinistries() {
   populateTransactionFilterOptions();
   populateDashboardFilterOptions();
   populateBudgetReferenceOptions();
+  populatePayableFormOptions();
+  renderPayables();
   syncMinistryField(el.txType, el.txMinistry);
   syncMinistryField(el.editTxType, el.editTxMinistry);
 }
@@ -1571,8 +1907,31 @@ async function loadTransactions() {
 
   state.transactionsRaw = allItems;
   populateBankDropdowns();
+  populatePayableFormOptions();
   renderTransactions();
   renderDashboard();
+}
+
+async function loadPayables() {
+  const payables = await api("/payables/");
+  state.payables = payables;
+  populatePayableFormOptions();
+  renderPayables();
+}
+
+async function loadPayablesAlertsSummary() {
+  try {
+    const summary = await api("/payables/alerts/summary");
+    state.payableAlertsSummary = summary;
+  } catch {
+    state.payableAlertsSummary = {
+      overdue: 0,
+      due_today: 0,
+      due_in_3_days: 0,
+      due_in_7_days: 0,
+      pending_total: 0,
+    };
+  }
 }
 
 async function openEditTransactionModal(transactionId) {
@@ -1832,7 +2191,16 @@ async function initializeApp() {
     setActiveView("dashboardView");
     el.reportYear.value = new Date().getFullYear();
     await loadMe();
-    await Promise.all([loadSummary(), loadCategories(), loadMinistries(), loadTransactions(), loadReports()]);
+    await Promise.all([
+      loadSummary(),
+      loadCategories(),
+      loadMinistries(),
+      loadTransactions(),
+      loadPayables(),
+      loadPayablesAlertsSummary(),
+      loadReports(),
+    ]);
+    renderDashboard();
   } catch (error) {
     logout();
     const msg = error instanceof Error ? error.message : errorDetailToText(error, "Falha ao validar sessao");
@@ -1860,7 +2228,8 @@ el.logoutBtn.addEventListener("click", () => {
 
 el.refreshBtn.addEventListener("click", async () => {
   try {
-    await Promise.all([loadTransactions(), loadReports()]);
+    await Promise.all([loadTransactions(), loadPayables(), loadPayablesAlertsSummary(), loadReports()]);
+    renderDashboard();
   } catch (error) {
     setMessage(el.dashboardMessage, error.message, true);
   }
@@ -1917,6 +2286,125 @@ el.dashBudgetForm.addEventListener("submit", (event) => {
   saveBudgetTargets();
   setMessage(el.dashBudgetMessage, "Meta salva com sucesso.");
   renderDashboard();
+});
+
+el.payableForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const recurrenceType = el.payableRecurringType.value || null;
+    const payload = {
+      description: el.payableDescription.value.trim(),
+      amount: Number(el.payableAmount.value || 0),
+      due_date: el.payableDueDate.value,
+      category_id: el.payableCategory.value ? Number(el.payableCategory.value) : null,
+      ministry_id: el.payableMinistry.value ? Number(el.payableMinistry.value) : null,
+      source_bank_name: el.payableBankName.value || null,
+      notes: el.payableNotes.value.trim() || null,
+      is_recurring: recurrenceType !== null,
+      recurrence_type: recurrenceType,
+    };
+
+    if (!payload.description) {
+      throw new Error("Informe a descricao da conta.");
+    }
+    if (!payload.due_date) {
+      throw new Error("Informe a data de vencimento.");
+    }
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+      throw new Error("Informe um valor valido maior que zero.");
+    }
+
+    if (state.editingPayableId) {
+      await api(`/payables/${state.editingPayableId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.payableMessage, "Conta atualizada com sucesso.");
+    } else {
+      await api("/payables/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.payableMessage, "Conta cadastrada com sucesso.");
+    }
+
+    clearPayableForm();
+    await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
+    renderDashboard();
+  } catch (error) {
+    setMessage(el.payableMessage, error.message, true);
+  }
+});
+
+el.payableCancelEditBtn.addEventListener("click", () => {
+  clearPayableForm();
+  setMessage(el.payableMessage, "");
+});
+
+const debouncedPayableSearch = debounce(() => {
+  syncPayableFiltersFromUi();
+  renderPayables();
+}, 300);
+
+el.payableFilterSearch.addEventListener("input", debouncedPayableSearch);
+for (const node of [el.payableFilterStatus, el.payableFilterStartDate, el.payableFilterEndDate]) {
+  node.addEventListener("change", () => {
+    syncPayableFiltersFromUi();
+    renderPayables();
+  });
+}
+el.payableFilterResetBtn.addEventListener("click", resetPayableFilters);
+
+el.payableTableBody.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const editId = target.getAttribute("data-edit-payable");
+  if (editId) {
+    const payable = state.payables.find((item) => item.id === Number(editId));
+    if (!payable) {
+      return;
+    }
+    openEditPayable(payable);
+    setMessage(el.payableMessage, `Editando conta: ${payable.description}`);
+    return;
+  }
+
+  const markPaidId = target.getAttribute("data-mark-payable-paid");
+  if (markPaidId) {
+    try {
+      await api(`/payables/${Number(markPaidId)}/mark-paid`, {
+        method: "POST",
+        body: JSON.stringify({ generate_transaction: true }),
+      });
+      setMessage(el.payableMessage, "Conta marcada como paga e lancamento gerado.");
+      await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
+      renderDashboard();
+    } catch (error) {
+      setMessage(el.payableMessage, error.message, true);
+    }
+    return;
+  }
+
+  const deleteId = target.getAttribute("data-delete-payable");
+  if (deleteId) {
+    try {
+      if (!window.confirm("Tem certeza que deseja excluir esta conta a pagar?")) {
+        return;
+      }
+      await api(`/payables/${Number(deleteId)}`, { method: "DELETE" });
+      setMessage(el.payableMessage, "Conta excluida com sucesso.");
+      if (state.editingPayableId === Number(deleteId)) {
+        clearPayableForm();
+      }
+      await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
+      renderDashboard();
+    } catch (error) {
+      setMessage(el.payableMessage, error.message, true);
+    }
+  }
 });
 
 el.transactionForm.addEventListener("submit", async (event) => {
@@ -2432,8 +2920,23 @@ el.reportYear.addEventListener("change", async () => {
 });
 
 for (const btn of el.navButtons) {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     setActiveView(btn.dataset.view);
+    if (btn.dataset.view === "payablesView") {
+      try {
+        await loadPayables();
+      } catch (error) {
+        setMessage(el.payableMessage, error.message, true);
+      }
+    }
+    if (btn.dataset.view === "dashboardView") {
+      try {
+        await loadPayablesAlertsSummary();
+        renderDashboard();
+      } catch (error) {
+        setMessage(el.dashboardMessage, error.message, true);
+      }
+    }
   });
 }
 
@@ -2449,6 +2952,7 @@ el.editTxType.addEventListener("change", () => {
 });
 
 document.getElementById("txDate").value = new Date().toISOString().slice(0, 10);
+el.payableDueDate.value = new Date().toISOString().slice(0, 10);
 loadTransactionFilterState();
 loadBudgetTargets();
 populateBudgetReferenceOptions();
@@ -2456,4 +2960,5 @@ syncExpenseProfileField(el.txType, el.txExpenseProfile);
 syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
 syncMinistryField(el.txType, el.txMinistry);
 syncMinistryField(el.editTxType, el.editTxMinistry);
+clearPayableForm();
 initializeApp();

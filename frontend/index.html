@@ -56,6 +56,7 @@
         <p class="sidebar-title">Modulos</p>
         <button class="nav-btn active" data-view="dashboardView">Dashboard</button>
         <button class="nav-btn" data-view="transactionsView">Lancamentos</button>
+        <button class="nav-btn" data-view="payablesView">Contas a Pagar</button>
         <button class="nav-btn" data-view="categoriesView">Categorias</button>
         <button class="nav-btn" data-view="ministriesView">Ministerios</button>
         <button class="nav-btn" data-view="uploadView">Upload</button>
@@ -117,6 +118,11 @@
               <span>Saldo</span>
               <strong id="kpiBalance">R$ 0,00</strong>
             </article>
+            <article class="kpi payables">
+              <span>Contas Pendentes</span>
+              <strong id="kpiPayablesPending">0</strong>
+              <small id="kpiPayablesAlert" style="display:block; margin-top:0.25rem; color:#d32f2f; font-weight:bold;"></small>
+            </article>
           </div>
           <div class="dashboard-grid">
             <article class="dashboard-card dash-line-card">
@@ -159,6 +165,11 @@
                 </div>
               </div>
               <p id="dashEfficiencyNote" class="tiny">Sem dados para o periodo selecionado.</p>
+            </article>
+
+            <article class="dashboard-card dash-bank-card">
+              <h4>Entradas e Saidas por Banco</h4>
+              <div id="dashBankBars" class="bank-bars"></div>
             </article>
 
             <article class="dashboard-card">
@@ -401,6 +412,97 @@
                 </tr>
               </thead>
               <tbody id="categoryTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="payablesView">
+          <h3>Contas a Pagar</h3>
+          <form id="payableForm" class="grid-form">
+            <label>Descricao
+              <input type="text" id="payableDescription" required>
+            </label>
+            <label>Valor
+              <input type="number" id="payableAmount" min="0" step="0.01" required>
+            </label>
+            <label>Vencimento
+              <input type="date" id="payableDueDate" required>
+            </label>
+            <label>Categoria
+              <select id="payableCategory">
+                <option value="">Sem categoria</option>
+              </select>
+            </label>
+            <label>Ministerio
+              <select id="payableMinistry">
+                <option value="">Nao se aplica</option>
+              </select>
+            </label>
+            <label>Banco
+              <select id="payableBankName">
+                <option value="">Nao informado</option>
+              </select>
+            </label>
+            <label>Recorrente
+              <select id="payableRecurringType">
+                <option value="">Nao</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensal</option>
+                <option value="yearly">Anual</option>
+              </select>
+            </label>
+            <label>Observacoes
+              <input type="text" id="payableNotes" placeholder="Opcional">
+            </label>
+            <div class="category-form-actions">
+              <button class="btn" type="submit" id="payableSaveBtn">Salvar conta</button>
+              <button class="btn ghost" type="button" id="payableCancelEditBtn">Limpar</button>
+            </div>
+          </form>
+          <p id="payableMessage" class="message"></p>
+
+          <section class="tx-filters" aria-label="Filtros de contas a pagar">
+            <div class="tx-filters-grid">
+              <label>Buscar
+                <input type="text" id="payableFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+              </label>
+              <label>Status
+                <select id="payableFilterStatus">
+                  <option value="">Todos</option>
+                  <option value="pending">Pendente</option>
+                  <option value="overdue">Vencida</option>
+                  <option value="paid">Paga</option>
+                </select>
+              </label>
+              <label>Vencimento de
+                <input type="date" id="payableFilterStartDate">
+              </label>
+              <label>Vencimento ate
+                <input type="date" id="payableFilterEndDate">
+              </label>
+            </div>
+            <div class="tx-filters-footer">
+              <span id="payableFilterResultCount" class="tx-result-count"></span>
+              <button id="payableFilterResetBtn" class="btn ghost btn-mini" type="button">Limpar filtros</button>
+            </div>
+          </section>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vencimento</th>
+                  <th>Descricao</th>
+                  <th>Status</th>
+                  <th>Categoria</th>
+                  <th>Ministerio</th>
+                  <th>Banco</th>
+                  <th>Valor</th>
+                  <th>Recorrente</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="payableTableBody"></tbody>
             </table>
           </div>
         </section>
