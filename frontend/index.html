@@ -449,6 +449,13 @@
                 <option value="">Nao informado</option>
               </select>
             </label>
+            <label>Perfil da despesa
+              <select id="payableExpenseProfile">
+                <option value="">Nao informado</option>
+                <option value="fixed">Fixa</option>
+                <option value="variable">Variavel</option>
+              </select>
+            </label>
             <label>Recorrente
               <select id="payableRecurringType">
                 <option value="">Nao</option>
@@ -456,6 +463,9 @@
                 <option value="monthly">Mensal</option>
                 <option value="yearly">Anual</option>
               </select>
+            </label>
+            <label>Anexo do boleto
+              <input type="file" id="payableAttachmentFile" accept="application/pdf,image/*">
             </label>
             <label>Observacoes
               <input type="text" id="payableNotes" placeholder="Opcional">
@@ -501,9 +511,12 @@
                   <th>Pagamento</th>
                   <th>Descricao</th>
                   <th>Status</th>
+                  <th>Forma pgto</th>
                   <th>Categoria</th>
                   <th>Ministerio</th>
                   <th>Banco</th>
+                  <th>Perfil</th>
+                  <th>Anexo</th>
                   <th>Valor</th>
                   <th>Recorrente</th>
                   <th>Acoes</th>
@@ -786,6 +799,14 @@
         <p>Informe a data de pagamento para registrar a baixa desta conta.</p>
         <label class="payable-paid-at-label">Data de pagamento
           <input type="date" id="payablePaidAtInput" required>
+        </label>
+        <label class="payable-paid-at-label">Forma de pagamento
+          <select id="payablePaidMethodInput" required>
+            <option value="">Selecione</option>
+            <option value="pix">PIX</option>
+            <option value="boleto">Boleto</option>
+            <option value="cash">Dinheiro</option>
+          </select>
         </label>
       </div>
       <div class="modal-actions">

@@ -164,6 +164,8 @@ const el = {
   payableCategory: document.getElementById("payableCategory"),
   payableMinistry: document.getElementById("payableMinistry"),
   payableBankName: document.getElementById("payableBankName"),
+  payableExpenseProfile: document.getElementById("payableExpenseProfile"),
+  payableAttachmentFile: document.getElementById("payableAttachmentFile"),
   payableRecurringType: document.getElementById("payableRecurringType"),
   payableNotes: document.getElementById("payableNotes"),
   payableSaveBtn: document.getElementById("payableSaveBtn"),
@@ -257,6 +259,7 @@ const el = {
   attachmentPreviewPdf: document.getElementById("attachmentPreviewPdf"),
   payablePaidAtModal: document.getElementById("payablePaidAtModal"),
   payablePaidAtInput: document.getElementById("payablePaidAtInput"),
+  payablePaidMethodInput: document.getElementById("payablePaidMethodInput"),
   payablePaidAtCloseBtn: document.getElementById("payablePaidAtCloseBtn"),
   payablePaidAtCancelBtn: document.getElementById("payablePaidAtCancelBtn"),
   payablePaidAtConfirmBtn: document.getElementById("payablePaidAtConfirmBtn"),
@@ -1564,17 +1567,18 @@ function isAnyModalOpen() {
     || !el.payablePaidAtModal.classList.contains("hide");
 }
 
-function closePayablePaidAtModal(selectedDate = null) {
+function closePayablePaidAtModal(selectedPayload = null) {
   el.payablePaidAtModal.classList.add("hide");
   if (payablePaidAtResolver) {
     const resolver = payablePaidAtResolver;
     payablePaidAtResolver = null;
-    resolver(selectedDate);
+    resolver(selectedPayload);
   }
 }
 
-function openPayablePaidAtModal(defaultDate) {
+function openPayablePaidAtModal(defaultDate, defaultPaymentMethod = "") {
   el.payablePaidAtInput.value = defaultDate;
+  el.payablePaidMethodInput.value = defaultPaymentMethod || "";
   el.payablePaidAtModal.classList.remove("hide");
   window.setTimeout(() => {
     el.payablePaidAtInput.focus();
@@ -1798,12 +1802,37 @@ function payableRecurringLabel(value) {
   return "Nao";
 }
 
+function payableExpenseProfileLabel(value) {
+  if (value === "fixed") {
+    return "Fixa";
+  }
+  if (value === "variable") {
+    return "Variavel";
+  }
+  return "-";
+}
+
+function payablePaymentMethodLabel(value) {
+  if (value === "pix") {
+    return "PIX";
+  }
+  if (value === "boleto") {
+    return "Boleto";
+  }
+  if (value === "cash") {
+    return "Dinheiro";
+  }
+  return "-";
+}
+
 function clearPayableForm() {
   state.editingPayableId = null;
   el.payableForm.reset();
   el.payableCategory.value = "";
   el.payableMinistry.value = "";
   el.payableBankName.value = "";
+  el.payableExpenseProfile.value = "";
+  el.payableAttachmentFile.value = "";
   el.payableRecurringType.value = "";
   el.payableDueDate.value = new Date().toISOString().slice(0, 10);
   el.payableSaveBtn.textContent = "Salvar conta";
@@ -1917,15 +1946,19 @@ function renderPayables() {
       <td>${payable.paid_at || "-"}</td>
       <td>${payable.description}</td>
       <td><span class="payable-status ${payable.status}">${payableStatusLabel(payable.status)}</span></td>
+      <td>${payablePaymentMethodLabel(payable.payment_method)}</td>
       <td>${payable.category?.name || "-"}</td>
       <td>${payable.ministry?.name || "-"}</td>
       <td>${payable.source_bank_name || "-"}</td>
+      <td>${payableExpenseProfileLabel(payable.expense_profile)}</td>
+      <td>${payable.attachment_original_filename ? "Sim" : "-"}</td>
       <td>${brl(payable.amount)}</td>
       <td>${payableRecurringLabel(payable.recurrence_type)}</td>
       <td>
         <div class="payable-actions">
           <button class="btn ghost btn-mini" type="button" data-edit-payable="${payable.id}">Editar</button>
           ${payable.status !== "paid" ? `<button class="btn btn-mini" type="button" data-mark-payable-paid="${payable.id}">Marcar paga</button>` : ""}
+          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-download-payable-attachment="${payable.id}">Boleto</button>` : ""}
           <button class="btn ghost btn-mini" type="button" data-delete-payable="${payable.id}">Excluir</button>
         </div>
       </td>
@@ -1935,7 +1968,7 @@ function renderPayables() {
 
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = "<td colspan='10'>Nenhuma conta encontrada para os filtros atuais.</td>";
+    tr.innerHTML = "<td colspan='13'>Nenhuma conta encontrada para os filtros atuais.</td>";
     el.payableTableBody.appendChild(tr);
   }
 
@@ -1951,6 +1984,7 @@ function openEditPayable(payable) {
   el.payableMinistry.value = payable.ministry_id ? String(payable.ministry_id) : "";
   ensureSelectHasOption(el.payableBankName, payable.source_bank_name || "");
   el.payableBankName.value = payable.source_bank_name || "";
+  el.payableExpenseProfile.value = payable.expense_profile || "";
   el.payableRecurringType.value = payable.recurrence_type || "";
   el.payableNotes.value = payable.notes || "";
   el.payableSaveBtn.textContent = "Salvar alteracoes";
@@ -2714,6 +2748,7 @@ el.payableForm.addEventListener("submit", async (event) => {
       category_id: el.payableCategory.value ? Number(el.payableCategory.value) : null,
       ministry_id: el.payableMinistry.value ? Number(el.payableMinistry.value) : null,
       source_bank_name: el.payableBankName.value || null,
+      expense_profile: el.payableExpenseProfile.value || null,
       notes: el.payableNotes.value.trim() || null,
       is_recurring: recurrenceType !== null,
       recurrence_type: recurrenceType,
@@ -2729,18 +2764,27 @@ el.payableForm.addEventListener("submit", async (event) => {
       throw new Error("Informe um valor valido maior que zero.");
     }
 
+    let savedPayable;
     if (state.editingPayableId) {
-      await api(`/payables/${state.editingPayableId}`, {
+      savedPayable = await api(`/payables/${state.editingPayableId}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
       setMessage(el.payableMessage, "Conta atualizada com sucesso.");
     } else {
-      await api("/payables/", {
+      savedPayable = await api("/payables/", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       setMessage(el.payableMessage, "Conta cadastrada com sucesso.");
+    }
+
+    const attachment = el.payableAttachmentFile.files?.[0];
+    if (attachment && savedPayable?.id) {
+      const formData = new FormData();
+      formData.append("file", attachment);
+      await api(`/payables/${savedPayable.id}/attachment`, { method: "POST", body: formData }, true);
+      setMessage(el.payableMessage, "Conta salva e boleto anexado com sucesso.");
     }
 
     clearPayableForm();
@@ -2790,23 +2834,56 @@ el.payableTableBody.addEventListener("click", async (event) => {
   const markPaidId = target.getAttribute("data-mark-payable-paid");
   if (markPaidId) {
     try {
+      const payable = state.payables.find((item) => item.id === Number(markPaidId));
       const defaultPaidAt = new Date().toISOString().slice(0, 10);
-      const paidAt = await openPayablePaidAtModal(defaultPaidAt);
-      if (!paidAt) {
+      const paidPayload = await openPayablePaidAtModal(defaultPaidAt, payable?.payment_method || "");
+      if (!paidPayload) {
         return;
       }
+      const paidAt = paidPayload.paid_at;
+      const paymentMethod = paidPayload.payment_method;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt) || Number.isNaN(new Date(paidAt).getTime())) {
         setMessage(el.payableMessage, "Data de pagamento invalida. Use o formato AAAA-MM-DD.", true);
+        return;
+      }
+      if (!paymentMethod) {
+        setMessage(el.payableMessage, "Informe a forma de pagamento.", true);
         return;
       }
 
       await api(`/payables/${Number(markPaidId)}/mark-paid`, {
         method: "POST",
-        body: JSON.stringify({ generate_transaction: true, paid_at: paidAt }),
+        body: JSON.stringify({ generate_transaction: true, paid_at: paidAt, payment_method: paymentMethod }),
       });
-      setMessage(el.payableMessage, `Conta marcada como paga em ${paidAt} e lancamento gerado.`);
+      setMessage(el.payableMessage, `Conta marcada como paga em ${paidAt} via ${payablePaymentMethodLabel(paymentMethod)}.`);
       await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
       renderDashboard();
+    } catch (error) {
+      setMessage(el.payableMessage, error.message, true);
+    }
+    return;
+  }
+
+  const downloadAttachmentId = target.getAttribute("data-download-payable-attachment");
+  if (downloadAttachmentId) {
+    try {
+      const payableId = Number(downloadAttachmentId);
+      const response = await fetch(`${API_PREFIX}/payables/${payableId}/attachment/download`, {
+        headers: { Authorization: `Bearer ${state.accessToken}` },
+      });
+      if (!response.ok) {
+        throw new Error(`Falha ao baixar boleto (HTTP ${response.status}).`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "boleto";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       setMessage(el.payableMessage, error.message, true);
     }
@@ -3413,11 +3490,16 @@ el.payablePaidAtCloseBtn.addEventListener("click", () => closePayablePaidAtModal
 el.payablePaidAtCancelBtn.addEventListener("click", () => closePayablePaidAtModal(null));
 el.payablePaidAtConfirmBtn.addEventListener("click", () => {
   const paidAt = String(el.payablePaidAtInput.value || "").trim();
+  const paymentMethod = String(el.payablePaidMethodInput.value || "").trim();
   if (!paidAt) {
     setMessage(el.payableMessage, "Informe a data de pagamento.", true);
     return;
   }
-  closePayablePaidAtModal(paidAt);
+  if (!paymentMethod) {
+    setMessage(el.payableMessage, "Informe a forma de pagamento.", true);
+    return;
+  }
+  closePayablePaidAtModal({ paid_at: paidAt, payment_method: paymentMethod });
 });
 
 el.editModalCloseBtn.addEventListener("click", closeEditTransactionModal);

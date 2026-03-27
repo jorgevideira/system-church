@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.payable import Payable
+from app.db.models.transaction import Transaction
 from app.schemas.payable import PayableCreate, PayableUpdate
 from app.schemas.transaction import TransactionCreate
 from app.services import transaction_service
@@ -113,6 +114,13 @@ def update_payable(db: Session, payable: Payable, payable_in: PayableUpdate) -> 
 
 
 def delete_payable(db: Session, payable: Payable) -> None:
+    if payable.payment_transaction_id:
+        payment_tx = db.query(Transaction).filter(
+            Transaction.id == payable.payment_transaction_id,
+            Transaction.user_id == payable.user_id,
+        ).first()
+        if payment_tx:
+            db.delete(payment_tx)
     db.delete(payable)
     db.commit()
 
@@ -123,6 +131,7 @@ def mark_payable_paid(
     *,
     user_id: int,
     paid_at: Optional[date] = None,
+    payment_method: Optional[str] = None,
     generate_transaction: bool = True,
 ) -> Payable:
     if payable.status == "paid":
@@ -143,6 +152,7 @@ def mark_payable_paid(
                 ministry_id=payable.ministry_id,
                 source_bank_name=payable.source_bank_name,
                 reference=f"payable:{payable.id}",
+                expense_profile=payable.expense_profile,
                 notes=(payable.notes or "")[:900] or None,
             ),
             user_id=user_id,
@@ -151,8 +161,34 @@ def mark_payable_paid(
 
     payable.status = "paid"
     payable.paid_at = paid_date
+    payable.payment_method = payment_method or payable.payment_method
     payable.payment_transaction_id = payment_tx_id
     _ensure_next_recurring_payable(db, payable)
+    db.commit()
+    db.refresh(payable)
+    return payable
+
+
+def set_payable_attachment(
+    db: Session,
+    payable: Payable,
+    *,
+    storage_filename: str,
+    original_filename: str,
+    mime_type: str,
+) -> Payable:
+    payable.attachment_storage_filename = storage_filename
+    payable.attachment_original_filename = original_filename
+    payable.attachment_mime_type = mime_type
+    db.commit()
+    db.refresh(payable)
+    return payable
+
+
+def clear_payable_attachment(db: Session, payable: Payable) -> Payable:
+    payable.attachment_storage_filename = None
+    payable.attachment_original_filename = None
+    payable.attachment_mime_type = None
     db.commit()
     db.refresh(payable)
     return payable

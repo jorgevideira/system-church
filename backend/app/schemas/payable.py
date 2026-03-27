@@ -17,8 +17,19 @@ class PayableBase(BaseModel):
     ministry_id: Optional[int] = None
     source_bank_name: Optional[str] = None
     notes: Optional[str] = None
+    expense_profile: Optional[str] = None
     is_recurring: bool = False
     recurrence_type: Optional[str] = None
+
+    @field_validator("expense_profile")
+    @classmethod
+    def validate_expense_profile(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        allowed = {"fixed", "variable"}
+        if value not in allowed:
+            raise ValueError("expense_profile must be fixed or variable")
+        return value
 
     @field_validator("recurrence_type")
     @classmethod
@@ -43,9 +54,31 @@ class PayableUpdate(BaseModel):
     ministry_id: Optional[int] = None
     source_bank_name: Optional[str] = None
     notes: Optional[str] = None
+    expense_profile: Optional[str] = None
+    payment_method: Optional[str] = None
     is_recurring: Optional[bool] = None
     recurrence_type: Optional[str] = None
     status: Optional[str] = None
+
+    @field_validator("expense_profile")
+    @classmethod
+    def validate_expense_profile(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        allowed = {"fixed", "variable"}
+        if value not in allowed:
+            raise ValueError("expense_profile must be fixed or variable")
+        return value
+
+    @field_validator("payment_method")
+    @classmethod
+    def validate_payment_method(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        allowed = {"pix", "boleto", "cash"}
+        if value not in allowed:
+            raise ValueError("payment_method must be pix, boleto or cash")
+        return value
 
     @field_validator("status")
     @classmethod
@@ -70,14 +103,28 @@ class PayableUpdate(BaseModel):
 
 class MarkPayablePaidRequest(BaseModel):
     paid_at: Optional[date] = None
+    payment_method: Optional[str] = None
     generate_transaction: bool = True
+
+    @field_validator("payment_method")
+    @classmethod
+    def validate_payment_method(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        allowed = {"pix", "boleto", "cash"}
+        if value not in allowed:
+            raise ValueError("payment_method must be pix, boleto or cash")
+        return value
 
 
 class PayableResponse(PayableBase):
     id: int
     status: str
     paid_at: Optional[date] = None
+    payment_method: Optional[str] = None
     payment_transaction_id: Optional[int] = None
+    attachment_original_filename: Optional[str] = None
+    attachment_mime_type: Optional[str] = None
     user_id: int
     created_at: datetime
     updated_at: datetime
