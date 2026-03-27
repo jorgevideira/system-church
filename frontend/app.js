@@ -2697,11 +2697,26 @@ el.payableTableBody.addEventListener("click", async (event) => {
   const markPaidId = target.getAttribute("data-mark-payable-paid");
   if (markPaidId) {
     try {
+      const defaultPaidAt = new Date().toISOString().slice(0, 10);
+      const paidAtInput = window.prompt(
+        "Informe a data de pagamento (AAAA-MM-DD). Deixe em branco para hoje:",
+        defaultPaidAt,
+      );
+      if (paidAtInput === null) {
+        return;
+      }
+
+      const paidAt = paidAtInput.trim() || defaultPaidAt;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt) || Number.isNaN(new Date(paidAt).getTime())) {
+        setMessage(el.payableMessage, "Data de pagamento invalida. Use o formato AAAA-MM-DD.", true);
+        return;
+      }
+
       await api(`/payables/${Number(markPaidId)}/mark-paid`, {
         method: "POST",
-        body: JSON.stringify({ generate_transaction: true }),
+        body: JSON.stringify({ generate_transaction: true, paid_at: paidAt }),
       });
-      setMessage(el.payableMessage, "Conta marcada como paga e lancamento gerado.");
+      setMessage(el.payableMessage, `Conta marcada como paga em ${paidAt} e lancamento gerado.`);
       await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
       renderDashboard();
     } catch (error) {
