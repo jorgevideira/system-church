@@ -242,7 +242,6 @@ const el = {
   kpiExpense: document.getElementById("kpiExpense"),
   kpiBalance: document.getElementById("kpiBalance"),
   kpiPayablesPending: document.getElementById("kpiPayablesPending"),
-  kpiPayablesAlert: document.getElementById("kpiPayablesAlert"),
   kpiPayablesCard: document.querySelector(".kpi.payables"),
   kpiPayablesOverdue: document.getElementById("kpiPayablesOverdue"),
   kpiPayablesOverdueCard: document.querySelector(".kpi.payables-overdue"),
@@ -1225,22 +1224,6 @@ function renderPayablesKpi() {
 
   el.kpiPayablesPending.textContent = String(pendingCount);
   el.kpiPayablesOverdue.textContent = String(overdueCount);
-
-  if (overdueCount > 0) {
-    el.kpiPayablesAlert.textContent = `${overdueCount} vencida(s)!`;
-    el.kpiPayablesAlert.style.display = "block";
-  } else if (Number(summary.due_today || 0) > 0) {
-    el.kpiPayablesAlert.textContent = `${summary.due_today} vence hoje`;
-    el.kpiPayablesAlert.style.display = "block";
-    el.kpiPayablesAlert.style.color = "#f57c00";
-  } else if (Number(summary.due_in_3_days || 0) > 0) {
-    el.kpiPayablesAlert.textContent = `${summary.due_in_3_days} em 3 dias`;
-    el.kpiPayablesAlert.style.display = "block";
-    el.kpiPayablesAlert.style.color = "#f57c00";
-  } else {
-    el.kpiPayablesAlert.textContent = "";
-    el.kpiPayablesAlert.style.display = "none";
-  }
 }
 
 function renderDashboard() {
@@ -2862,12 +2845,6 @@ el.refreshBtn.addEventListener("click", async () => {
 
 el.kpiPayablesCard.addEventListener("click", () => {
   openPayablesWithFilters({ status: "pending" });
-});
-
-el.kpiPayablesAlert.addEventListener("click", (event) => {
-  if (el.kpiPayablesAlert.textContent.toLowerCase().includes("vencida")) {
-    openPayablesWithFilters({ status: "overdue" });
-  }
 });
 
 el.kpiPayablesOverdueCard.addEventListener("click", () => {

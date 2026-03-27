@@ -170,7 +170,7 @@ def get_alerts_summary(db: Session, user_id: int) -> dict:
     due_today = base_q.filter(Receivable.due_date == today).count()
     due_in_3_days = base_q.filter(Receivable.due_date > today, Receivable.due_date <= plus_3).count()
     due_in_7_days = base_q.filter(Receivable.due_date > plus_3, Receivable.due_date <= plus_7).count()
-    pending_total = base_q.count()
+    pending_total = base_q.filter(Receivable.status == "pending").count()
 
     return {
         "overdue": overdue,
