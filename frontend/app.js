@@ -1449,6 +1449,7 @@ function renderTransactions() {
   for (const tx of rows) {
     const tr = document.createElement("tr");
     const editBtn = `<button class="btn ghost" type="button" data-edit-tx="${tx.id}">Editar</button>`;
+    const deleteBtn = `<button class="btn ghost" type="button" data-delete-tx="${tx.id}">Excluir</button>`;
     const attachmentCount = Number(tx.attachment_count || 0);
     const hasAttachment = attachmentCount > 0 || tx.has_attachments === true;
     const displayAttachmentCount = attachmentCount > 0 ? attachmentCount : 1;
@@ -1465,7 +1466,7 @@ function renderTransactions() {
       <td>${tx.transaction_type === "expense" ? toExpenseProfileLabel(tx.expense_profile) : "-"}</td>
       <td>${brl(tx.amount)}</td>
       <td>${attachmentIcon}</td>
-      <td>${editBtn}</td>
+      <td>${editBtn} ${deleteBtn}</td>
     `;
     el.txTableBody.appendChild(tr);
   }
@@ -1473,6 +1474,39 @@ function renderTransactions() {
   for (const button of el.txTableBody.querySelectorAll("button[data-edit-tx]")) {
     button.addEventListener("click", async () => {
       await openEditTransactionModal(Number(button.getAttribute("data-edit-tx")));
+    });
+  }
+
+  for (const button of el.txTableBody.querySelectorAll("button[data-delete-tx]")) {
+    button.addEventListener("click", async () => {
+      const txId = Number(button.getAttribute("data-delete-tx"));
+      if (!txId) {
+        return;
+      }
+      if (!window.confirm("Tem certeza que deseja excluir este lancamento?")) {
+        return;
+      }
+      try {
+        await api(`/transactions/${txId}`, { method: "DELETE" });
+        setMessage(el.txMessage, "Lancamento excluido com sucesso.");
+        await Promise.all([
+          loadTransactions(),
+          loadSummary(),
+          loadReports(),
+          loadPayables(),
+          loadPayablesAlertsSummary(),
+          loadReceivables(),
+          loadReceivablesAlertsSummary(),
+        ]);
+        renderDashboard();
+      } catch (error) {
+        const message = String(error?.message || "");
+        if (message.includes("403")) {
+          setMessage(el.txMessage, "Somente administrador pode excluir lancamentos.", true);
+        } else {
+          setMessage(el.txMessage, message || "Falha ao excluir lancamento.", true);
+        }
+      }
     });
   }
 
