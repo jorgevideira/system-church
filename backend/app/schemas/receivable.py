@@ -17,6 +17,7 @@ class ReceivableBase(BaseModel):
     ministry_id: Optional[int] = None
     source_bank_name: Optional[str] = None
     notes: Optional[str] = None
+    revenue_profile: Optional[str] = None
     is_recurring: bool = False
     recurrence_type: Optional[str] = None
 
@@ -43,6 +44,7 @@ class ReceivableUpdate(BaseModel):
     ministry_id: Optional[int] = None
     source_bank_name: Optional[str] = None
     notes: Optional[str] = None
+    revenue_profile: Optional[str] = None
     is_recurring: Optional[bool] = None
     recurrence_type: Optional[str] = None
     status: Optional[str] = None
@@ -70,15 +72,30 @@ class ReceivableUpdate(BaseModel):
 
 class MarkReceivableReceivedRequest(BaseModel):
     received_at: Optional[date] = None
+    receipt_method: Optional[str] = None
     generate_transaction: bool = True
+
+    @field_validator("receipt_method")
+    @classmethod
+    def validate_receipt_method(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        allowed = {"pix", "boleto", "cash"}
+        if value not in allowed:
+            raise ValueError("receipt_method must be pix, boleto or cash")
+        return value
 
 
 class ReceivableResponse(ReceivableBase):
     id: int
     status: str
     received_at: Optional[date] = None
+    receipt_method: Optional[str] = None
     receipt_transaction_id: Optional[int] = None
     user_id: int
+    attachment_storage_filename: Optional[str] = None
+    attachment_original_filename: Optional[str] = None
+    attachment_mime_type: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

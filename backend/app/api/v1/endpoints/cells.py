@@ -1,0 +1,453 @@
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_current_active_user, get_db, require_editor
+from app.db.models.user import User
+from app.schemas.cell import (
+    CellCreate,
+    CellLeaderAssignmentCreate,
+    CellLeaderAssignmentResponse,
+    CellLeaderAssignmentUpdate,
+    CellMemberCreate,
+    CellMemberLinkCreate,
+    CellMemberLinkResponse,
+    CellMemberResponse,
+    CellMemberTransferRequest,
+    CellMeetingAttendancesBulkRequest,
+    CellMeetingAttendanceResponse,
+    CellMeetingCreate,
+    CellMeetingResponse,
+    CellMeetingUpdate,
+    CellMeetingVisitorResponse,
+    CellSummaryResponse,
+    CellFrequencyPoint,
+    CellGrowthResponse,
+    CellRetentionResponse,
+    CellRecurringVisitorsResponse,
+    CellHistoryPoint,
+    CellVisitorCreate,
+    CellMemberUpdate,
+    CellResponse,
+    CellStatusUpdate,
+    CellUpdate,
+)
+from app.services import cell_service
+
+router = APIRouter()
+
+
+@router.get("/", response_model=list[CellResponse])
+def list_cells(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellResponse]:
+    return cell_service.list_cells(db, status_filter=status_filter)
+
+
+@router.post("/", response_model=CellResponse, status_code=status.HTTP_201_CREATED)
+def create_cell(
+    payload: CellCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellResponse:
+    return cell_service.create_cell(db, payload)
+
+
+@router.get("/{cell_id}", response_model=CellResponse)
+def get_cell(
+    cell_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> CellResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell
+
+
+@router.put("/{cell_id}", response_model=CellResponse)
+def update_cell(
+    cell_id: int,
+    payload: CellUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.update_cell(db, cell, payload)
+
+
+@router.patch("/{cell_id}/status", response_model=CellResponse)
+def update_cell_status(
+    cell_id: int,
+    payload: CellStatusUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.update_cell(db, cell, CellUpdate(status=payload.status))
+
+
+@router.get("/members/all", response_model=list[CellMemberResponse])
+def list_members(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellMemberResponse]:
+    return cell_service.list_members(db, status_filter=status_filter)
+
+
+@router.post("/members/all", response_model=CellMemberResponse, status_code=status.HTTP_201_CREATED)
+def create_member(
+    payload: CellMemberCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMemberResponse:
+    return cell_service.create_member(db, payload)
+
+
+@router.put("/members/{member_id}", response_model=CellMemberResponse)
+def update_member(
+    member_id: int,
+    payload: CellMemberUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMemberResponse:
+    member = cell_service.get_member(db, member_id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    return cell_service.update_member(db, member, payload)
+
+
+@router.get("/{cell_id}/members", response_model=list[CellMemberLinkResponse])
+def list_cell_members(
+    cell_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellMemberLinkResponse]:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.list_cell_members(db, cell_id)
+
+
+@router.post("/{cell_id}/members/{member_id}", response_model=CellMemberLinkResponse, status_code=status.HTTP_201_CREATED)
+def assign_member_to_cell(
+    cell_id: int,
+    member_id: int,
+    payload: CellMemberLinkCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMemberLinkResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    member = cell_service.get_member(db, member_id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+    try:
+        return cell_service.assign_member_to_cell(db, cell_id, member_id, start_date=payload.start_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/{cell_id}/members/{member_id}/transfer", response_model=CellMemberLinkResponse)
+def transfer_member(
+    cell_id: int,
+    member_id: int,
+    payload: CellMemberTransferRequest,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMemberLinkResponse:
+    current_cell = cell_service.get_cell(db, cell_id)
+    if not current_cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Current cell not found")
+
+    target_cell = cell_service.get_cell(db, payload.target_cell_id)
+    if not target_cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target cell not found")
+
+    member = cell_service.get_member(db, member_id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+    try:
+        return cell_service.transfer_member(
+            db,
+            member_id=member_id,
+            target_cell_id=payload.target_cell_id,
+            transfer_date=payload.transfer_date,
+            transfer_reason=payload.transfer_reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/{cell_id}/leaders", response_model=list[CellLeaderAssignmentResponse])
+def list_leaders(
+    cell_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellLeaderAssignmentResponse]:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.list_leader_assignments(db, cell_id)
+
+
+@router.post("/{cell_id}/leaders", response_model=CellLeaderAssignmentResponse, status_code=status.HTTP_201_CREATED)
+def assign_leader(
+    cell_id: int,
+    payload: CellLeaderAssignmentCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellLeaderAssignmentResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    member = cell_service.get_member(db, payload.member_id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+    if payload.discipler_member_id is not None:
+        discipler = cell_service.get_member(db, payload.discipler_member_id)
+        if not discipler:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Discipler member not found")
+
+    try:
+        return cell_service.assign_leader(db, cell_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.patch("/{cell_id}/leaders/{assignment_id}", response_model=CellLeaderAssignmentResponse)
+def update_leader_assignment(
+    cell_id: int,
+    assignment_id: int,
+    payload: CellLeaderAssignmentUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellLeaderAssignmentResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    assignment = cell_service.get_leader_assignment(db, assignment_id)
+    if not assignment or assignment.cell_id != cell_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leader assignment not found")
+
+    return cell_service.update_leader_assignment(db, assignment, payload)
+
+
+@router.delete("/{cell_id}/leaders/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_leader_assignment(
+    cell_id: int,
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> None:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    assignment = cell_service.get_leader_assignment(db, assignment_id)
+    if not assignment or assignment.cell_id != cell_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leader assignment not found")
+
+    cell_service.delete_leader_assignment(db, assignment)
+
+
+@router.get("/{cell_id}/meetings", response_model=list[CellMeetingResponse])
+def list_meetings(
+    cell_id: int,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellMeetingResponse]:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    return cell_service.list_meetings(db, cell_id, start_date=start_date, end_date=end_date)
+
+
+@router.post("/{cell_id}/meetings", response_model=CellMeetingResponse, status_code=status.HTTP_201_CREATED)
+def create_meeting(
+    cell_id: int,
+    payload: CellMeetingCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMeetingResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.create_meeting(db, cell_id, payload)
+
+
+@router.get("/meetings/{meeting_id}", response_model=CellMeetingResponse)
+def get_meeting(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> CellMeetingResponse:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return meeting
+
+
+@router.put("/meetings/{meeting_id}", response_model=CellMeetingResponse)
+def update_meeting(
+    meeting_id: int,
+    payload: CellMeetingUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMeetingResponse:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return cell_service.update_meeting(db, meeting, payload)
+
+
+@router.post("/meetings/{meeting_id}/attendances/bulk", response_model=list[CellMeetingAttendanceResponse])
+def upsert_meeting_attendances(
+    meeting_id: int,
+    payload: CellMeetingAttendancesBulkRequest,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> list[CellMeetingAttendanceResponse]:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return cell_service.upsert_meeting_attendances(db, meeting_id, payload.items)
+
+
+@router.get("/meetings/{meeting_id}/attendances", response_model=list[CellMeetingAttendanceResponse])
+def list_meeting_attendances(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellMeetingAttendanceResponse]:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return cell_service.list_meeting_attendances(db, meeting_id)
+
+
+@router.post("/meetings/{meeting_id}/visitors", response_model=CellMeetingVisitorResponse, status_code=status.HTTP_201_CREATED)
+def add_meeting_visitor(
+    meeting_id: int,
+    payload: CellVisitorCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> CellMeetingVisitorResponse:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return cell_service.add_meeting_visitor(db, meeting_id, payload)
+
+
+@router.get("/meetings/{meeting_id}/visitors", response_model=list[CellMeetingVisitorResponse])
+def list_meeting_visitors(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellMeetingVisitorResponse]:
+    meeting = cell_service.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    return cell_service.list_meeting_visitors(db, meeting_id)
+
+
+@router.get("/dashboard/summary", response_model=list[CellSummaryResponse])
+def dashboard_summary(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellSummaryResponse]:
+    return cell_service.get_cells_summary(db, start_date=start_date, end_date=end_date)
+
+
+@router.get("/{cell_id}/dashboard/frequency", response_model=list[CellFrequencyPoint])
+def dashboard_frequency(
+    cell_id: int,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellFrequencyPoint]:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.get_cell_frequency(db, cell_id, start_date=start_date, end_date=end_date)
+
+
+@router.get("/{cell_id}/dashboard/growth", response_model=CellGrowthResponse)
+def dashboard_growth(
+    cell_id: int,
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> CellGrowthResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.get_cell_growth(db, cell_id, start_date, end_date)
+
+
+@router.get("/{cell_id}/dashboard/retention", response_model=CellRetentionResponse)
+def dashboard_retention(
+    cell_id: int,
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> CellRetentionResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    if end_date < start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="end_date must be >= start_date")
+    return cell_service.get_cell_retention(db, cell_id, start_date, end_date)
+
+
+@router.get("/{cell_id}/dashboard/visitors-recurring", response_model=CellRecurringVisitorsResponse)
+def dashboard_visitors_recurring(
+    cell_id: int,
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> CellRecurringVisitorsResponse:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    if end_date < start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="end_date must be >= start_date")
+    return cell_service.get_cell_recurring_visitors(db, cell_id, start_date, end_date)
+
+
+@router.get("/{cell_id}/dashboard/history", response_model=list[CellHistoryPoint])
+def dashboard_history(
+    cell_id: int,
+    months: int = Query(6, ge=1, le=24),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_active_user),
+) -> list[CellHistoryPoint]:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    return cell_service.get_cell_history(db, cell_id, months=months)

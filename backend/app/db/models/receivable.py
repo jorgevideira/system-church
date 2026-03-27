@@ -31,6 +31,12 @@ class Receivable(Base):
 
     source_bank_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    revenue_profile: Mapped[str | None] = mapped_column(String(20), nullable=True)  # "fixed" | "variable"
+    receipt_method: Mapped[str | None] = mapped_column(String(20), nullable=True)  # "pix" | "boleto" | "cash"
+
+    attachment_storage_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     recurrence_type: Mapped[str | None] = mapped_column(String(20), nullable=True)

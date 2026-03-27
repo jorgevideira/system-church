@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
 	auth,
 	budgets,
 	categories,
+	cells,
 	ministries,
 	payables,
 	receivables,
@@ -19,6 +20,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(categories.router, prefix="/categories", tags=["categories"])
 api_router.include_router(ministries.router, prefix="/ministries", tags=["ministries"])
+api_router.include_router(cells.router, prefix="/cells", tags=["cells"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(transaction_attachments.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(payables.router, prefix="/payables", tags=["payables"])

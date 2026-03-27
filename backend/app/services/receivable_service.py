@@ -123,6 +123,7 @@ def mark_receivable_received(
     *,
     user_id: int,
     received_at: Optional[date] = None,
+    receipt_method: Optional[str] = None,
     generate_transaction: bool = True,
 ) -> Receivable:
     if receivable.status == "received":
@@ -150,6 +151,7 @@ def mark_receivable_received(
 
     receivable.status = "received"
     receivable.received_at = receipt_date
+    receivable.receipt_method = receipt_method
     receivable.receipt_transaction_id = receipt_tx_id
     _ensure_next_recurring_receivable(db, receivable)
     db.commit()
@@ -179,3 +181,28 @@ def get_alerts_summary(db: Session, user_id: int) -> dict:
         "due_in_7_days": due_in_7_days,
         "pending_total": pending_total,
     }
+
+
+def set_receivable_attachment(
+    db: Session,
+    receivable: Receivable,
+    *,
+    storage_filename: str,
+    original_filename: str,
+    mime_type: str,
+) -> Receivable:
+    receivable.attachment_storage_filename = storage_filename
+    receivable.attachment_original_filename = original_filename
+    receivable.attachment_mime_type = mime_type
+    db.commit()
+    db.refresh(receivable)
+    return receivable
+
+
+def clear_receivable_attachment(db: Session, receivable: Receivable) -> Receivable:
+    receivable.attachment_storage_filename = None
+    receivable.attachment_original_filename = None
+    receivable.attachment_mime_type = None
+    db.commit()
+    db.refresh(receivable)
+    return receivable

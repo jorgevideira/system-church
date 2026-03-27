@@ -101,8 +101,14 @@ def create_default_categories(db: Session) -> None:
 
 
 def setup(db: Session) -> None:
-    Base.metadata.create_all(bind=engine)
+    # Note: Tables are now created via Alembic migrations, not SQLAlchemy
+    # Base.metadata.create_all(bind=engine) should not be called here
+    # to avoid conflicts with Alembic version control
+    
+    # Only run runtime schema updates if needed (for backward compatibility)
     ensure_runtime_schema_updates()
+    
+    # Create default data
     create_default_admin(db)
     create_default_categories(db)
 

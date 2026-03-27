@@ -13,3 +13,11 @@ from app.db.models.budget import Budget  # noqa: F401
 from app.db.models.transaction_attachment import TransactionAttachment  # noqa: F401
 from app.db.models.audit_log import AuditLog  # noqa: F401
 from app.db.models.classification_feedback import ClassificationFeedback  # noqa: F401
+from app.db.models.cell import Cell  # noqa: F401
+from app.db.models.cell_member import CellMember  # noqa: F401
+from app.db.models.cell_member_link import CellMemberLink  # noqa: F401
+from app.db.models.cell_leader_assignment import CellLeaderAssignment  # noqa: F401
+from app.db.models.cell_meeting import CellMeeting  # noqa: F401
+from app.db.models.cell_meeting_attendance import CellMeetingAttendance  # noqa: F401
+from app.db.models.cell_visitor import CellVisitor  # noqa: F401
+from app.db.models.cell_meeting_visitor import CellMeetingVisitor  # noqa: F401

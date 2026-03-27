@@ -45,13 +45,18 @@
   <div id="appShell" class="app-shell hide">
     <header class="topbar">
       <h2>Church Finance Console</h2>
+      <div class="module-nav" aria-label="Selecao de modulo">
+        <button id="moduleFinanceBtn" class="module-btn active" type="button">Financeiro</button>
+        <button id="moduleCellsBtn" class="module-btn" type="button">Celulas</button>
+        <button class="module-btn module-btn-disabled" type="button" disabled>Mais em breve</button>
+      </div>
       <div class="session-box">
         <span id="sessionUser">Nao autenticado</span>
         <button id="logoutBtn" class="btn ghost">Sair</button>
       </div>
     </header>
 
-    <main class="app-grid">
+    <main id="financeModule" class="app-grid">
       <aside class="sidebar panel">
         <p class="sidebar-title">Modulos</p>
         <button class="nav-btn active" data-view="dashboardView">Dashboard</button>
@@ -689,6 +694,183 @@
     </main>
   </div>
 
+  <section id="cellsModule" class="module-panel hide">
+    <div class="cells-module-grid">
+      <aside class="cells-sidebar panel">
+        <p class="sidebar-title">Modulo Celulas</p>
+        <button id="cellsNavDashboardBtn" class="nav-btn active" type="button">Dashboard</button>
+        <button id="cellsNavCreateCellBtn" class="nav-btn" type="button">Cadastrar Celula</button>
+        <button id="cellsNavCreateDisciplerBtn" class="nav-btn" type="button">Cadastrar Discipulador</button>
+        <button id="cellsNavCreateLeaderBtn" class="nav-btn" type="button">Cadastrar Lider</button>
+      </aside>
+
+      <section class="cells-content-stack">
+        <p id="cellsMessage" class="message"></p>
+
+        <section id="cellsDashboardView" class="panel cells-view">
+          <div class="section-title">
+            <h3>Analise de Celulas</h3>
+            <button id="cellsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+          </div>
+
+          <section class="dash-filters" aria-label="Filtros de celulas">
+            <div class="dash-filters-grid">
+              <label>Celula
+                <select id="cellsSelect">
+                  <option value="">Selecione</option>
+                </select>
+              </label>
+              <label>Data inicial
+                <input type="date" id="cellsStartDate">
+              </label>
+              <label>Data final
+                <input type="date" id="cellsEndDate">
+              </label>
+              <label>Historico
+                <select id="cellsHistoryMonths">
+                  <option value="3">3 meses</option>
+                  <option value="6" selected>6 meses</option>
+                  <option value="12">12 meses</option>
+                  <option value="24">24 meses</option>
+                </select>
+              </label>
+            </div>
+            <div class="module-actions">
+              <button id="cellsPreset30Btn" class="btn ghost" type="button">30 dias</button>
+              <button id="cellsPreset90Btn" class="btn ghost" type="button">90 dias</button>
+              <button id="cellsPreset180Btn" class="btn ghost" type="button">180 dias</button>
+              <button id="cellsApplyFiltersBtn" class="btn" type="button">Aplicar filtros</button>
+            </div>
+          </section>
+
+          <section class="kpis cells-kpis">
+            <article class="kpi-card">
+              <span>Ativos no inicio</span>
+              <strong id="cellsKpiActiveStart">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Retidos</span>
+              <strong id="cellsKpiRetained">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Taxa de retencao</span>
+              <strong id="cellsKpiRetentionRate">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Visitantes recorrentes</span>
+              <strong id="cellsKpiRecurringTotal">0</strong>
+            </article>
+          </section>
+
+          <div class="cells-grid">
+            <section class="panel">
+              <h4>Retencao no periodo</h4>
+              <canvas id="cellsRetentionChart" class="cells-canvas" aria-label="Retencao da celula"></canvas>
+            </section>
+            <section class="panel">
+              <h4>Top visitantes recorrentes</h4>
+              <canvas id="cellsVisitorsChart" class="cells-canvas" aria-label="Visitantes recorrentes"></canvas>
+            </section>
+          </div>
+
+          <div class="cells-grid">
+            <section class="panel">
+              <h4>Historico mensal</h4>
+              <canvas id="cellsHistoryChart" class="cells-canvas" aria-label="Historico mensal da celula"></canvas>
+            </section>
+            <section class="panel">
+              <h4>Visitantes recorrentes</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Contato</th>
+                      <th>Visitas</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsRecurringBody">
+                    <tr>
+                      <td colspan="3">Sem dados.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="cellsCreateCellView" class="panel cells-view hide">
+          <h4>Cadastrar Celula</h4>
+          <form id="cellsCreateCellForm" class="grid-form cells-form">
+            <label>Nome
+              <input type="text" id="cellsCreateCellName" required>
+            </label>
+            <label>Dia da semana
+              <select id="cellsCreateCellWeekday" required>
+                <option value="monday">Segunda</option>
+                <option value="tuesday">Terca</option>
+                <option value="wednesday">Quarta</option>
+                <option value="thursday">Quinta</option>
+                <option value="friday">Sexta</option>
+                <option value="saturday">Sabado</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </label>
+            <label>Horario
+              <input type="time" id="cellsCreateCellMeetingTime" required>
+            </label>
+            <label>Endereco
+              <input type="text" id="cellsCreateCellAddress" placeholder="Opcional">
+            </label>
+            <button class="btn" type="submit">Salvar Celula</button>
+          </form>
+        </section>
+
+        <section id="cellsCreateDisciplerView" class="panel cells-view hide">
+          <h4>Cadastrar Discipulador</h4>
+          <form id="cellsCreateDisciplerForm" class="grid-form cells-form">
+            <label>Celula
+              <select id="cellsCreateDisciplerCell" required>
+                <option value="">Selecione</option>
+              </select>
+            </label>
+            <label>Nome completo
+              <input type="text" id="cellsCreateDisciplerName" required>
+            </label>
+            <label>Contato
+              <input type="text" id="cellsCreateDisciplerContact" placeholder="Opcional">
+            </label>
+            <button class="btn" type="submit">Salvar Discipulador</button>
+          </form>
+        </section>
+
+        <section id="cellsCreateLeaderView" class="panel cells-view hide">
+          <h4>Cadastrar Lider</h4>
+          <form id="cellsCreateLeaderForm" class="grid-form cells-form">
+            <label>Celula
+              <select id="cellsCreateLeaderCell" required>
+                <option value="">Selecione</option>
+              </select>
+            </label>
+            <label>Discipulador
+              <select id="cellsCreateLeaderDiscipler" required>
+                <option value="">Selecione a celula primeiro</option>
+              </select>
+            </label>
+            <label>Nome completo
+              <input type="text" id="cellsCreateLeaderName" required>
+            </label>
+            <label>Contato
+              <input type="text" id="cellsCreateLeaderContact" placeholder="Opcional">
+            </label>
+            <button class="btn" type="submit">Salvar Lider</button>
+          </form>
+        </section>
+      </section>
+    </div>
+  </section>
+
   <div id="uploadResultModal" class="modal-overlay hide">
     <div class="modal-card">
       <div class="modal-header">
@@ -891,5 +1073,6 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="cells-module.js"></script>
 </body>
 </html>
