@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
 	categories,
 	ministries,
 	payables,
+	receivables,
 	reports,
 	transaction_attachments,
 	transactions,
@@ -20,5 +21,6 @@ api_router.include_router(ministries.router, prefix="/ministries", tags=["minist
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(transaction_attachments.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(payables.router, prefix="/payables", tags=["payables"])
+api_router.include_router(receivables.router, prefix="/receivables", tags=["receivables"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])

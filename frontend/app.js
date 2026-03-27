@@ -17,6 +17,14 @@ const state = {
     due_in_7_days: 0,
     pending_total: 0,
   },
+  receivables: [],
+  receivableAlertsSummary: {
+    overdue: 0,
+    due_today: 0,
+    due_in_3_days: 0,
+    due_in_7_days: 0,
+    pending_total: 0,
+  },
   txFilters: {
     search: "",
     startDate: "",
@@ -46,8 +54,15 @@ const state = {
     startDate: "",
     endDate: "",
   },
+  receivableFilters: {
+    search: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  },
   editingTransactionId: null,
   editingPayableId: null,
+  editingReceivableId: null,
   editingCategoryId: null,
   editingMinistryId: null,
   deletingCategoryId: null,
@@ -61,6 +76,7 @@ const el = {
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
   payablesView: document.getElementById("payablesView"),
+  receivablesView: document.getElementById("receivablesView"),
   categoriesView: document.getElementById("categoriesView"),
   ministriesView: document.getElementById("ministriesView"),
   uploadView: document.getElementById("uploadView"),
@@ -71,6 +87,7 @@ const el = {
   dashboardMessage: document.getElementById("dashboardMessage"),
   txMessage: document.getElementById("txMessage"),
   payableMessage: document.getElementById("payableMessage"),
+  receivableMessage: document.getElementById("receivableMessage"),
   categoryMessage: document.getElementById("categoryMessage"),
   ministryMessage: document.getElementById("ministryMessage"),
   uploadMessage: document.getElementById("uploadMessage"),
@@ -156,6 +173,24 @@ const el = {
   payableFilterResultCount: document.getElementById("payableFilterResultCount"),
   payableFilterResetBtn: document.getElementById("payableFilterResetBtn"),
   payableTableBody: document.getElementById("payableTableBody"),
+  receivableForm: document.getElementById("receivableForm"),
+  receivableDescription: document.getElementById("receivableDescription"),
+  receivableAmount: document.getElementById("receivableAmount"),
+  receivableDueDate: document.getElementById("receivableDueDate"),
+  receivableCategory: document.getElementById("receivableCategory"),
+  receivableMinistry: document.getElementById("receivableMinistry"),
+  receivableBankName: document.getElementById("receivableBankName"),
+  receivableRecurringType: document.getElementById("receivableRecurringType"),
+  receivableNotes: document.getElementById("receivableNotes"),
+  receivableSaveBtn: document.getElementById("receivableSaveBtn"),
+  receivableCancelEditBtn: document.getElementById("receivableCancelEditBtn"),
+  receivableFilterSearch: document.getElementById("receivableFilterSearch"),
+  receivableFilterStatus: document.getElementById("receivableFilterStatus"),
+  receivableFilterStartDate: document.getElementById("receivableFilterStartDate"),
+  receivableFilterEndDate: document.getElementById("receivableFilterEndDate"),
+  receivableFilterResultCount: document.getElementById("receivableFilterResultCount"),
+  receivableFilterResetBtn: document.getElementById("receivableFilterResetBtn"),
+  receivableTableBody: document.getElementById("receivableTableBody"),
   txCategoryInput: document.getElementById("txCategoryInput"),
   txCategoryId: document.getElementById("txCategoryId"),
   txCategoryOptions: document.getElementById("txCategoryOptions"),
@@ -186,6 +221,8 @@ const el = {
   kpiBalance: document.getElementById("kpiBalance"),
   kpiPayablesPending: document.getElementById("kpiPayablesPending"),
   kpiPayablesAlert: document.getElementById("kpiPayablesAlert"),
+  kpiReceivablesPending: document.getElementById("kpiReceivablesPending"),
+  kpiReceivablesAlert: document.getElementById("kpiReceivablesAlert"),
   uploadResultModal: document.getElementById("uploadResultModal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -336,6 +373,7 @@ function setActiveView(viewId) {
     el.dashboardView,
     el.transactionsView,
     el.payablesView,
+    el.receivablesView,
     el.categoriesView,
     el.ministriesView,
     el.uploadView,
@@ -1003,6 +1041,16 @@ function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
     alerts.push({ level: "low", text: `${state.payableAlertsSummary.due_in_7_days} conta(s) vencem em ate 7 dias.` });
   }
 
+  if (Number(state.receivableAlertsSummary.overdue || 0) > 0) {
+    alerts.push({ level: "medium", text: `${state.receivableAlertsSummary.overdue} conta(s) a receber vencida(s).` });
+  }
+  if (Number(state.receivableAlertsSummary.due_today || 0) > 0) {
+    alerts.push({ level: "low", text: `${state.receivableAlertsSummary.due_today} conta(s) a receber vencem hoje.` });
+  }
+  if (Number(state.receivableAlertsSummary.due_in_3_days || 0) > 0) {
+    alerts.push({ level: "low", text: `${state.receivableAlertsSummary.due_in_3_days} conta(s) a receber em ate 3 dias.` });
+  }
+
   el.dashAlertsList.innerHTML = "";
   if (!alerts.length) {
     el.dashAlertsList.innerHTML = "<li class='comparison-item alert-low'>Sem alertas criticos no periodo atual.</li>";
@@ -1192,6 +1240,7 @@ function renderDashboard() {
   renderBankBars(rows);
   renderBudgetAndAlerts(rows, categoryTotals, ministryTotals);
   renderPayablesKpi();
+  renderReceivablesKpi();
 
   const now = new Date();
   const currentMonth = now.toISOString().slice(0, 7);
@@ -1785,6 +1834,217 @@ function openEditPayable(payable) {
   el.payableSaveBtn.textContent = "Salvar alteracoes";
 }
 
+function receivableStatusLabel(value) {
+  if (value === "received") {
+    return "Recebida";
+  }
+  if (value === "overdue") {
+    return "Vencida";
+  }
+  return "Pendente";
+}
+
+function receivableRecurringLabel(value) {
+  if (value === "weekly") {
+    return "Semanal";
+  }
+  if (value === "monthly") {
+    return "Mensal";
+  }
+  if (value === "yearly") {
+    return "Anual";
+  }
+  return "Nao";
+}
+
+function clearReceivableForm() {
+  state.editingReceivableId = null;
+  el.receivableForm.reset();
+  el.receivableCategory.value = "";
+  el.receivableMinistry.value = "";
+  el.receivableBankName.value = "";
+  el.receivableRecurringType.value = "";
+  el.receivableDueDate.value = new Date().toISOString().slice(0, 10);
+  el.receivableSaveBtn.textContent = "Salvar conta";
+}
+
+function populateReceivableFormOptions() {
+  const selectedCategory = el.receivableCategory.value;
+  const selectedMinistry = el.receivableMinistry.value;
+  const selectedBank = el.receivableBankName.value;
+
+  el.receivableCategory.innerHTML = "<option value=''>Sem categoria</option>";
+  for (const cat of [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(cat.id);
+    option.textContent = cat.name;
+    el.receivableCategory.appendChild(option);
+  }
+  if (selectedCategory) {
+    el.receivableCategory.value = selectedCategory;
+  }
+
+  el.receivableMinistry.innerHTML = "<option value=''>Nao se aplica</option>";
+  for (const ministry of [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(ministry.id);
+    option.textContent = ministry.name;
+    el.receivableMinistry.appendChild(option);
+  }
+  if (selectedMinistry) {
+    el.receivableMinistry.value = selectedMinistry;
+  }
+
+  el.receivableBankName.innerHTML = "<option value=''>Nao informado</option>";
+  const banks = new Set();
+  for (const tx of state.transactionsRaw) {
+    const name = String(tx.source_bank || tx.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const receivable of state.receivables) {
+    const name = String(receivable.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const bank of [...banks].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = bank;
+    option.textContent = bank;
+    el.receivableBankName.appendChild(option);
+  }
+  if (selectedBank) {
+    ensureSelectHasOption(el.receivableBankName, selectedBank);
+    el.receivableBankName.value = selectedBank;
+  }
+}
+
+function syncReceivableFiltersFromUi() {
+  state.receivableFilters.search = el.receivableFilterSearch.value.trim();
+  state.receivableFilters.status = el.receivableFilterStatus.value;
+  state.receivableFilters.startDate = el.receivableFilterStartDate.value;
+  state.receivableFilters.endDate = el.receivableFilterEndDate.value;
+}
+
+function resetReceivableFilters() {
+  state.receivableFilters = {
+    search: "",
+    status: "",
+    startDate: "",
+    endDate: "",
+  };
+  el.receivableFilterSearch.value = "";
+  el.receivableFilterStatus.value = "";
+  el.receivableFilterStartDate.value = "";
+  el.receivableFilterEndDate.value = "";
+  renderReceivables();
+}
+
+function getFilteredReceivables() {
+  const f = state.receivableFilters;
+  const search = normalizeText(f.search);
+
+  return state.receivables.filter((receivable) => {
+    if (f.status && receivable.status !== f.status) return false;
+    if (f.startDate && receivable.due_date < f.startDate) return false;
+    if (f.endDate && receivable.due_date > f.endDate) return false;
+
+    if (search) {
+      const haystack = normalizeText([
+        receivable.description,
+        receivable.source_bank_name,
+        receivable.category?.name,
+        receivable.ministry?.name,
+      ].join(" "));
+      if (!haystack.includes(search)) return false;
+    }
+
+    return true;
+  }).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)));
+}
+
+function renderReceivables() {
+  const rows = getFilteredReceivables();
+  el.receivableTableBody.innerHTML = "";
+
+  for (const receivable of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${receivable.due_date}</td>
+      <td>${receivable.description}</td>
+      <td><span class="receivable-status ${receivable.status}">${receivableStatusLabel(receivable.status)}</span></td>
+      <td>${receivable.category?.name || "-"}</td>
+      <td>${receivable.ministry?.name || "-"}</td>
+      <td>${receivable.source_bank_name || "-"}</td>
+      <td>${brl(receivable.amount)}</td>
+      <td>${receivableRecurringLabel(receivable.recurrence_type)}</td>
+      <td>
+        <div class="receivable-actions">
+          <button class="btn ghost btn-mini" type="button" data-edit-receivable="${receivable.id}">Editar</button>
+          ${receivable.status !== "received" ? `<button class="btn btn-mini" type="button" data-mark-receivable-received="${receivable.id}">Marcar recebida</button>` : ""}
+          <button class="btn ghost btn-mini" type="button" data-delete-receivable="${receivable.id}">Excluir</button>
+        </div>
+      </td>
+    `;
+    el.receivableTableBody.appendChild(tr);
+  }
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td colspan='9'>Nenhuma conta encontrada para os filtros atuais.</td>";
+    el.receivableTableBody.appendChild(tr);
+  }
+
+  el.receivableFilterResultCount.textContent = `Mostrando ${rows.length} de ${state.receivables.length}`;
+}
+
+function openEditReceivable(receivable) {
+  state.editingReceivableId = receivable.id;
+  el.receivableDescription.value = receivable.description || "";
+  el.receivableAmount.value = toInputAmount(receivable.amount);
+  el.receivableDueDate.value = receivable.due_date || "";
+  el.receivableCategory.value = receivable.category_id ? String(receivable.category_id) : "";
+  el.receivableMinistry.value = receivable.ministry_id ? String(receivable.ministry_id) : "";
+  ensureSelectHasOption(el.receivableBankName, receivable.source_bank_name || "");
+  el.receivableBankName.value = receivable.source_bank_name || "";
+  el.receivableRecurringType.value = receivable.recurrence_type || "";
+  el.receivableNotes.value = receivable.notes || "";
+  el.receivableSaveBtn.textContent = "Salvar alteracoes";
+}
+
+function renderReceivablesKpi() {
+  const summary = state.receivableAlertsSummary || {
+    overdue: 0,
+    due_today: 0,
+    due_in_3_days: 0,
+    due_in_7_days: 0,
+    pending_total: 0,
+  };
+
+  const pendingCount = Number(summary.pending_total || 0);
+  const overdueCount = Number(summary.overdue || 0);
+
+  el.kpiReceivablesPending.textContent = String(pendingCount);
+
+  if (overdueCount > 0) {
+    el.kpiReceivablesAlert.textContent = `${overdueCount} vencida(s)!`;
+    el.kpiReceivablesAlert.style.display = "block";
+  } else if (Number(summary.due_today || 0) > 0) {
+    el.kpiReceivablesAlert.textContent = `${summary.due_today} vence hoje`;
+    el.kpiReceivablesAlert.style.display = "block";
+    el.kpiReceivablesAlert.style.color = "#f57c00";
+  } else if (Number(summary.due_in_3_days || 0) > 0) {
+    el.kpiReceivablesAlert.textContent = `${summary.due_in_3_days} em 3 dias`;
+    el.kpiReceivablesAlert.style.display = "block";
+    el.kpiReceivablesAlert.style.color = "#f57c00";
+  } else {
+    el.kpiReceivablesAlert.textContent = "";
+    el.kpiReceivablesAlert.style.display = "none";
+  }
+}
+
 async function api(path, options = {}, isForm = false) {
   const headers = new Headers(options.headers || {});
   if (!isForm) {
@@ -1925,6 +2185,28 @@ async function loadPayablesAlertsSummary() {
     state.payableAlertsSummary = summary;
   } catch {
     state.payableAlertsSummary = {
+      overdue: 0,
+      due_today: 0,
+      due_in_3_days: 0,
+      due_in_7_days: 0,
+      pending_total: 0,
+    };
+  }
+}
+
+async function loadReceivables() {
+  const receivables = await api("/receivables/");
+  state.receivables = receivables;
+  populateReceivableFormOptions();
+  renderReceivables();
+}
+
+async function loadReceivablesAlertsSummary() {
+  try {
+    const summary = await api("/receivables/alerts/summary");
+    state.receivableAlertsSummary = summary;
+  } catch {
+    state.receivableAlertsSummary = {
       overdue: 0,
       due_today: 0,
       due_in_3_days: 0,
@@ -2198,6 +2480,8 @@ async function initializeApp() {
       loadTransactions(),
       loadPayables(),
       loadPayablesAlertsSummary(),
+      loadReceivables(),
+      loadReceivablesAlertsSummary(),
       loadReports(),
     ]);
     renderDashboard();
@@ -2228,7 +2512,7 @@ el.logoutBtn.addEventListener("click", () => {
 
 el.refreshBtn.addEventListener("click", async () => {
   try {
-    await Promise.all([loadTransactions(), loadPayables(), loadPayablesAlertsSummary(), loadReports()]);
+    await Promise.all([loadTransactions(), loadPayables(), loadPayablesAlertsSummary(), loadReceivables(), loadReceivablesAlertsSummary(), loadReports()]);
     renderDashboard();
   } catch (error) {
     setMessage(el.dashboardMessage, error.message, true);
@@ -2403,6 +2687,125 @@ el.payableTableBody.addEventListener("click", async (event) => {
       renderDashboard();
     } catch (error) {
       setMessage(el.payableMessage, error.message, true);
+    }
+  }
+});
+
+el.receivableForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const recurrenceType = el.receivableRecurringType.value || null;
+    const payload = {
+      description: el.receivableDescription.value.trim(),
+      amount: Number(el.receivableAmount.value || 0),
+      due_date: el.receivableDueDate.value,
+      category_id: el.receivableCategory.value ? Number(el.receivableCategory.value) : null,
+      ministry_id: el.receivableMinistry.value ? Number(el.receivableMinistry.value) : null,
+      source_bank_name: el.receivableBankName.value || null,
+      notes: el.receivableNotes.value.trim() || null,
+      is_recurring: recurrenceType !== null,
+      recurrence_type: recurrenceType,
+    };
+
+    if (!payload.description) {
+      throw new Error("Informe a descricao da conta.");
+    }
+    if (!payload.due_date) {
+      throw new Error("Informe a data de vencimento.");
+    }
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+      throw new Error("Informe um valor valido maior que zero.");
+    }
+
+    if (state.editingReceivableId) {
+      await api(`/receivables/${state.editingReceivableId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.receivableMessage, "Conta atualizada com sucesso.");
+    } else {
+      await api("/receivables/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setMessage(el.receivableMessage, "Conta cadastrada com sucesso.");
+    }
+
+    clearReceivableForm();
+    await Promise.all([loadReceivables(), loadReceivablesAlertsSummary(), loadTransactions(), loadReports()]);
+    renderDashboard();
+  } catch (error) {
+    setMessage(el.receivableMessage, error.message, true);
+  }
+});
+
+el.receivableCancelEditBtn.addEventListener("click", () => {
+  clearReceivableForm();
+  setMessage(el.receivableMessage, "");
+});
+
+const debouncedReceivableSearch = debounce(() => {
+  syncReceivableFiltersFromUi();
+  renderReceivables();
+}, 300);
+
+el.receivableFilterSearch.addEventListener("input", debouncedReceivableSearch);
+for (const node of [el.receivableFilterStatus, el.receivableFilterStartDate, el.receivableFilterEndDate]) {
+  node.addEventListener("change", () => {
+    syncReceivableFiltersFromUi();
+    renderReceivables();
+  });
+}
+el.receivableFilterResetBtn.addEventListener("click", resetReceivableFilters);
+
+el.receivableTableBody.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const editId = target.getAttribute("data-edit-receivable");
+  if (editId) {
+    const receivable = state.receivables.find((item) => item.id === Number(editId));
+    if (!receivable) {
+      return;
+    }
+    openEditReceivable(receivable);
+    setMessage(el.receivableMessage, `Editando conta: ${receivable.description}`);
+    return;
+  }
+
+  const markReceivedId = target.getAttribute("data-mark-receivable-received");
+  if (markReceivedId) {
+    try {
+      await api(`/receivables/${Number(markReceivedId)}/mark-received`, {
+        method: "POST",
+        body: JSON.stringify({ generate_transaction: true }),
+      });
+      setMessage(el.receivableMessage, "Conta marcada como recebida e lancamento gerado.");
+      await Promise.all([loadReceivables(), loadReceivablesAlertsSummary(), loadTransactions(), loadReports()]);
+      renderDashboard();
+    } catch (error) {
+      setMessage(el.receivableMessage, error.message, true);
+    }
+    return;
+  }
+
+  const deleteId = target.getAttribute("data-delete-receivable");
+  if (deleteId) {
+    try {
+      if (!window.confirm("Tem certeza que deseja excluir esta conta a receber?")) {
+        return;
+      }
+      await api(`/receivables/${Number(deleteId)}`, { method: "DELETE" });
+      setMessage(el.receivableMessage, "Conta excluida com sucesso.");
+      if (state.editingReceivableId === Number(deleteId)) {
+        clearReceivableForm();
+      }
+      await Promise.all([loadReceivables(), loadReceivablesAlertsSummary(), loadTransactions(), loadReports()]);
+      renderDashboard();
+    } catch (error) {
+      setMessage(el.receivableMessage, error.message, true);
     }
   }
 });
@@ -2929,9 +3332,17 @@ for (const btn of el.navButtons) {
         setMessage(el.payableMessage, error.message, true);
       }
     }
+    if (btn.dataset.view === "receivablesView") {
+      try {
+        await loadReceivables();
+      } catch (error) {
+        setMessage(el.receivableMessage, error.message, true);
+      }
+    }
     if (btn.dataset.view === "dashboardView") {
       try {
         await loadPayablesAlertsSummary();
+        await loadReceivablesAlertsSummary();
         renderDashboard();
       } catch (error) {
         setMessage(el.dashboardMessage, error.message, true);
@@ -2953,6 +3364,7 @@ el.editTxType.addEventListener("change", () => {
 
 document.getElementById("txDate").value = new Date().toISOString().slice(0, 10);
 el.payableDueDate.value = new Date().toISOString().slice(0, 10);
+el.receivableDueDate.value = new Date().toISOString().slice(0, 10);
 loadTransactionFilterState();
 loadBudgetTargets();
 populateBudgetReferenceOptions();
@@ -2961,4 +3373,5 @@ syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
 syncMinistryField(el.txType, el.txMinistry);
 syncMinistryField(el.editTxType, el.editTxMinistry);
 clearPayableForm();
+clearReceivableForm();
 initializeApp();

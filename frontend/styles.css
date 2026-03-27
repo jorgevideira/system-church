@@ -751,6 +751,11 @@ select:focus {
   border-color: #ffd54f;
 }
 
+.kpi.receivables {
+  background: linear-gradient(145deg, #e6fff3, #f4fffa);
+  border-color: #b8e6d0;
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
@@ -897,6 +902,40 @@ select:focus {
 }
 
 .payable-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.receivable-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.14rem 0.48rem;
+  border: 1px solid transparent;
+}
+
+.receivable-status.pending {
+  background: #f6f8ff;
+  color: #35527a;
+  border-color: #d7e3f3;
+}
+
+.receivable-status.overdue {
+  background: #fff2f0;
+  color: #a4332a;
+  border-color: #f0c9c4;
+}
+
+.receivable-status.received {
+  background: #eefcf6;
+  color: #0f7059;
+  border-color: #c5e9dc;
+}
+
+.receivable-actions {
   display: flex;
   gap: 0.35rem;
   flex-wrap: wrap;

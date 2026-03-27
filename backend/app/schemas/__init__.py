@@ -29,6 +29,14 @@ from app.schemas.payable import (
     PayableResponse,
     PayableAlertsSummary,
 )
+from app.schemas.receivable import (
+    ReceivableBase,
+    ReceivableCreate,
+    ReceivableUpdate,
+    MarkReceivableReceivedRequest,
+    ReceivableResponse,
+    ReceivableAlertsSummary,
+)
 
 __all__ = [
     "UserBase",
@@ -54,4 +62,10 @@ __all__ = [
     "MarkPayablePaidRequest",
     "PayableResponse",
     "PayableAlertsSummary",
+    "ReceivableBase",
+    "ReceivableCreate",
+    "ReceivableUpdate",
+    "MarkReceivableReceivedRequest",
+    "ReceivableResponse",
+    "ReceivableAlertsSummary",
 ]

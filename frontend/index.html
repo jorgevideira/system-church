@@ -57,6 +57,7 @@
         <button class="nav-btn active" data-view="dashboardView">Dashboard</button>
         <button class="nav-btn" data-view="transactionsView">Lancamentos</button>
         <button class="nav-btn" data-view="payablesView">Contas a Pagar</button>
+        <button class="nav-btn" data-view="receivablesView">Contas a Receber</button>
         <button class="nav-btn" data-view="categoriesView">Categorias</button>
         <button class="nav-btn" data-view="ministriesView">Ministerios</button>
         <button class="nav-btn" data-view="uploadView">Upload</button>
@@ -122,6 +123,11 @@
               <span>Contas Pendentes</span>
               <strong id="kpiPayablesPending">0</strong>
               <small id="kpiPayablesAlert" style="display:block; margin-top:0.25rem; color:#d32f2f; font-weight:bold;"></small>
+            </article>
+            <article class="kpi receivables">
+              <span>Contas a Receber</span>
+              <strong id="kpiReceivablesPending">0</strong>
+              <small id="kpiReceivablesAlert" style="display:block; margin-top:0.25rem; color:#d32f2f; font-weight:bold;"></small>
             </article>
           </div>
           <div class="dashboard-grid">
@@ -503,6 +509,97 @@
                 </tr>
               </thead>
               <tbody id="payableTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="receivablesView">
+          <h3>Contas a Receber</h3>
+          <form id="receivableForm" class="grid-form">
+            <label>Descricao
+              <input type="text" id="receivableDescription" required>
+            </label>
+            <label>Valor
+              <input type="number" id="receivableAmount" min="0" step="0.01" required>
+            </label>
+            <label>Vencimento
+              <input type="date" id="receivableDueDate" required>
+            </label>
+            <label>Categoria
+              <select id="receivableCategory">
+                <option value="">Sem categoria</option>
+              </select>
+            </label>
+            <label>Ministerio
+              <select id="receivableMinistry">
+                <option value="">Nao se aplica</option>
+              </select>
+            </label>
+            <label>Banco
+              <select id="receivableBankName">
+                <option value="">Nao informado</option>
+              </select>
+            </label>
+            <label>Recorrente
+              <select id="receivableRecurringType">
+                <option value="">Nao</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensal</option>
+                <option value="yearly">Anual</option>
+              </select>
+            </label>
+            <label>Observacoes
+              <input type="text" id="receivableNotes" placeholder="Opcional">
+            </label>
+            <div class="category-form-actions">
+              <button class="btn" type="submit" id="receivableSaveBtn">Salvar conta</button>
+              <button class="btn ghost" type="button" id="receivableCancelEditBtn">Limpar</button>
+            </div>
+          </form>
+          <p id="receivableMessage" class="message"></p>
+
+          <section class="tx-filters" aria-label="Filtros de contas a receber">
+            <div class="tx-filters-grid">
+              <label>Buscar
+                <input type="text" id="receivableFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+              </label>
+              <label>Status
+                <select id="receivableFilterStatus">
+                  <option value="">Todos</option>
+                  <option value="pending">Pendente</option>
+                  <option value="overdue">Vencida</option>
+                  <option value="received">Recebida</option>
+                </select>
+              </label>
+              <label>Vencimento de
+                <input type="date" id="receivableFilterStartDate">
+              </label>
+              <label>Vencimento ate
+                <input type="date" id="receivableFilterEndDate">
+              </label>
+            </div>
+            <div class="tx-filters-footer">
+              <span id="receivableFilterResultCount" class="tx-result-count"></span>
+              <button id="receivableFilterResetBtn" class="btn ghost btn-mini" type="button">Limpar filtros</button>
+            </div>
+          </section>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vencimento</th>
+                  <th>Descricao</th>
+                  <th>Status</th>
+                  <th>Categoria</th>
+                  <th>Ministerio</th>
+                  <th>Banco</th>
+                  <th>Valor</th>
+                  <th>Recorrente</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="receivableTableBody"></tbody>
             </table>
           </div>
         </section>
