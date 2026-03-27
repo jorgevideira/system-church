@@ -288,16 +288,21 @@ function debounce(fn, wait = 300) {
   };
 }
 
-function positionTooltipAtViewport(tooltipNode, x, y, offsetX = 12, offsetY = -18) {
-  const maxWidthPad = 8;
-  const rawLeft = x + offsetX;
-  const rawTop = y + offsetY;
+function positionTooltipInContainer(tooltipNode, containerNode, anchorX, anchorY, offsetX = 12, offsetY = -18) {
+  const pad = 8;
+  const containerRect = containerNode.getBoundingClientRect();
+
+  const rawLeft = anchorX - containerRect.left + offsetX;
+  const rawTop = anchorY - containerRect.top + offsetY;
 
   const width = tooltipNode.offsetWidth || 180;
   const height = tooltipNode.offsetHeight || 36;
 
-  const left = Math.max(maxWidthPad, Math.min(rawLeft, window.innerWidth - width - maxWidthPad));
-  const top = Math.max(maxWidthPad, Math.min(rawTop, window.innerHeight - height - maxWidthPad));
+  const maxLeft = Math.max(pad, containerRect.width - width - pad);
+  const maxTop = Math.max(pad, containerRect.height - height - pad);
+
+  const left = Math.max(pad, Math.min(rawLeft, maxLeft));
+  const top = Math.max(pad, Math.min(rawTop, maxTop));
 
   tooltipNode.style.left = `${left}px`;
   tooltipNode.style.top = `${top}px`;
@@ -790,7 +795,8 @@ function renderLineChart(trendRows) {
       const pointRect = event.currentTarget.getBoundingClientRect();
       const anchorX = pointRect.left + pointRect.width / 2;
       const anchorY = pointRect.top + pointRect.height / 2;
-      positionTooltipAtViewport(el.dashLineTooltip, anchorX, anchorY, 12, -24);
+      const container = el.dashLineTooltip.parentElement;
+      positionTooltipInContainer(el.dashLineTooltip, container, anchorX, anchorY, 12, -24);
     });
     node.addEventListener("mouseleave", () => {
       el.dashLineTooltip.classList.add("hide");
@@ -852,7 +858,8 @@ function renderExpensePie(categoryTotals) {
     const radius = rect.width * 0.36;
     const anchorX = rect.left + rect.width / 2 + Math.cos(rad) * radius;
     const anchorY = rect.top + rect.height / 2 + Math.sin(rad) * radius;
-    positionTooltipAtViewport(el.dashPieTooltip, anchorX, anchorY, 14, -10);
+    const container = el.dashPieTooltip.parentElement;
+    positionTooltipInContainer(el.dashPieTooltip, container, anchorX, anchorY, 14, -10);
   };
   el.dashExpensePie.onmouseleave = () => {
     el.dashPieTooltip.classList.add("hide");
