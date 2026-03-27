@@ -35,6 +35,34 @@ def ensure_runtime_schema_updates() -> None:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN ministry_id INTEGER"))
         logger.info("Schema update applied: transactions.ministry_id added.")
 
+    if "payables" in tables:
+        payable_columns = {col["name"] for col in inspector.get_columns("payables")}
+
+        if "expense_profile" not in payable_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payables ADD COLUMN expense_profile VARCHAR(20)"))
+            logger.info("Schema update applied: payables.expense_profile added.")
+
+        if "payment_method" not in payable_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payables ADD COLUMN payment_method VARCHAR(20)"))
+            logger.info("Schema update applied: payables.payment_method added.")
+
+        if "attachment_storage_filename" not in payable_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payables ADD COLUMN attachment_storage_filename VARCHAR(255)"))
+            logger.info("Schema update applied: payables.attachment_storage_filename added.")
+
+        if "attachment_original_filename" not in payable_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payables ADD COLUMN attachment_original_filename VARCHAR(255)"))
+            logger.info("Schema update applied: payables.attachment_original_filename added.")
+
+        if "attachment_mime_type" not in payable_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payables ADD COLUMN attachment_mime_type VARCHAR(100)"))
+            logger.info("Schema update applied: payables.attachment_mime_type added.")
+
 
 def create_default_admin(db: Session) -> None:
     """Create the default admin user if it does not already exist."""
