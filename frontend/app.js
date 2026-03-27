@@ -1028,19 +1028,17 @@ function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
   const noAttachment = rows.filter((tx) => tx.transaction_type === "expense" && (Number(tx.attachment_count || 0) <= 0 && tx.has_attachments !== true)).length;
   if (noAttachment > 0) alerts.push({ level: "low", text: `${noAttachment} despesa(s) sem anexo.` });
 
-  for (const budget of activeBudgets) {
-    const source = budget.type === "category" ? state.categories : state.ministries;
-    const ref = source.find((item) => String(item.id) === String(budget.refId));
-    if (!ref) {
-      continue;
-    }
-    const spent = budget.type === "category"
-      ? Number(categoryTotals.get(ref.name) || 0)
-      : Number(ministryTotals.get(ref.name) || 0);
-    if (budget.amount > 0 && spent >= budget.amount) {
-      alerts.push({ level: "high", text: `Meta estourada em ${ref.name}: ${brl(spent)} de ${brl(budget.amount)}.` });
-    } else if (budget.amount > 0 && spent >= budget.amount * 0.8) {
-      alerts.push({ level: "medium", text: `Meta em 80% em ${ref.name}: ${brl(spent)} de ${brl(budget.amount)}.` });
+  for (const health of state.budgetHealthMetrics || []) {
+    if (health.alert_level === "critical") {
+      alerts.push({
+        level: "high",
+        text: `Meta estourada em ${health.reference_name}: ${brl(health.spent_amount)} de ${brl(health.target_amount)}.`,
+      });
+    } else if (health.alert_level === "warning") {
+      alerts.push({
+        level: "medium",
+        text: `Meta em alerta em ${health.reference_name}: ${brl(health.spent_amount)} de ${brl(health.target_amount)}.`,
+      });
     }
   }
 
