@@ -44,6 +44,7 @@ const state = {
     bank: "",
   },
   budgetTargets: [],
+  budgetHealthMetrics: [],
   txPagination: {
     page: 1,
     pageSize: 25,
@@ -482,17 +483,28 @@ function loadTransactionFilterState() {
   el.txPageSize.value = String(state.txPagination.pageSize || 25);
 }
 
-function loadBudgetTargets() {
-  try {
-    const raw = localStorage.getItem(DASH_BUDGETS_STORAGE_KEY);
-    state.budgetTargets = raw ? JSON.parse(raw) : [];
-  } catch {
-    state.budgetTargets = [];
-  }
+async function loadBudgets() {
+  const monthLabel = new Date().toISOString().slice(0, 7);
+  const rawBudgets = await fetchAPI(`${API_PREFIX}/budgets/?month=${monthLabel}`);
+  state.budgetTargets = rawBudgets;
+  
+  // Load budget health metrics for the current month
+  const rawHealthMetrics = await fetchAPI(`${API_PREFIX}/budgets/${monthLabel}/health`);
+  state.budgetHealthMetrics = rawHealthMetrics;
 }
 
-function saveBudgetTargets() {
-  localStorage.setItem(DASH_BUDGETS_STORAGE_KEY, JSON.stringify(state.budgetTargets));
+async function saveBudget(budgetData) {
+  const response = await fetchAPI(`${API_PREFIX}/budgets/`, {
+    method: "POST",
+    body: JSON.stringify(budgetData),
+  });
+  return response;
+}
+
+async function deleteBudget(budgetId) {
+  await fetchAPI(`${API_PREFIX}/budgets/${budgetId}`, {
+    method: "DELETE",
+  });
 }
 
 function populateDashboardFilterOptions() {
@@ -957,48 +969,47 @@ function openTransactionsWithFilters(nextFilters) {
 }
 
 function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
-  const monthLabel = new Date().toISOString().slice(0, 7);
-  const activeBudgets = state.budgetTargets.filter((item) => item.month === monthLabel);
   el.dashBudgetList.innerHTML = "";
 
-  for (const budget of activeBudgets) {
-    const source = budget.type === "category" ? state.categories : state.ministries;
-    const ref = source.find((item) => String(item.id) === String(budget.refId));
-    if (!ref) {
-      continue;
+  // Use health metrics from API if available
+  if (state.budgetHealthMetrics && state.budgetHealthMetrics.length > 0) {
+    for (const health of state.budgetHealthMetrics) {
+      const li = document.createElement("li");
+      li.className = "comparison-item";
+      
+      // Color-code based on alert level
+      const alertClass = health.alert_level === "critical" ? "alert-high" : 
+                        health.alert_level === "warning" ? "alert-medium" : "alert-low";
+      li.classList.add(alertClass);
+      
+      li.innerHTML = `
+        <strong>${health.budget_type === "category" ? "Categoria" : "Ministerio"}: ${health.reference_name}</strong>
+        <div class="comparison-metrics">
+          <span>Meta: ${brl(health.target_amount)} | Realizado: ${brl(health.spent_amount)}</span>
+          <span class="${health.percent_spent >= 100 ? "delta-down" : "delta-up"}">${health.percent_spent.toFixed(1)}% consumido</span>
+        </div>
+      `;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn ghost btn-mini";
+      removeBtn.type = "button";
+      removeBtn.textContent = "Remover meta";
+      removeBtn.addEventListener("click", async () => {
+        try {
+          await deleteBudget(health.budget_id);
+          setMessage(el.dashBudgetMessage, "Meta removida com sucesso.");
+          await loadBudgets();
+          renderDashboard();
+        } catch (error) {
+          setMessage(el.dashBudgetMessage, error.message, true);
+        }
+      });
+      li.appendChild(removeBtn);
+      el.dashBudgetList.appendChild(li);
     }
-
-    const spent = budget.type === "category"
-      ? Number(categoryTotals.get(ref.name) || 0)
-      : Number(ministryTotals.get(ref.name) || 0);
-    const pct = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
-    const li = document.createElement("li");
-    li.className = "comparison-item";
-    li.innerHTML = `
-      <strong>${budget.type === "category" ? "Categoria" : "Ministerio"}: ${ref.name}</strong>
-      <div class="comparison-metrics">
-        <span>Meta: ${brl(budget.amount)} | Realizado: ${brl(spent)}</span>
-        <span class="${pct >= 100 ? "delta-down" : "delta-up"}">${pct.toFixed(1)}% consumido</span>
-      </div>
-    `;
-
-    const removeBtn = document.createElement("button");
-    removeBtn.className = "btn ghost btn-mini";
-    removeBtn.type = "button";
-    removeBtn.textContent = "Remover meta";
-    removeBtn.addEventListener("click", () => {
-      state.budgetTargets = state.budgetTargets.filter(
-        (item) => !(item.month === budget.month && item.type === budget.type && String(item.refId) === String(budget.refId)),
-      );
-      saveBudgetTargets();
-      setMessage(el.dashBudgetMessage, "Meta removida com sucesso.");
-      renderDashboard();
-    });
-    li.appendChild(removeBtn);
-    el.dashBudgetList.appendChild(li);
   }
 
-  if (!activeBudgets.length) {
+  if (!state.budgetHealthMetrics || state.budgetHealthMetrics.length === 0) {
     el.dashBudgetList.innerHTML = "<li class='comparison-item alert-low'>Nenhuma meta cadastrada para o mes atual.</li>";
   }
 
@@ -2482,6 +2493,7 @@ async function initializeApp() {
       loadPayablesAlertsSummary(),
       loadReceivables(),
       loadReceivablesAlertsSummary(),
+      loadBudgets(),
       loadReports(),
     ]);
     renderDashboard();
@@ -2512,7 +2524,7 @@ el.logoutBtn.addEventListener("click", () => {
 
 el.refreshBtn.addEventListener("click", async () => {
   try {
-    await Promise.all([loadTransactions(), loadPayables(), loadPayablesAlertsSummary(), loadReceivables(), loadReceivablesAlertsSummary(), loadReports()]);
+    await Promise.all([loadTransactions(), loadPayables(), loadPayablesAlertsSummary(), loadReceivables(), loadReceivablesAlertsSummary(), loadBudgets(), loadReports()]);
     renderDashboard();
   } catch (error) {
     setMessage(el.dashboardMessage, error.message, true);
@@ -2546,30 +2558,35 @@ el.dashLineMetric.addEventListener("change", () => {
     el.dashLineChart.classList.remove("metric-transition");
   }, 360);
 });
-el.dashBudgetForm.addEventListener("submit", (event) => {
+el.dashBudgetForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const month = new Date().toISOString().slice(0, 7);
-  const type = el.dashBudgetType.value;
-  const refId = el.dashBudgetRef.value;
-  const amount = Number(el.dashBudgetAmount.value || 0);
+  try {
+    const month = new Date().toISOString().slice(0, 7);
+    const budget_type = el.dashBudgetType.value;
+    const reference_id = Number(el.dashBudgetRef.value);
+    const target_amount = Number(el.dashBudgetAmount.value || 0);
 
-  if (!refId || amount <= 0) {
-    setMessage(el.dashBudgetMessage, "Informe referencia e valor de meta validos.", true);
-    return;
+    if (!reference_id || target_amount <= 0) {
+      setMessage(el.dashBudgetMessage, "Informe referencia e valor de meta validos.", true);
+      return;
+    }
+
+    const budgetData = {
+      month,
+      budget_type,
+      reference_id,
+      target_amount,
+      alert_threshold_percent: 80, // Default 80%
+    };
+
+    await saveBudget(budgetData);
+    setMessage(el.dashBudgetMessage, "Meta salva com sucesso.");
+    el.dashBudgetAmount.value = "";
+    await loadBudgets();
+    renderDashboard();
+  } catch (error) {
+    setMessage(el.dashBudgetMessage, error.message, true);
   }
-
-  const existing = state.budgetTargets.find(
-    (item) => item.month === month && item.type === type && String(item.refId) === String(refId),
-  );
-  if (existing) {
-    existing.amount = amount;
-  } else {
-    state.budgetTargets.push({ month, type, refId: String(refId), amount });
-  }
-
-  saveBudgetTargets();
-  setMessage(el.dashBudgetMessage, "Meta salva com sucesso.");
-  renderDashboard();
 });
 
 el.payableForm.addEventListener("submit", async (event) => {
@@ -3366,7 +3383,6 @@ document.getElementById("txDate").value = new Date().toISOString().slice(0, 10);
 el.payableDueDate.value = new Date().toISOString().slice(0, 10);
 el.receivableDueDate.value = new Date().toISOString().slice(0, 10);
 loadTransactionFilterState();
-loadBudgetTargets();
 populateBudgetReferenceOptions();
 syncExpenseProfileField(el.txType, el.txExpenseProfile);
 syncExpenseProfileField(el.editTxType, el.editTxExpenseProfile);
