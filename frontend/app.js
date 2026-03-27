@@ -177,6 +177,23 @@ const el = {
   payableFilterResultCount: document.getElementById("payableFilterResultCount"),
   payableFilterResetBtn: document.getElementById("payableFilterResetBtn"),
   payableTableBody: document.getElementById("payableTableBody"),
+  editPayableModal: document.getElementById("editPayableModal"),
+  editPayableForm: document.getElementById("editPayableForm"),
+  editPayableCloseBtn: document.getElementById("editPayableCloseBtn"),
+  editPayableCancelBtn: document.getElementById("editPayableCancelBtn"),
+  editPayableDescription: document.getElementById("editPayableDescription"),
+  editPayableAmount: document.getElementById("editPayableAmount"),
+  editPayableDueDate: document.getElementById("editPayableDueDate"),
+  editPayableCategory: document.getElementById("editPayableCategory"),
+  editPayableMinistry: document.getElementById("editPayableMinistry"),
+  editPayableBankName: document.getElementById("editPayableBankName"),
+  editPayableExpenseProfile: document.getElementById("editPayableExpenseProfile"),
+  editPayableRecurringType: document.getElementById("editPayableRecurringType"),
+  editPayableAttachmentFile: document.getElementById("editPayableAttachmentFile"),
+  editPayableNotes: document.getElementById("editPayableNotes"),
+  editPayableAttachmentBlockCurrent: document.getElementById("editPayableAttachmentBlockCurrent"),
+  editPayableAttachmentCurrentName: document.getElementById("editPayableAttachmentCurrentName"),
+  editPayableRemoveCurrentAttachmentBtn: document.getElementById("editPayableRemoveCurrentAttachmentBtn"),
   receivableForm: document.getElementById("receivableForm"),
   receivableDescription: document.getElementById("receivableDescription"),
   receivableAmount: document.getElementById("receivableAmount"),
@@ -388,6 +405,46 @@ async function previewTransactionAttachment(transactionId, attachment) {
   }
 
   el.attachmentPreviewModal.classList.remove("hide");
+}
+
+async function previewPayableAttachment(payableId) {
+  const payable = state.payables.find((item) => item.id === payableId);
+  if (!payable || !payable.attachment_original_filename) {
+    throw new Error("Boleto nao encontrado.");
+  }
+
+  const headers = new Headers();
+  if (state.accessToken) {
+    headers.set("Authorization", `Bearer ${state.accessToken}`);
+  }
+
+  const response = await fetch(`${API_PREFIX}/payables/${payableId}/attachment/download`, {
+    method: "GET",
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error("Falha ao carregar boleto.");
+  }
+
+  const blob = await response.blob();
+  const mimeType = payable.attachment_mime_type || "application/octet-stream";
+
+  if ((mimeType || "").startsWith("image/")) {
+    // Para imagens, mostrar em modal preview
+    clearAttachmentPreview();
+    state.previewAttachmentUrl = URL.createObjectURL(blob);
+    el.attachmentPreviewTitle.textContent = payable.attachment_original_filename;
+    el.attachmentPreviewImage.src = state.previewAttachmentUrl;
+    el.attachmentPreviewImage.classList.remove("hide");
+    el.attachmentPreviewModal.classList.remove("hide");
+  } else if (mimeType === "application/pdf") {
+    // Para PDF, abrir em nova aba
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } else {
+    throw new Error("Preview nao suportado para este tipo de arquivo.");
+  }
 }
 
 function setMessage(node, text, isError = false) {
@@ -1563,6 +1620,7 @@ function isAnyModalOpen() {
   return !el.deleteCategoryModal.classList.contains("hide")
     || !el.attachmentPreviewModal.classList.contains("hide")
     || !el.editTransactionModal.classList.contains("hide")
+    || !el.editPayableModal.classList.contains("hide")
     || !el.uploadResultModal.classList.contains("hide")
     || !el.payablePaidAtModal.classList.contains("hide");
 }
@@ -1838,6 +1896,71 @@ function clearPayableForm() {
   el.payableSaveBtn.textContent = "Salvar conta";
 }
 
+function closeEditPayableModal() {
+  state.editingPayableId = null;
+  el.editPayableForm.reset();
+  el.editPayableCategory.value = "";
+  el.editPayableMinistry.value = "";
+  el.editPayableBankName.value = "";
+  el.editPayableExpenseProfile.value = "";
+  el.editPayableRecurringType.value = "";
+  el.editPayableAttachmentFile.value = "";
+  el.editPayableModal.classList.add("hide");
+}
+
+function populateEditPayableFormOptions() {
+  const selectedCategory = el.editPayableCategory.value;
+  const selectedMinistry = el.editPayableMinistry.value;
+  const selectedBank = el.editPayableBankName.value;
+
+  el.editPayableCategory.innerHTML = "<option value=''>Sem categoria</option>";
+  for (const cat of [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(cat.id);
+    option.textContent = cat.name;
+    el.editPayableCategory.appendChild(option);
+  }
+  if (selectedCategory) {
+    el.editPayableCategory.value = selectedCategory;
+  }
+
+  el.editPayableMinistry.innerHTML = "<option value=''>Nao se aplica</option>";
+  for (const ministry of [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = String(ministry.id);
+    option.textContent = ministry.name;
+    el.editPayableMinistry.appendChild(option);
+  }
+  if (selectedMinistry) {
+    el.editPayableMinistry.value = selectedMinistry;
+  }
+
+  el.editPayableBankName.innerHTML = "<option value=''>Nao informado</option>";
+  const banks = new Set();
+  for (const tx of state.transactionsRaw) {
+    const name = String(tx.source_bank || tx.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const payable of state.payables) {
+    const name = String(payable.source_bank_name || "").trim();
+    if (name) {
+      banks.add(name);
+    }
+  }
+  for (const bank of [...banks].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+    const option = document.createElement("option");
+    option.value = bank;
+    option.textContent = bank;
+    el.editPayableBankName.appendChild(option);
+  }
+  if (selectedBank) {
+    ensureSelectHasOption(el.editPayableBankName, selectedBank);
+    el.editPayableBankName.value = selectedBank;
+  }
+}
+
 function populatePayableFormOptions() {
   const selectedCategory = el.payableCategory.value;
   const selectedMinistry = el.payableMinistry.value;
@@ -1958,7 +2081,8 @@ function renderPayables() {
         <div class="payable-actions">
           <button class="btn ghost btn-mini" type="button" data-edit-payable="${payable.id}">Editar</button>
           ${payable.status !== "paid" ? `<button class="btn btn-mini" type="button" data-mark-payable-paid="${payable.id}">Marcar paga</button>` : ""}
-          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-download-payable-attachment="${payable.id}">Boleto</button>` : ""}
+          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-preview-payable-attachment="${payable.id}">Boleto</button>` : ""}
+          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-delete-payable-attachment="${payable.id}">Remover boleto</button>` : ""}
           <button class="btn ghost btn-mini" type="button" data-delete-payable="${payable.id}">Excluir</button>
         </div>
       </td>
@@ -1976,18 +2100,32 @@ function renderPayables() {
 }
 
 function openEditPayable(payable) {
+  populateEditPayableFormOptions();
   state.editingPayableId = payable.id;
-  el.payableDescription.value = payable.description || "";
-  el.payableAmount.value = toInputAmount(payable.amount);
-  el.payableDueDate.value = payable.due_date || "";
-  el.payableCategory.value = payable.category_id ? String(payable.category_id) : "";
-  el.payableMinistry.value = payable.ministry_id ? String(payable.ministry_id) : "";
-  ensureSelectHasOption(el.payableBankName, payable.source_bank_name || "");
-  el.payableBankName.value = payable.source_bank_name || "";
-  el.payableExpenseProfile.value = payable.expense_profile || "";
-  el.payableRecurringType.value = payable.recurrence_type || "";
-  el.payableNotes.value = payable.notes || "";
-  el.payableSaveBtn.textContent = "Salvar alteracoes";
+  el.editPayableDescription.value = payable.description || "";
+  el.editPayableAmount.value = toInputAmount(payable.amount);
+  el.editPayableDueDate.value = payable.due_date || "";
+  el.editPayableCategory.value = payable.category_id ? String(payable.category_id) : "";
+  el.editPayableMinistry.value = payable.ministry_id ? String(payable.ministry_id) : "";
+  ensureSelectHasOption(el.editPayableBankName, payable.source_bank_name || "");
+  el.editPayableBankName.value = payable.source_bank_name || "";
+  el.editPayableExpenseProfile.value = payable.expense_profile || "";
+  el.editPayableRecurringType.value = payable.recurrence_type || "";
+  el.editPayableNotes.value = payable.notes || "";
+  el.editPayableAttachmentFile.value = "";
+  
+  if (payable.attachment_original_filename) {
+    el.editPayableAttachmentCurrentName.textContent = payable.attachment_original_filename;
+    el.editPayableAttachmentBlockCurrent.classList.remove("hide");
+  } else {
+    el.editPayableAttachmentBlockCurrent.classList.add("hide");
+  }
+  
+  el.editPayableModal.classList.remove("hide");
+  window.setTimeout(() => {
+    el.editPayableDescription.focus();
+    el.editPayableDescription.select();
+  }, 0);
 }
 
 function receivableStatusLabel(value) {
@@ -2764,20 +2902,11 @@ el.payableForm.addEventListener("submit", async (event) => {
       throw new Error("Informe um valor valido maior que zero.");
     }
 
-    let savedPayable;
-    if (state.editingPayableId) {
-      savedPayable = await api(`/payables/${state.editingPayableId}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-      setMessage(el.payableMessage, "Conta atualizada com sucesso.");
-    } else {
-      savedPayable = await api("/payables/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      setMessage(el.payableMessage, "Conta cadastrada com sucesso.");
-    }
+    const savedPayable = await api("/payables/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setMessage(el.payableMessage, "Conta cadastrada com sucesso.");
 
     const attachment = el.payableAttachmentFile.files?.[0];
     if (attachment && savedPayable?.id) {
@@ -2798,6 +2927,57 @@ el.payableForm.addEventListener("submit", async (event) => {
 el.payableCancelEditBtn.addEventListener("click", () => {
   clearPayableForm();
   setMessage(el.payableMessage, "");
+});
+
+el.editPayableForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    if (!state.editingPayableId) {
+      throw new Error("Nenhuma conta selecionada para edicao.");
+    }
+
+    const payload = {
+      description: el.editPayableDescription.value.trim(),
+      amount: Number(el.editPayableAmount.value || 0),
+      due_date: el.editPayableDueDate.value,
+      category_id: el.editPayableCategory.value ? Number(el.editPayableCategory.value) : null,
+      ministry_id: el.editPayableMinistry.value ? Number(el.editPayableMinistry.value) : null,
+      source_bank_name: el.editPayableBankName.value || null,
+      expense_profile: el.editPayableExpenseProfile.value || null,
+      notes: el.editPayableNotes.value.trim() || null,
+      is_recurring: !!el.editPayableRecurringType.value,
+      recurrence_type: el.editPayableRecurringType.value || null,
+    };
+
+    if (!payload.description) {
+      throw new Error("Informe a descricao da conta.");
+    }
+    if (!payload.due_date) {
+      throw new Error("Informe a data de vencimento.");
+    }
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+      throw new Error("Informe um valor valido maior que zero.");
+    }
+
+    const updatedPayable = await api(`/payables/${state.editingPayableId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+
+    const attachment = el.editPayableAttachmentFile.files?.[0];
+    if (attachment && updatedPayable?.id) {
+      const formData = new FormData();
+      formData.append("file", attachment);
+      await api(`/payables/${updatedPayable.id}/attachment`, { method: "POST", body: formData }, true);
+    }
+
+    closeEditPayableModal();
+    setMessage(el.payableMessage, "Conta atualizada com sucesso.");
+    await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
+    renderDashboard();
+  } catch (error) {
+    setMessage(el.payableMessage, error.message, true);
+  }
 });
 
 const debouncedPayableSearch = debounce(() => {
@@ -2864,26 +3044,29 @@ el.payableTableBody.addEventListener("click", async (event) => {
     return;
   }
 
-  const downloadAttachmentId = target.getAttribute("data-download-payable-attachment");
-  if (downloadAttachmentId) {
+  const previewAttachmentId = target.getAttribute("data-preview-payable-attachment");
+  if (previewAttachmentId) {
     try {
-      const payableId = Number(downloadAttachmentId);
-      const response = await fetch(`${API_PREFIX}/payables/${payableId}/attachment/download`, {
-        headers: { Authorization: `Bearer ${state.accessToken}` },
-      });
-      if (!response.ok) {
-        throw new Error(`Falha ao baixar boleto (HTTP ${response.status}).`);
+      const payableId = Number(previewAttachmentId);
+      await previewPayableAttachment(payableId);
+    } catch (error) {
+      setMessage(el.payableMessage, error.message, true);
+    }
+    return;
+  }
+
+  const deleteAttachmentId = target.getAttribute("data-delete-payable-attachment");
+  if (deleteAttachmentId) {
+    try {
+      const payableId = Number(deleteAttachmentId);
+      if (!window.confirm("Tem certeza que deseja remover o boleto desta conta?")) {
+        return;
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "boleto";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      await api(`/payables/${payableId}/attachment`, { method: "DELETE" });
+      setMessage(el.payableMessage, "Boleto removido com sucesso.");
+      await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
+      renderDashboard();
     } catch (error) {
       setMessage(el.payableMessage, error.message, true);
     }
@@ -2899,7 +3082,7 @@ el.payableTableBody.addEventListener("click", async (event) => {
       await api(`/payables/${Number(deleteId)}`, { method: "DELETE" });
       setMessage(el.payableMessage, "Conta excluida com sucesso.");
       if (state.editingPayableId === Number(deleteId)) {
-        clearPayableForm();
+        closeEditPayableModal();
       }
       await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
       renderDashboard();
@@ -3305,6 +3488,12 @@ el.payablePaidAtModal.addEventListener("click", (event) => {
   }
 });
 
+el.editPayableModal.addEventListener("click", (event) => {
+  if (event.target === el.editPayableModal) {
+    closeEditPayableModal();
+  }
+});
+
 el.editTransactionModal.addEventListener("click", (event) => {
   if (event.target === el.editTransactionModal) {
     closeEditTransactionModal();
@@ -3375,6 +3564,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!el.editTransactionModal.classList.contains("hide")) {
     closeEditTransactionModal();
+    return;
+  }
+
+  if (!el.editPayableModal.classList.contains("hide")) {
+    closeEditPayableModal();
     return;
   }
 
@@ -3504,6 +3698,24 @@ el.payablePaidAtConfirmBtn.addEventListener("click", () => {
 
 el.editModalCloseBtn.addEventListener("click", closeEditTransactionModal);
 el.editModalCancelBtn.addEventListener("click", closeEditTransactionModal);
+el.editPayableCloseBtn.addEventListener("click", closeEditPayableModal);
+el.editPayableCancelBtn.addEventListener("click", closeEditPayableModal);
+el.editPayableRemoveCurrentAttachmentBtn.addEventListener("click", async (event) => {
+  event.preventDefault();
+  if (!state.editingPayableId) {
+    return;
+  }
+  try {
+    if (!window.confirm("Tem certeza que deseja remover o boleto desta conta?")) {
+      return;
+    }
+    await api(`/payables/${state.editingPayableId}/attachment`, { method: "DELETE" });
+    el.editPayableAttachmentBlockCurrent.classList.add("hide");
+    setMessage(el.payableMessage, "Boleto removido com sucesso.");
+  } catch (error) {
+    setMessage(el.payableMessage, error.message, true);
+  }
+});
 
 el.editTransactionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
