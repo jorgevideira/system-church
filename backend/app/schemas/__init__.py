@@ -37,6 +37,15 @@ from app.schemas.receivable import (
     ReceivableResponse,
     ReceivableAlertsSummary,
 )
+from app.schemas.budget import (
+    BudgetBase,
+    BudgetCreate,
+    BudgetUpdate,
+    BudgetResponse,
+    BudgetHealth,
+    BudgetSimulation,
+    MonthlyBudgetAdherence,
+)
 
 __all__ = [
     "UserBase",
@@ -68,4 +77,11 @@ __all__ = [
     "MarkReceivableReceivedRequest",
     "ReceivableResponse",
     "ReceivableAlertsSummary",
+    "BudgetBase",
+    "BudgetCreate",
+    "BudgetUpdate",
+    "BudgetResponse",
+    "BudgetHealth",
+    "BudgetSimulation",
+    "MonthlyBudgetAdherence",
 ]

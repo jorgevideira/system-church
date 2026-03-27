@@ -6,6 +6,7 @@ from app.db.models.statement_file import StatementFile
 from app.db.models.transaction import Transaction
 from app.db.models.payable import Payable
 from app.db.models.receivable import Receivable
+from app.db.models.budget import Budget
 from app.db.models.transaction_attachment import TransactionAttachment
 from app.db.models.audit_log import AuditLog
 from app.db.models.classification_feedback import ClassificationFeedback
@@ -19,6 +20,7 @@ __all__ = [
     "Transaction",
     "Payable",
     "Receivable",
+    "Budget",
     "TransactionAttachment",
     "AuditLog",
     "ClassificationFeedback",

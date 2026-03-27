@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
 	auth,
+	budgets,
 	categories,
 	ministries,
 	payables,
@@ -22,5 +23,6 @@ api_router.include_router(transactions.router, prefix="/transactions", tags=["tr
 api_router.include_router(transaction_attachments.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(payables.router, prefix="/payables", tags=["payables"])
 api_router.include_router(receivables.router, prefix="/receivables", tags=["receivables"])
+api_router.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
