@@ -45,6 +45,7 @@ const state = {
   },
   budgetTargets: [],
   budgetHealthMetrics: [],
+  cashFlowForecast: null,
   txPagination: {
     page: 1,
     pageSize: 25,
@@ -485,16 +486,16 @@ function loadTransactionFilterState() {
 
 async function loadBudgets() {
   const monthLabel = new Date().toISOString().slice(0, 7);
-  const rawBudgets = await fetchAPI(`${API_PREFIX}/budgets/?month=${monthLabel}`);
+  const rawBudgets = await api(`/budgets/?month=${monthLabel}`);
   state.budgetTargets = rawBudgets;
   
   // Load budget health metrics for the current month
-  const rawHealthMetrics = await fetchAPI(`${API_PREFIX}/budgets/${monthLabel}/health`);
+  const rawHealthMetrics = await api(`/budgets/${monthLabel}/health`);
   state.budgetHealthMetrics = rawHealthMetrics;
 }
 
 async function saveBudget(budgetData) {
-  const response = await fetchAPI(`${API_PREFIX}/budgets/`, {
+  const response = await api("/budgets/", {
     method: "POST",
     body: JSON.stringify(budgetData),
   });
@@ -502,9 +503,13 @@ async function saveBudget(budgetData) {
 }
 
 async function deleteBudget(budgetId) {
-  await fetchAPI(`${API_PREFIX}/budgets/${budgetId}`, {
+  await api(`/budgets/${budgetId}`, {
     method: "DELETE",
   });
+}
+
+async function loadCashFlowForecast() {
+  state.cashFlowForecast = await api("/reports/cash-flow?months_history=6&months_forecast=1");
 }
 
 function populateDashboardFilterOptions() {
@@ -1254,35 +1259,50 @@ function renderDashboard() {
   renderReceivablesKpi();
 
   const now = new Date();
+  const dayOfMonth = now.getDate();
   const currentMonth = now.toISOString().slice(0, 7);
-  let currentIncome = 0;
-  let currentExpense = 0;
-  for (const tx of rows) {
-    if (String(tx.transaction_date || "").startsWith(currentMonth)) {
-      const amount = Number(tx.amount || 0);
-      if (tx.transaction_type === "income") {
-        currentIncome += amount;
-      } else {
-        currentExpense += amount;
+  const cashFlow = state.cashFlowForecast;
+  const currentFromApi = cashFlow?.current_month?.month === currentMonth ? cashFlow.current_month : null;
+  const nextForecast = Array.isArray(cashFlow?.forecast) && cashFlow.forecast.length ? cashFlow.forecast[0] : null;
+
+  if (currentFromApi && nextForecast) {
+    const projectedIncome = Number(currentFromApi.income || 0) + Math.max(Number(nextForecast.projected_net || 0), 0);
+    const projectedExpense = Number(currentFromApi.expense || 0) + Math.max(-Number(nextForecast.projected_net || 0), 0);
+    const projectedBalance = projectedIncome - projectedExpense;
+
+    el.dashProjectedIncome.textContent = brl(projectedIncome);
+    el.dashProjectedExpense.textContent = brl(projectedExpense);
+    el.dashProjectedBalance.textContent = brl(projectedBalance);
+    el.dashProjectionNote.textContent = `Base ate ${String(dayOfMonth).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")} + tendencia media: ${brl(Number(cashFlow.average_net_last_months || 0))}.`;
+  } else {
+    let currentIncome = 0;
+    let currentExpense = 0;
+    for (const tx of rows) {
+      if (String(tx.transaction_date || "").startsWith(currentMonth)) {
+        const amount = Number(tx.amount || 0);
+        if (tx.transaction_type === "income") {
+          currentIncome += amount;
+        } else {
+          currentExpense += amount;
+        }
       }
     }
-  }
 
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const dayOfMonth = now.getDate();
-  const elapsedRatio = Math.max(1 / daysInMonth, dayOfMonth / daysInMonth);
-  const projectedIncome = currentIncome / elapsedRatio;
-  const projectedExpense = currentExpense / elapsedRatio;
-  const projectedBalance = projectedIncome - projectedExpense;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const elapsedRatio = Math.max(1 / daysInMonth, dayOfMonth / daysInMonth);
+    const projectedIncome = currentIncome / elapsedRatio;
+    const projectedExpense = currentExpense / elapsedRatio;
+    const projectedBalance = projectedIncome - projectedExpense;
 
-  el.dashProjectedIncome.textContent = brl(projectedIncome);
-  el.dashProjectedExpense.textContent = brl(projectedExpense);
-  el.dashProjectedBalance.textContent = brl(projectedBalance);
+    el.dashProjectedIncome.textContent = brl(projectedIncome);
+    el.dashProjectedExpense.textContent = brl(projectedExpense);
+    el.dashProjectedBalance.textContent = brl(projectedBalance);
 
-  if (currentIncome === 0 && currentExpense === 0) {
-    el.dashProjectionNote.textContent = "Sem dados do mes atual dentro dos filtros para projetar fechamento.";
-  } else {
-    el.dashProjectionNote.textContent = `Base ate ${String(dayOfMonth).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}: Entrada ${brl(currentIncome)} | Saida ${brl(currentExpense)}.`;
+    if (currentIncome === 0 && currentExpense === 0) {
+      el.dashProjectionNote.textContent = "Sem dados do mes atual dentro dos filtros para projetar fechamento.";
+    } else {
+      el.dashProjectionNote.textContent = `Base ate ${String(dayOfMonth).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}: Entrada ${brl(currentIncome)} | Saida ${brl(currentExpense)}.`;
+    }
   }
 
   setMessage(el.dashboardMessage, "Dashboard gerencial atualizado.");
@@ -2444,10 +2464,12 @@ async function waitUploadCompletion(fileId, fileName) {
 
 async function loadReports() {
   const year = Number(el.reportYear.value) || new Date().getFullYear();
-  const [byCategory, monthly] = await Promise.all([
+  const [byCategory, monthly, cashFlow] = await Promise.all([
     api("/reports/by-category"),
     api(`/reports/monthly?year=${year}`),
+    api("/reports/cash-flow?months_history=6&months_forecast=1"),
   ]);
+  state.cashFlowForecast = cashFlow;
 
   el.categoryReport.innerHTML = "";
   for (const row of byCategory) {
@@ -2494,6 +2516,7 @@ async function initializeApp() {
       loadReceivables(),
       loadReceivablesAlertsSummary(),
       loadBudgets(),
+      loadCashFlowForecast(),
       loadReports(),
     ]);
     renderDashboard();
