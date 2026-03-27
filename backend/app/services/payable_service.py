@@ -142,6 +142,7 @@ def mark_payable_paid(
                 category_id=payable.category_id,
                 ministry_id=payable.ministry_id,
                 source_bank_name=payable.source_bank_name,
+                reference=f"payable:{payable.id}",
                 notes=(payable.notes or "")[:900] or None,
             ),
             user_id=user_id,

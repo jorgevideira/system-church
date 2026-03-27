@@ -1914,6 +1914,7 @@ function renderPayables() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${payable.due_date}</td>
+      <td>${payable.paid_at || "-"}</td>
       <td>${payable.description}</td>
       <td><span class="payable-status ${payable.status}">${payableStatusLabel(payable.status)}</span></td>
       <td>${payable.category?.name || "-"}</td>
@@ -1934,7 +1935,7 @@ function renderPayables() {
 
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = "<td colspan='9'>Nenhuma conta encontrada para os filtros atuais.</td>";
+    tr.innerHTML = "<td colspan='10'>Nenhuma conta encontrada para os filtros atuais.</td>";
     el.payableTableBody.appendChild(tr);
   }
 
