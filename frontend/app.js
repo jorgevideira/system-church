@@ -288,10 +288,10 @@ function debounce(fn, wait = 300) {
   };
 }
 
-function positionTooltip(tooltipNode, event, offsetX = 12, offsetY = -18) {
+function positionTooltipAtViewport(tooltipNode, x, y, offsetX = 12, offsetY = -18) {
   const maxWidthPad = 8;
-  const rawLeft = event.clientX + offsetX;
-  const rawTop = event.clientY + offsetY;
+  const rawLeft = x + offsetX;
+  const rawTop = y + offsetY;
 
   const width = tooltipNode.offsetWidth || 180;
   const height = tooltipNode.offsetHeight || 36;
@@ -786,7 +786,11 @@ function renderLineChart(trendRows) {
     node.addEventListener("mousemove", (event) => {
       el.dashLineTooltip.textContent = `${point.label} | ${metricLabel}: ${brl(point.value)}`;
       el.dashLineTooltip.classList.remove("hide");
-      positionTooltip(el.dashLineTooltip, event, 10, -18);
+
+      const pointRect = event.currentTarget.getBoundingClientRect();
+      const anchorX = pointRect.left + pointRect.width / 2;
+      const anchorY = pointRect.top + pointRect.height / 2;
+      positionTooltipAtViewport(el.dashLineTooltip, anchorX, anchorY, 12, -24);
     });
     node.addEventListener("mouseleave", () => {
       el.dashLineTooltip.classList.add("hide");
@@ -842,7 +846,13 @@ function renderExpensePie(categoryTotals) {
     }
     el.dashPieTooltip.textContent = `${match.name}: ${brl(match.value)} (${match.pct.toFixed(1)}%)`;
     el.dashPieTooltip.classList.remove("hide");
-    positionTooltip(el.dashPieTooltip, event, 12, -18);
+
+    const midDeg = (match.startDeg + match.endDeg) / 2;
+    const rad = ((midDeg - 90) * Math.PI) / 180;
+    const radius = rect.width * 0.36;
+    const anchorX = rect.left + rect.width / 2 + Math.cos(rad) * radius;
+    const anchorY = rect.top + rect.height / 2 + Math.sin(rad) * radius;
+    positionTooltipAtViewport(el.dashPieTooltip, anchorX, anchorY, 14, -10);
   };
   el.dashExpensePie.onmouseleave = () => {
     el.dashPieTooltip.classList.add("hide");
