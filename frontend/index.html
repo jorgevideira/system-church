@@ -775,6 +775,25 @@
     </div>
   </div>
 
+  <div id="payablePaidAtModal" class="modal-overlay hide">
+    <div class="modal-card payable-paid-modal-card">
+      <div class="modal-header">
+        <h3>Marcar conta como paga</h3>
+        <button id="payablePaidAtCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <p>Informe a data de pagamento para registrar a baixa desta conta.</p>
+        <label class="payable-paid-at-label">Data de pagamento
+          <input type="date" id="payablePaidAtInput" required>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="payablePaidAtCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="payablePaidAtConfirmBtn" class="btn" type="button">Confirmar pagamento</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

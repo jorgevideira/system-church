@@ -255,7 +255,14 @@ const el = {
   attachmentPreviewCloseBtn: document.getElementById("attachmentPreviewCloseBtn"),
   attachmentPreviewImage: document.getElementById("attachmentPreviewImage"),
   attachmentPreviewPdf: document.getElementById("attachmentPreviewPdf"),
+  payablePaidAtModal: document.getElementById("payablePaidAtModal"),
+  payablePaidAtInput: document.getElementById("payablePaidAtInput"),
+  payablePaidAtCloseBtn: document.getElementById("payablePaidAtCloseBtn"),
+  payablePaidAtCancelBtn: document.getElementById("payablePaidAtCancelBtn"),
+  payablePaidAtConfirmBtn: document.getElementById("payablePaidAtConfirmBtn"),
 };
+
+let payablePaidAtResolver = null;
 
 function brl(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -1491,7 +1498,30 @@ function isAnyModalOpen() {
   return !el.deleteCategoryModal.classList.contains("hide")
     || !el.attachmentPreviewModal.classList.contains("hide")
     || !el.editTransactionModal.classList.contains("hide")
-    || !el.uploadResultModal.classList.contains("hide");
+    || !el.uploadResultModal.classList.contains("hide")
+    || !el.payablePaidAtModal.classList.contains("hide");
+}
+
+function closePayablePaidAtModal(selectedDate = null) {
+  el.payablePaidAtModal.classList.add("hide");
+  if (payablePaidAtResolver) {
+    const resolver = payablePaidAtResolver;
+    payablePaidAtResolver = null;
+    resolver(selectedDate);
+  }
+}
+
+function openPayablePaidAtModal(defaultDate) {
+  el.payablePaidAtInput.value = defaultDate;
+  el.payablePaidAtModal.classList.remove("hide");
+  window.setTimeout(() => {
+    el.payablePaidAtInput.focus();
+    el.payablePaidAtInput.showPicker?.();
+  }, 0);
+
+  return new Promise((resolve) => {
+    payablePaidAtResolver = resolve;
+  });
 }
 
 function isTypingTarget(target) {
@@ -2698,15 +2728,10 @@ el.payableTableBody.addEventListener("click", async (event) => {
   if (markPaidId) {
     try {
       const defaultPaidAt = new Date().toISOString().slice(0, 10);
-      const paidAtInput = window.prompt(
-        "Informe a data de pagamento (AAAA-MM-DD). Deixe em branco para hoje:",
-        defaultPaidAt,
-      );
-      if (paidAtInput === null) {
+      const paidAt = await openPayablePaidAtModal(defaultPaidAt);
+      if (!paidAt) {
         return;
       }
-
-      const paidAt = paidAtInput.trim() || defaultPaidAt;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt) || Number.isNaN(new Date(paidAt).getTime())) {
         setMessage(el.payableMessage, "Data de pagamento invalida. Use o formato AAAA-MM-DD.", true);
         return;
@@ -3134,6 +3159,12 @@ el.attachmentPreviewModal.addEventListener("click", (event) => {
   }
 });
 
+el.payablePaidAtModal.addEventListener("click", (event) => {
+  if (event.target === el.payablePaidAtModal) {
+    closePayablePaidAtModal(null);
+  }
+});
+
 el.editTransactionModal.addEventListener("click", (event) => {
   if (event.target === el.editTransactionModal) {
     closeEditTransactionModal();
@@ -3209,6 +3240,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!el.uploadResultModal.classList.contains("hide")) {
     closeUploadModal();
+    return;
+  }
+
+  if (!el.payablePaidAtModal.classList.contains("hide")) {
+    closePayablePaidAtModal(null);
     return;
   }
 
@@ -3309,6 +3345,17 @@ el.uploadForm.addEventListener("submit", async (event) => {
 });
 
 el.modalCloseBtn.addEventListener("click", closeUploadModal);
+
+el.payablePaidAtCloseBtn.addEventListener("click", () => closePayablePaidAtModal(null));
+el.payablePaidAtCancelBtn.addEventListener("click", () => closePayablePaidAtModal(null));
+el.payablePaidAtConfirmBtn.addEventListener("click", () => {
+  const paidAt = String(el.payablePaidAtInput.value || "").trim();
+  if (!paidAt) {
+    setMessage(el.payableMessage, "Informe a data de pagamento.", true);
+    return;
+  }
+  closePayablePaidAtModal(paidAt);
+});
 
 el.editModalCloseBtn.addEventListener("click", closeEditTransactionModal);
 el.editModalCancelBtn.addEventListener("click", closeEditTransactionModal);
