@@ -699,9 +699,9 @@
       <aside class="cells-sidebar panel">
         <p class="sidebar-title">Modulo Celulas</p>
         <button id="cellsNavDashboardBtn" class="nav-btn active" type="button">Dashboard</button>
-        <button id="cellsNavCreateCellBtn" class="nav-btn" type="button">Cadastrar Celula</button>
-        <button id="cellsNavCreateDisciplerBtn" class="nav-btn" type="button">Cadastrar Discipulador</button>
-        <button id="cellsNavCreateLeaderBtn" class="nav-btn" type="button">Cadastrar Lider</button>
+        <button id="cellsNavCellsBtn" class="nav-btn" type="button">Celulas</button>
+        <button id="cellsNavLeadersBtn" class="nav-btn" type="button">Lideres</button>
+        <button id="cellsNavDisciplersBtn" class="nav-btn" type="button">Discipuladores</button>
       </aside>
 
       <section class="cells-content-stack">
@@ -800,6 +800,87 @@
           </div>
         </section>
 
+        <section id="cellsListView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Celulas</h3>
+            <div class="module-actions">
+              <button id="cellsCellsAddBtn" class="btn" type="button">Add</button>
+              <button id="cellsCellsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Dia</th>
+                  <th>Horario</th>
+                  <th>Discipulador</th>
+                  <th>Lider</th>
+                  <th>Status</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="cellsListBody">
+                <tr><td colspan="7">Sem dados.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="cellsLeadersView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Lideres</h3>
+            <div class="module-actions">
+              <button id="cellsLeadersAddBtn" class="btn" type="button">Add</button>
+              <button id="cellsLeadersRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Contato</th>
+                  <th>Status</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="cellsLeadersBody">
+                <tr><td colspan="4">Sem registros.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="cellsDisciplersView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Discipuladores</h3>
+            <div class="module-actions">
+              <button id="cellsDisciplersAddBtn" class="btn" type="button">Add</button>
+              <button id="cellsDisciplersRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Contato</th>
+                  <th>Status</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="cellsDisciplersBody">
+                <tr><td colspan="4">Sem registros.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section id="cellsCreateCellView" class="panel cells-view hide">
           <h4>Cadastrar Celula</h4>
           <form id="cellsCreateCellForm" class="grid-form cells-form">
@@ -823,6 +904,22 @@
             <label>Endereco
               <input type="text" id="cellsCreateCellAddress" placeholder="Opcional">
             </label>
+            <label>Discipulador
+              <div class="inline-field-group">
+                <input type="text" id="cellsCreateCellDisciplerInput" placeholder="Digite para buscar discipulador" autocomplete="off" required>
+                <button class="btn ghost btn-inline hide" type="button" id="cellsCreateCellAddDisciplerBtn">Add</button>
+              </div>
+              <div id="cellsCreateCellDisciplerList" class="autocomplete-list hide"></div>
+              <input type="hidden" id="cellsCreateCellDisciplerId">
+            </label>
+            <label>Lider
+              <div class="inline-field-group">
+                <input type="text" id="cellsCreateCellLeaderInput" placeholder="Digite para buscar lider" autocomplete="off" required>
+                <button class="btn ghost btn-inline hide" type="button" id="cellsCreateCellAddLeaderBtn">Add</button>
+              </div>
+              <div id="cellsCreateCellLeaderList" class="autocomplete-list hide"></div>
+              <input type="hidden" id="cellsCreateCellLeaderId">
+            </label>
             <button class="btn" type="submit">Salvar Celula</button>
           </form>
         </section>
@@ -830,11 +927,6 @@
         <section id="cellsCreateDisciplerView" class="panel cells-view hide">
           <h4>Cadastrar Discipulador</h4>
           <form id="cellsCreateDisciplerForm" class="grid-form cells-form">
-            <label>Celula
-              <select id="cellsCreateDisciplerCell" required>
-                <option value="">Selecione</option>
-              </select>
-            </label>
             <label>Nome completo
               <input type="text" id="cellsCreateDisciplerName" required>
             </label>
@@ -848,16 +940,6 @@
         <section id="cellsCreateLeaderView" class="panel cells-view hide">
           <h4>Cadastrar Lider</h4>
           <form id="cellsCreateLeaderForm" class="grid-form cells-form">
-            <label>Celula
-              <select id="cellsCreateLeaderCell" required>
-                <option value="">Selecione</option>
-              </select>
-            </label>
-            <label>Discipulador
-              <select id="cellsCreateLeaderDiscipler" required>
-                <option value="">Selecione a celula primeiro</option>
-              </select>
-            </label>
             <label>Nome completo
               <input type="text" id="cellsCreateLeaderName" required>
             </label>
@@ -870,6 +952,106 @@
       </section>
     </div>
   </section>
+
+  <div id="cellsCellModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3 id="cellsCellModalTitle">Celula</h3>
+        <button id="cellsCellModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="cellsCellModalForm" class="grid-form modal-edit-form">
+        <input type="hidden" id="cellsCellModalId">
+        <label>Nome
+          <input type="text" id="cellsCellModalName" required>
+        </label>
+        <label>Dia da semana
+          <select id="cellsCellModalWeekday" required>
+            <option value="monday">Segunda</option>
+            <option value="tuesday">Terca</option>
+            <option value="wednesday">Quarta</option>
+            <option value="thursday">Quinta</option>
+            <option value="friday">Sexta</option>
+            <option value="saturday">Sabado</option>
+            <option value="sunday">Domingo</option>
+          </select>
+        </label>
+        <label>Horario
+          <input type="time" id="cellsCellModalMeetingTime" required>
+        </label>
+        <label>Endereco
+          <input type="text" id="cellsCellModalAddress" placeholder="Opcional">
+        </label>
+        <label>Status
+          <select id="cellsCellModalStatus" required>
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+            <option value="multiplied">Multiplicada</option>
+          </select>
+        </label>
+        <label>Discipulador
+          <select id="cellsCellModalDisciplerId" required>
+            <option value="">Selecione</option>
+          </select>
+        </label>
+        <label>Lider
+          <select id="cellsCellModalLeaderId" required>
+            <option value="">Selecione</option>
+          </select>
+        </label>
+        <div class="modal-actions">
+          <button id="cellsCellModalDisableBtn" class="btn ghost" type="button">Desabilitar</button>
+          <button id="cellsCellModalDeleteBtn" class="btn ghost" type="button">Excluir</button>
+          <button class="btn" type="submit">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="cellsMemberModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3 id="cellsMemberModalTitle">Registro</h3>
+        <button id="cellsMemberModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="cellsMemberModalForm" class="grid-form modal-edit-form">
+        <input type="hidden" id="cellsMemberModalId">
+        <input type="hidden" id="cellsMemberModalRoleTag">
+        <label>Nome completo
+          <input type="text" id="cellsMemberModalName" required>
+        </label>
+        <label>Contato
+          <input type="text" id="cellsMemberModalContact" placeholder="Opcional">
+        </label>
+        <label>Status
+          <select id="cellsMemberModalStatus" required>
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </label>
+        <div class="modal-actions">
+          <button id="cellsMemberModalDisableBtn" class="btn ghost" type="button">Desabilitar</button>
+          <button id="cellsMemberModalDeleteBtn" class="btn ghost" type="button">Excluir</button>
+          <button class="btn" type="submit">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="cellsConfirmModal" class="modal-overlay hide">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Confirmar exclusao</h3>
+        <button id="cellsConfirmModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <p id="cellsConfirmModalMessage">Tem certeza que deseja excluir?</p>
+      </div>
+      <div class="modal-actions">
+        <button id="cellsConfirmModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="cellsConfirmModalConfirmBtn" class="btn" type="button">Excluir</button>
+      </div>
+    </div>
+  </div>
 
   <div id="uploadResultModal" class="modal-overlay hide">
     <div class="modal-card">

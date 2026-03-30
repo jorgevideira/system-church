@@ -68,8 +68,6 @@ const state = {
   editingReceivableId: null,
   editingCategoryId: null,
   editingMinistryId: null,
-  deletingCategoryId: null,
-  deletingCategoryName: "",
   previewAttachmentUrl: "",
 };
 
@@ -289,6 +287,7 @@ const el = {
 };
 
 let payablePaidAtResolver = null;
+let confirmModalResolver = null;
 
 function brl(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -1132,6 +1131,10 @@ function renderBudgetAndAlerts(rows, categoryTotals, ministryTotals) {
       removeBtn.textContent = "Remover meta";
       removeBtn.addEventListener("click", async () => {
         try {
+          const confirmed = await openConfirmModal("Tem certeza que deseja remover esta meta?", "Remover meta");
+          if (!confirmed) {
+            return;
+          }
           await deleteBudget(health.budget_id);
           setMessage(el.dashBudgetMessage, "Meta removida com sucesso.");
           await loadBudgets();
@@ -1596,7 +1599,8 @@ function renderTransactions() {
       if (!txId) {
         return;
       }
-      if (!window.confirm("Tem certeza que deseja excluir este lancamento?")) {
+      const confirmed = await openConfirmModal("Tem certeza que deseja excluir este lancamento?", "Excluir lancamento");
+      if (!confirmed) {
         return;
       }
       try {
@@ -1704,17 +1708,28 @@ function clearCategoryForm() {
   el.categoryType.value = "expense";
 }
 
-function openDeleteCategoryModal(categoryId, categoryName) {
-  state.deletingCategoryId = categoryId;
-  state.deletingCategoryName = categoryName;
-  el.deleteCategoryText.textContent = `Tem certeza que deseja excluir a categoria \"${categoryName}\"?`;
+function openConfirmModal(message, confirmLabel = "Confirmar") {
+  if (confirmModalResolver) {
+    confirmModalResolver(false);
+    confirmModalResolver = null;
+  }
+  el.deleteCategoryText.textContent = message;
+  el.deleteCategoryConfirmBtn.textContent = confirmLabel;
   el.deleteCategoryModal.classList.remove("hide");
+  return new Promise((resolve) => {
+    confirmModalResolver = resolve;
+  });
 }
 
-function closeDeleteCategoryModal() {
-  state.deletingCategoryId = null;
-  state.deletingCategoryName = "";
+function closeConfirmModal(confirmed = false) {
   el.deleteCategoryModal.classList.add("hide");
+  el.deleteCategoryText.textContent = "Tem certeza que deseja continuar?";
+  el.deleteCategoryConfirmBtn.textContent = "Confirmar";
+  if (confirmModalResolver) {
+    const resolver = confirmModalResolver;
+    confirmModalResolver = null;
+    resolver(confirmed);
+  }
 }
 
 function renderCategoryTable() {
@@ -3107,7 +3122,8 @@ el.payableTableBody.addEventListener("click", async (event) => {
   if (deleteAttachmentId) {
     try {
       const payableId = Number(deleteAttachmentId);
-      if (!window.confirm("Tem certeza que deseja remover o boleto desta conta?")) {
+      const confirmed = await openConfirmModal("Tem certeza que deseja remover o boleto desta conta?", "Remover boleto");
+      if (!confirmed) {
         return;
       }
 
@@ -3124,7 +3140,8 @@ el.payableTableBody.addEventListener("click", async (event) => {
   const deleteId = target.getAttribute("data-delete-payable");
   if (deleteId) {
     try {
-      if (!window.confirm("Tem certeza que deseja excluir esta conta a pagar?")) {
+      const confirmed = await openConfirmModal("Tem certeza que deseja excluir esta conta a pagar?", "Excluir conta");
+      if (!confirmed) {
         return;
       }
       await api(`/payables/${Number(deleteId)}`, { method: "DELETE" });
@@ -3243,7 +3260,8 @@ el.receivableTableBody.addEventListener("click", async (event) => {
   const deleteId = target.getAttribute("data-delete-receivable");
   if (deleteId) {
     try {
-      if (!window.confirm("Tem certeza que deseja excluir esta conta a receber?")) {
+      const confirmed = await openConfirmModal("Tem certeza que deseja excluir esta conta a receber?", "Excluir conta");
+      if (!confirmed) {
         return;
       }
       await api(`/receivables/${Number(deleteId)}`, { method: "DELETE" });
@@ -3426,7 +3444,15 @@ el.categoryTableBody.addEventListener("click", async (event) => {
       if (cat?.is_system) {
         throw new Error("Categorias de sistema nao podem ser excluidas.");
       }
-      openDeleteCategoryModal(categoryId, cat?.name || "categoria");
+      const categoryName = cat?.name || "categoria";
+      const confirmed = await openConfirmModal(`Tem certeza que deseja excluir a categoria \"${categoryName}\"?`, "Excluir categoria");
+      if (!confirmed) {
+        return;
+      }
+      await api(`/categories/${categoryId}`, { method: "DELETE" });
+      setMessage(el.categoryMessage, "Categoria excluida com sucesso.");
+      clearCategoryForm();
+      await loadCategories();
     } catch (error) {
       setMessage(el.categoryMessage, error.message, true);
     }
@@ -3495,7 +3521,8 @@ el.ministryTableBody.addEventListener("click", async (event) => {
   if (deleteId) {
     try {
       const ministryId = Number(deleteId);
-      if (!window.confirm("Tem certeza que deseja excluir este ministerio?")) {
+      const confirmed = await openConfirmModal("Tem certeza que deseja excluir este ministerio?", "Excluir ministerio");
+      if (!confirmed) {
         return;
       }
       await api(`/ministries/${ministryId}`, { method: "DELETE" });
@@ -3508,13 +3535,13 @@ el.ministryTableBody.addEventListener("click", async (event) => {
   }
 });
 
-el.deleteCategoryCloseBtn.addEventListener("click", closeDeleteCategoryModal);
-el.deleteCategoryCancelBtn.addEventListener("click", closeDeleteCategoryModal);
+el.deleteCategoryCloseBtn.addEventListener("click", () => closeConfirmModal(false));
+el.deleteCategoryCancelBtn.addEventListener("click", () => closeConfirmModal(false));
 el.attachmentPreviewCloseBtn.addEventListener("click", closeAttachmentPreviewModal);
 
 el.deleteCategoryModal.addEventListener("click", (event) => {
   if (event.target === el.deleteCategoryModal) {
-    closeDeleteCategoryModal();
+    closeConfirmModal(false);
   }
 });
 
@@ -3601,7 +3628,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   if (!el.deleteCategoryModal.classList.contains("hide")) {
-    closeDeleteCategoryModal();
+    closeConfirmModal(false);
     return;
   }
 
@@ -3637,20 +3664,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-el.deleteCategoryConfirmBtn.addEventListener("click", async () => {
-  try {
-    if (!state.deletingCategoryId) {
-      return;
-    }
-    await api(`/categories/${state.deletingCategoryId}`, { method: "DELETE" });
-    closeDeleteCategoryModal();
-    setMessage(el.categoryMessage, "Categoria excluida com sucesso.");
-    clearCategoryForm();
-    await loadCategories();
-  } catch (error) {
-    setMessage(el.categoryMessage, error.message, true);
-  }
-});
+el.deleteCategoryConfirmBtn.addEventListener("click", () => closeConfirmModal(true));
 
 el.uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -3754,7 +3768,8 @@ el.editPayableRemoveCurrentAttachmentBtn.addEventListener("click", async (event)
     return;
   }
   try {
-    if (!window.confirm("Tem certeza que deseja remover o boleto desta conta?")) {
+    const confirmed = await openConfirmModal("Tem certeza que deseja remover o boleto desta conta?", "Remover boleto");
+    if (!confirmed) {
       return;
     }
     await api(`/payables/${state.editingPayableId}/attachment`, { method: "DELETE" });

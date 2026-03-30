@@ -48,12 +48,16 @@ def create_cell(db: Session, payload: CellCreate) -> Cell:
 
 def update_cell(db: Session, cell: Cell, payload: CellUpdate) -> Cell:
     changes = payload.model_dump(exclude_unset=True)
-
     for field, value in changes.items():
         setattr(cell, field, value)
     db.commit()
     db.refresh(cell)
     return cell
+
+
+def delete_cell(db: Session, cell: Cell) -> None:
+    db.delete(cell)
+    db.commit()
 
 
 def create_member(db: Session, payload: CellMemberCreate) -> CellMember:
@@ -213,7 +217,6 @@ def update_leader_assignment(
     db.commit()
     db.refresh(assignment)
     return assignment
-
 
 
 def delete_leader_assignment(db: Session, assignment: CellLeaderAssignment) -> None:

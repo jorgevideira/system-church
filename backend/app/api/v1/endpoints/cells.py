@@ -95,6 +95,18 @@ def update_cell_status(
     return cell_service.update_cell(db, cell, CellUpdate(status=payload.status))
 
 
+@router.delete("/{cell_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cell(
+    cell_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> None:
+    cell = cell_service.get_cell(db, cell_id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+    cell_service.delete_cell(db, cell)
+
+
 @router.get("/members/all", response_model=list[CellMemberResponse])
 def list_members(
     status_filter: Optional[str] = Query(None, alias="status"),
