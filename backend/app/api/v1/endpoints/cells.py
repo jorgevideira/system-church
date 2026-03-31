@@ -634,3 +634,12 @@ def dashboard_charts(
     if end_date < start_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="end_date must be >= start_date")
     return cell_service.get_cell_dashboard_charts(db, cell_id, start_date, end_date)
+
+
+@router.post("/sync-member-links", status_code=status.HTTP_200_OK)
+def sync_member_links(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_editor),
+) -> dict:
+    """Sincroniza CellMemberLink com dados de presença. Admin only."""
+    return cell_service.sync_cell_member_links_from_attendance(db)
