@@ -68,6 +68,7 @@ const state = {
   editingReceivableId: null,
   editingCategoryId: null,
   editingMinistryId: null,
+  currentUserRole: "",
   previewAttachmentUrl: "",
 };
 
@@ -2433,8 +2434,11 @@ async function login(email, password) {
 function logout() {
   state.accessToken = "";
   state.refreshToken = "";
+  state.currentUserRole = "";
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  localStorage.removeItem("currentUserRole");
+  document.body.dataset.userRole = "";
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");
   showApp(false);
@@ -2442,7 +2446,11 @@ function logout() {
 
 async function loadMe() {
   const me = await api("/auth/me");
+  state.currentUserRole = String(me.role || "").toLowerCase();
+  localStorage.setItem("currentUserRole", state.currentUserRole);
+  document.body.dataset.userRole = state.currentUserRole;
   el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
+  return me;
 }
 
 async function loadSummary() {
@@ -2809,7 +2817,11 @@ async function initializeApp() {
     showApp(true);
     setActiveView("dashboardView");
     el.reportYear.value = new Date().getFullYear();
-    await loadMe();
+    const me = await loadMe();
+    if (String(me.role || "").toLowerCase() === "leader") {
+      setMessage(el.dashboardMessage, "Perfil de lider: use o modulo de Celulas para gerenciar sua equipe e frequencia.");
+      return;
+    }
     await Promise.all([
       loadSummary(),
       loadCategories(),

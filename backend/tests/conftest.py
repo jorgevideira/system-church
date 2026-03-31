@@ -91,6 +91,24 @@ def test_admin(test_db: Session) -> User:
     return admin
 
 
+@pytest.fixture
+def test_leader(test_db: Session) -> User:
+    existing = test_db.query(User).filter(User.email == "leader@test.com").first()
+    if existing:
+        return existing
+    leader = User(
+        email="leader@test.com",
+        full_name="Test Leader",
+        role="leader",
+        hashed_password=get_password_hash("leaderpass123"),
+        is_active=True,
+    )
+    test_db.add(leader)
+    test_db.commit()
+    test_db.refresh(leader)
+    return leader
+
+
 def auth_headers(user: User) -> dict:
     """Return Authorization headers for *user*."""
     token = create_access_token(data={"sub": user.email, "role": user.role})

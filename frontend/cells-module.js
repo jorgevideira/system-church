@@ -9,12 +9,52 @@
     cellsModule: document.getElementById("cellsModule"),
     cellsNavDashboardBtn: document.getElementById("cellsNavDashboardBtn"),
     cellsNavCellsBtn: document.getElementById("cellsNavCellsBtn"),
+    cellsNavPeopleBtn: document.getElementById("cellsNavPeopleBtn"),
+    cellsNavMeetingsBtn: document.getElementById("cellsNavMeetingsBtn"),
     cellsNavLeadersBtn: document.getElementById("cellsNavLeadersBtn"),
     cellsNavDisciplersBtn: document.getElementById("cellsNavDisciplersBtn"),
+    cellsNavLostSheepBtn: document.getElementById("cellsNavLostSheepBtn"),
     cellsDashboardView: document.getElementById("cellsDashboardView"),
     cellsListView: document.getElementById("cellsListView"),
+    cellsPeopleView: document.getElementById("cellsPeopleView"),
+    cellsMeetingsView: document.getElementById("cellsMeetingsView"),
     cellsLeadersView: document.getElementById("cellsLeadersView"),
     cellsDisciplersView: document.getElementById("cellsDisciplersView"),
+    cellsLostSheepView: document.getElementById("cellsLostSheepView"),
+    cellsPeopleRefreshBtn: document.getElementById("cellsPeopleRefreshBtn"),
+    cellsPeopleCellSelect: document.getElementById("cellsPeopleCellSelect"),
+    cellsPeopleVisitorForm: document.getElementById("cellsPeopleVisitorForm"),
+    cellsPeopleVisitorName: document.getElementById("cellsPeopleVisitorName"),
+    cellsPeopleVisitorContact: document.getElementById("cellsPeopleVisitorContact"),
+    cellsPeopleAssiduoForm: document.getElementById("cellsPeopleAssiduoForm"),
+    cellsPeopleAssiduoName: document.getElementById("cellsPeopleAssiduoName"),
+    cellsPeopleAssiduoContact: document.getElementById("cellsPeopleAssiduoContact"),
+    cellsPeopleMemberForm: document.getElementById("cellsPeopleMemberForm"),
+    cellsPeopleMemberName: document.getElementById("cellsPeopleMemberName"),
+    cellsPeopleMemberContact: document.getElementById("cellsPeopleMemberContact"),
+    cellsPeopleVisitorsBody: document.getElementById("cellsPeopleVisitorsBody"),
+    cellsPeopleAssiduosBody: document.getElementById("cellsPeopleAssiduosBody"),
+    cellsPeopleMembersBody: document.getElementById("cellsPeopleMembersBody"),
+    cellsMeetingsRefreshBtn: document.getElementById("cellsMeetingsRefreshBtn"),
+    cellsMeetingsCellSelect: document.getElementById("cellsMeetingsCellSelect"),
+    cellsMeetingsStartDate: document.getElementById("cellsMeetingsStartDate"),
+    cellsMeetingsEndDate: document.getElementById("cellsMeetingsEndDate"),
+    cellsMeetingsForm: document.getElementById("cellsMeetingsForm"),
+    cellsMeetingDate: document.getElementById("cellsMeetingDate"),
+    cellsMeetingTheme: document.getElementById("cellsMeetingTheme"),
+    cellsMeetingNotes: document.getElementById("cellsMeetingNotes"),
+    cellsMeetingsBody: document.getElementById("cellsMeetingsBody"),
+    cellsMeetingsPrevBtn: document.getElementById("cellsMeetingsPrevBtn"),
+    cellsMeetingsPageInfo: document.getElementById("cellsMeetingsPageInfo"),
+    cellsMeetingsNextBtn: document.getElementById("cellsMeetingsNextBtn"),
+    cellsAttendanceModal: document.getElementById("cellsAttendanceModal"),
+    cellsAttendanceModalTitle: document.getElementById("cellsAttendanceModalTitle"),
+    cellsAttendanceModalCloseBtn: document.getElementById("cellsAttendanceModalCloseBtn"),
+    cellsAttendanceMeetingId: document.getElementById("cellsAttendanceMeetingId"),
+    cellsAttendanceBody: document.getElementById("cellsAttendanceBody"),
+    cellsAttendanceModalCancelBtn: document.getElementById("cellsAttendanceModalCancelBtn"),
+    cellsAttendanceModalSaveAndPeopleBtn: document.getElementById("cellsAttendanceModalSaveAndPeopleBtn"),
+    cellsAttendanceModalSaveBtn: document.getElementById("cellsAttendanceModalSaveBtn"),
     cellsCellsAddBtn: document.getElementById("cellsCellsAddBtn"),
     cellsCellsRefreshBtn: document.getElementById("cellsCellsRefreshBtn"),
     cellsLeadersAddBtn: document.getElementById("cellsLeadersAddBtn"),
@@ -47,8 +87,37 @@
     cellsMemberModalName: document.getElementById("cellsMemberModalName"),
     cellsMemberModalContact: document.getElementById("cellsMemberModalContact"),
     cellsMemberModalStatus: document.getElementById("cellsMemberModalStatus"),
+    cellsMemberModalCellId: document.getElementById("cellsMemberModalCellId"),
     cellsMemberModalDisableBtn: document.getElementById("cellsMemberModalDisableBtn"),
-    cellsMemberModalDeleteBtn: document.getElementById("cellsMemberModalDeleteBtn"),
+    cellsMemberModalTransferBtn: document.getElementById("cellsMemberModalTransferBtn"),
+    cellsTransferMemberModal: document.getElementById("cellsTransferMemberModal"),
+    cellsTransferMemberModalCloseBtn: document.getElementById("cellsTransferMemberModalCloseBtn"),
+    cellsTransferMemberModalForm: document.getElementById("cellsTransferMemberModalForm"),
+    cellsTransferMemberModalMemberId: document.getElementById("cellsTransferMemberModalMemberId"),
+    cellsTransferMemberModalTargetCell: document.getElementById("cellsTransferMemberModalTargetCell"),
+    cellsTransferMemberModalReason: document.getElementById("cellsTransferMemberModalReason"),
+    cellsTransferMemberModalCancelBtn: document.getElementById("cellsTransferMemberModalCancelBtn"),
+    cellsTransferMemberModalSaveBtn: document.getElementById("cellsTransferMemberModalSaveBtn"),
+    cellsLostSheepBody: document.getElementById("cellsLostSheepBody"),
+    cellsLostSheepRefreshBtn: document.getElementById("cellsLostSheepRefreshBtn"),
+    cellsLostSheepModal: document.getElementById("cellsLostSheepModal"),
+    cellsLostSheepModalCloseBtn: document.getElementById("cellsLostSheepModalCloseBtn"),
+    cellsLostSheepModalForm: document.getElementById("cellsLostSheepModalForm"),
+    cellsLostSheepModalMemberId: document.getElementById("cellsLostSheepModalMemberId"),
+    cellsLostSheepModalCellId: document.getElementById("cellsLostSheepModalCellId"),
+    cellsLostSheepModalMemberName: document.getElementById("cellsLostSheepModalMemberName"),
+    cellsLostSheepModalPhone: document.getElementById("cellsLostSheepModalPhone"),
+    cellsLostSheepModalObservation: document.getElementById("cellsLostSheepModalObservation"),
+    cellsLostSheepModalCancelBtn: document.getElementById("cellsLostSheepModalCancelBtn"),
+    cellsLostSheepModalConfirmBtn: document.getElementById("cellsLostSheepModalConfirmBtn"),
+    cellsLostSheepVisitModal: document.getElementById("cellsLostSheepVisitModal"),
+    cellsLostSheepVisitModalTitle: document.getElementById("cellsLostSheepVisitModalTitle"),
+    cellsLostSheepVisitModalCloseBtn: document.getElementById("cellsLostSheepVisitModalCloseBtn"),
+    cellsLostSheepVisitModalForm: document.getElementById("cellsLostSheepVisitModalForm"),
+    cellsLostSheepVisitModalId: document.getElementById("cellsLostSheepVisitModalId"),
+    cellsLostSheepVisitModalObservation: document.getElementById("cellsLostSheepVisitModalObservation"),
+    cellsLostSheepVisitModalCancelBtn: document.getElementById("cellsLostSheepVisitModalCancelBtn"),
+    cellsLostSheepVisitModalConfirmBtn: document.getElementById("cellsLostSheepVisitModalConfirmBtn"),
     cellsConfirmModal: document.getElementById("cellsConfirmModal"),
     cellsConfirmModalMessage: document.getElementById("cellsConfirmModalMessage"),
     cellsConfirmModalCloseBtn: document.getElementById("cellsConfirmModalCloseBtn"),
@@ -71,10 +140,18 @@
     cellsKpiRetained: document.getElementById("cellsKpiRetained"),
     cellsKpiRetentionRate: document.getElementById("cellsKpiRetentionRate"),
     cellsKpiRecurringTotal: document.getElementById("cellsKpiRecurringTotal"),
+    cellsKpiVisitorsPeriod: document.getElementById("cellsKpiVisitorsPeriod"),
+    cellsKpiMembersFrequency: document.getElementById("cellsKpiMembersFrequency"),
+    cellsKpiAssiduousCount: document.getElementById("cellsKpiAssiduousCount"),
+    cellsKpiMissingWeeks: document.getElementById("cellsKpiMissingWeeks"),
+    cellsKpiLowFrequencyMeetings: document.getElementById("cellsKpiLowFrequencyMeetings"),
+    cellsKpiFrequencyTrend: document.getElementById("cellsKpiFrequencyTrend"),
     cellsRecurringBody: document.getElementById("cellsRecurringBody"),
+    cellsMissingWeeksBody: document.getElementById("cellsMissingWeeksBody"),
     cellsRetentionChart: document.getElementById("cellsRetentionChart"),
     cellsVisitorsChart: document.getElementById("cellsVisitorsChart"),
     cellsHistoryChart: document.getElementById("cellsHistoryChart"),
+    cellsInsightsChart: document.getElementById("cellsInsightsChart"),
     cellsCreateCellForm: document.getElementById("cellsCreateCellForm"),
     cellsCreateCellName: document.getElementById("cellsCreateCellName"),
     cellsCreateCellWeekday: document.getElementById("cellsCreateCellWeekday"),
@@ -98,18 +175,62 @@
 
   const state = {
     initialized: false,
+    currentUserRole: "",
     retentionChart: null,
     visitorsChart: null,
     historyChart: null,
+    insightsChart: null,
     cells: [],
     members: [],
     availableMembersForCellCreation: [],
     memberRoleTags: {},
     leadershipByCellId: {},
+    lostSheep: [],
+    peopleByStage: {
+      visitor: [],
+      assiduo: [],
+      member: [],
+    },
+    meetings: [],
+    attendanceMembers: [],
+    meetingAttendanceSummary: {},
+    meetingsExpectedTotal: 0,
+    meetingsExpectedTotalByMeeting: {},
+    meetingsPagination: {
+      page: 1,
+      pageSize: 8,
+    },
     pendingConfirmAction: null,
     pendingConfirmErrorMessage: "Falha ao executar exclusao.",
     currentView: "dashboard",
   };
+
+  function isLeaderMode() {
+    return state.currentUserRole === "leader";
+  }
+
+  function applyRoleLayout() {
+    if (!isLeaderMode()) return;
+
+    if (el.financeBtn) {
+      el.financeBtn.classList.add("hide");
+      el.financeBtn.disabled = true;
+    }
+  }
+
+  async function loadCurrentUserRole() {
+    if (state.currentUserRole) return state.currentUserRole;
+
+    const roleFromStorage = valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase();
+    if (roleFromStorage) {
+      state.currentUserRole = roleFromStorage;
+      return state.currentUserRole;
+    }
+
+    const me = await api("/auth/me");
+    state.currentUserRole = valueOr(me.role, "").toLowerCase();
+    return state.currentUserRole;
+  }
 
   function loadRoleTagsFromStorage() {
     try {
@@ -237,16 +358,22 @@
 
     if (el.cellsDashboardView) el.cellsDashboardView.classList.toggle("hide", viewName !== "dashboard");
     if (el.cellsListView) el.cellsListView.classList.toggle("hide", viewName !== "cells");
+    if (el.cellsPeopleView) el.cellsPeopleView.classList.toggle("hide", viewName !== "people");
+    if (el.cellsMeetingsView) el.cellsMeetingsView.classList.toggle("hide", viewName !== "meetings");
     if (el.cellsLeadersView) el.cellsLeadersView.classList.toggle("hide", viewName !== "leaders");
     if (el.cellsDisciplersView) el.cellsDisciplersView.classList.toggle("hide", viewName !== "disciplers");
+    if (el.cellsLostSheepView) el.cellsLostSheepView.classList.toggle("hide", viewName !== "lost-sheep");
     if (el.cellsCreateCellView) el.cellsCreateCellView.classList.add("hide");
     if (el.cellsCreateDisciplerView) el.cellsCreateDisciplerView.classList.add("hide");
     if (el.cellsCreateLeaderView) el.cellsCreateLeaderView.classList.add("hide");
 
     if (el.cellsNavDashboardBtn) el.cellsNavDashboardBtn.classList.toggle("active", viewName === "dashboard");
     if (el.cellsNavCellsBtn) el.cellsNavCellsBtn.classList.toggle("active", viewName === "cells");
+    if (el.cellsNavPeopleBtn) el.cellsNavPeopleBtn.classList.toggle("active", viewName === "people");
+    if (el.cellsNavMeetingsBtn) el.cellsNavMeetingsBtn.classList.toggle("active", viewName === "meetings");
     if (el.cellsNavLeadersBtn) el.cellsNavLeadersBtn.classList.toggle("active", viewName === "leaders");
     if (el.cellsNavDisciplersBtn) el.cellsNavDisciplersBtn.classList.toggle("active", viewName === "disciplers");
+    if (el.cellsNavLostSheepBtn) el.cellsNavLostSheepBtn.classList.toggle("active", viewName === "lost-sheep");
   }
 
   function formatDate(date) {
@@ -262,9 +389,40 @@
   }
 
   function createOrUpdateChart(currentChart, canvas, config) {
-    if (!canvas || typeof Chart === "undefined") return currentChart;
+    if (!canvas) return currentChart;
+    if (typeof Chart === "undefined") {
+      const host = canvas.parentElement;
+      if (host && !host.querySelector(".cells-chart-warning")) {
+        const warning = document.createElement("p");
+        warning.className = "cells-chart-warning";
+        warning.textContent = "Nao foi possivel carregar biblioteca de graficos (Chart.js).";
+        host.appendChild(warning);
+      }
+      return currentChart;
+    }
+
+    const host = canvas.parentElement;
+    if (host) {
+      const warning = host.querySelector(".cells-chart-warning");
+      if (warning) warning.remove();
+    }
+
     if (currentChart) currentChart.destroy();
-    return new Chart(canvas.getContext("2d"), config);
+
+    const baseOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      devicePixelRatio: Math.max(window.devicePixelRatio || 1, 1),
+    };
+    const mergedConfig = {
+      ...config,
+      options: {
+        ...baseOptions,
+        ...(config && config.options ? config.options : {}),
+      },
+    };
+
+    return new Chart(canvas.getContext("2d"), mergedConfig);
   }
 
   function renderRecurringVisitors(visitors) {
@@ -310,60 +468,208 @@
   function renderVisitors(recurring) {
     const visitors = recurring && Array.isArray(recurring.visitors) ? recurring.visitors : [];
     const recurringTotal = toNumber(recurring ? recurring.total_recurring_visitors : 0, 0);
+    const topVisitors = visitors.slice(0, 6);
 
     el.cellsKpiRecurringTotal.textContent = String(recurringTotal);
     renderRecurringVisitors(visitors);
 
-    state.visitorsChart = createOrUpdateChart(state.visitorsChart, el.cellsVisitorsChart, {
-      type: "bar",
-      data: {
-        labels: visitors.slice(0, 10).map((item) => valueOr(item.full_name, "-")),
-        datasets: [{
-          label: "Visitas",
-          data: visitors.slice(0, 10).map((item) => toNumber(item.visits_count, 0)),
-          backgroundColor: "#1565c0",
-          borderRadius: 8,
-        }],
-      },
-      options: { responsive: true, maintainAspectRatio: false, indexAxis: "y" },
-    });
+    if (!topVisitors.length) {
+      state.visitorsChart = createOrUpdateChart(state.visitorsChart, el.cellsVisitorsChart, {
+        type: "bar",
+        data: {
+          labels: ["Sem dados"],
+          datasets: [{ label: "Visitas", data: [0], backgroundColor: "#d8e1ec", borderRadius: 8 }],
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+      });
+    }
   }
 
   function renderHistory(history) {
     const data = Array.isArray(history) ? history : [];
-    state.historyChart = createOrUpdateChart(state.historyChart, el.cellsHistoryChart, {
+
+    if (el.cellsKpiFrequencyTrend) {
+      let trendText = "→ Estavel";
+      let trendClass = "cells-trend-stable";
+      if (data.length >= 2) {
+        const first = toNumber(data[0].average_frequency_percent, 0);
+        const last = toNumber(data[data.length - 1].average_frequency_percent, 0);
+        const delta = last - first;
+        if (delta >= 3) {
+          trendText = `↑ Alta (+${delta.toFixed(1)} p.p.)`;
+          trendClass = "cells-trend-up";
+        } else if (delta <= -3) {
+          trendText = `↓ Queda (${delta.toFixed(1)} p.p.)`;
+          trendClass = "cells-trend-down";
+        }
+      }
+      el.cellsKpiFrequencyTrend.textContent = trendText;
+      el.cellsKpiFrequencyTrend.classList.remove("cells-trend-up", "cells-trend-down", "cells-trend-stable");
+      el.cellsKpiFrequencyTrend.classList.add(trendClass);
+    }
+
+  }
+
+  function renderVisitorsByDateChart(points) {
+    const data = Array.isArray(points) ? points : [];
+    state.retentionChart = createOrUpdateChart(state.retentionChart, el.cellsRetentionChart, {
       type: "line",
       data: {
-        labels: data.map((item) => valueOr(item.month, "-")),
-        datasets: [
-          {
-            label: "Reunioes",
-            data: data.map((item) => toNumber(item.meetings_count, 0)),
-            borderColor: "#1565c0",
-            backgroundColor: "rgba(21, 101, 192, 0.2)",
-            tension: 0.35,
-            fill: true,
-          },
-          {
-            label: "Presencas",
-            data: data.map((item) => toNumber(item.presents_count, 0)),
-            borderColor: "#0a8f72",
-            backgroundColor: "rgba(10, 143, 114, 0.2)",
-            tension: 0.35,
-            fill: true,
-          },
-          {
-            label: "Visitantes",
-            data: data.map((item) => toNumber(item.visitors_count, 0)),
-            borderColor: "#f57c00",
-            backgroundColor: "rgba(245, 124, 0, 0.18)",
-            tension: 0.35,
-            fill: true,
-          },
-        ],
+        labels: data.map((item) => formatDatePtBr(item.date)),
+        datasets: [{
+          label: "Visitantes",
+          data: data.map((item) => toNumber(item.visitors_count, 0)),
+          borderColor: "#1565c0",
+          backgroundColor: "rgba(21, 101, 192, 0.18)",
+          tension: 0.35,
+          fill: true,
+        }],
       },
       options: { responsive: true, maintainAspectRatio: false },
     });
+  }
+
+  function renderWeeklyPresenceChart(points) {
+    const data = Array.isArray(points) ? points : [];
+    state.visitorsChart = createOrUpdateChart(state.visitorsChart, el.cellsVisitorsChart, {
+      type: "bar",
+      data: {
+        labels: data.map((item) => {
+          const start = valueOr(item.week_start, null);
+          const end = valueOr(item.week_end, null);
+          if (start && end && start === end) return formatDatePtBr(start);
+          return `${formatDatePtBr(start)} - ${formatDatePtBr(end)}`;
+        }),
+        datasets: [
+          {
+            label: "P (presentes)",
+            data: data.map((item) => toNumber(item.present_total, 0)),
+            backgroundColor: "#1565c0",
+            borderRadius: 8,
+            maxBarThickness: 36,
+          },
+          {
+            label: "A (ausentes)",
+            data: data.map((item) => toNumber(item.absent_total, 0)),
+            backgroundColor: "#f57c00",
+            borderRadius: 8,
+            maxBarThickness: 36,
+          },
+          {
+            label: "J (justificados)",
+            data: data.map((item) => toNumber(item.justified_total, 0)),
+            backgroundColor: "#7b8ca2",
+            borderRadius: 8,
+            maxBarThickness: 36,
+          },
+          {
+            label: "T (total)",
+            data: data.map((item) => toNumber(item.expected_total, 0)),
+            type: "line",
+            borderColor: "#0a8f72",
+            backgroundColor: "rgba(10, 143, 114, 0.2)",
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 4,
+            tension: 0.25,
+            yAxisID: "y",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks: {
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 6,
+            },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderVisitorRetentionChart(buckets) {
+    const data = Array.isArray(buckets) ? buckets : [];
+    state.historyChart = createOrUpdateChart(state.historyChart, el.cellsHistoryChart, {
+      type: "bar",
+      data: {
+        labels: data.map((item) => valueOr(item.bucket_label, "-")),
+        datasets: [{
+          label: "Qtde visitantes",
+          data: data.map((item) => toNumber(item.visitors_count, 0)),
+          backgroundColor: ["#90caf9", "#64b5f6", "#42a5f5", "#1e88e5"],
+          borderRadius: 8,
+        }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    });
+  }
+
+  function renderCompositionPieChart(slices) {
+    const data = Array.isArray(slices) ? slices : [];
+    state.insightsChart = createOrUpdateChart(state.insightsChart, el.cellsInsightsChart, {
+      type: "pie",
+      data: {
+        labels: data.map((item) => `${valueOr(item.label, "-")} (${toNumber(item.percent, 0).toFixed(1)}%)`),
+        datasets: [{
+          label: "Composicao",
+          data: data.map((item) => toNumber(item.count, 0)),
+          backgroundColor: ["#f57c00", "#1565c0", "#0a8f72"],
+          borderColor: "#ffffff",
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "top" },
+        },
+      },
+    });
+  }
+
+  function renderMissingWeeks(rows) {
+    if (!el.cellsMissingWeeksBody) return;
+    if (!Array.isArray(rows) || !rows.length) {
+      el.cellsMissingWeeksBody.innerHTML = '<tr><td colspan="2">Nenhuma semana sem relatorio no periodo.</td></tr>';
+      return;
+    }
+
+    el.cellsMissingWeeksBody.innerHTML = rows
+      .map((item) => `<tr><td>${escapeHtml(formatDatePtBr(item.week_start))}</td><td>${escapeHtml(formatDatePtBr(item.week_end))}</td></tr>`)
+      .join("");
+  }
+
+  function renderInsights(insights) {
+    if (!insights) return;
+
+    const totalVisitors = toNumber(insights.total_visitors, 0);
+    const membersFrequency = toNumber(insights.member_frequency_percent, 0);
+    const assiduousCount = toNumber(insights.assiduous_members_count, 0);
+    const missingWeeks = toNumber(insights.weeks_without_reports_count, 0);
+    const lowFrequencyMeetings = toNumber(insights.low_frequency_meetings_count, 0);
+    const visitorsAverage = toNumber(insights.visitors_average_per_meeting, 0);
+
+    if (el.cellsKpiVisitorsPeriod) el.cellsKpiVisitorsPeriod.textContent = String(totalVisitors);
+    if (el.cellsKpiMembersFrequency) el.cellsKpiMembersFrequency.textContent = `${membersFrequency.toFixed(1)}%`;
+    if (el.cellsKpiAssiduousCount) el.cellsKpiAssiduousCount.textContent = String(assiduousCount);
+    if (el.cellsKpiMissingWeeks) el.cellsKpiMissingWeeks.textContent = String(missingWeeks);
+    if (el.cellsKpiLowFrequencyMeetings) el.cellsKpiLowFrequencyMeetings.textContent = String(lowFrequencyMeetings);
+
+    renderMissingWeeks(Array.isArray(insights.weeks_without_reports) ? insights.weeks_without_reports : []);
+
+    if (!el.cellsInsightsChart) return;
   }
 
   function fillCellOptions(selectElement, cells, placeholder) {
@@ -403,9 +709,10 @@
   }
 
   function getRoleCandidates(roleTag, queryText) {
-    const taggedCandidates = state.availableMembersForCellCreation
+    const sourceMembers = roleTag === "discipler" ? state.members : state.availableMembersForCellCreation;
+    const taggedCandidates = sourceMembers
       .filter((member) => state.memberRoleTags[String(member.id)] === roleTag);
-    const base = taggedCandidates.length ? taggedCandidates : state.availableMembersForCellCreation;
+    const base = taggedCandidates.length ? taggedCandidates : sourceMembers;
 
     const selectedDisciplerId = toNumber(el.cellsCreateCellDisciplerId ? el.cellsCreateCellDisciplerId.value : 0, 0);
     const withoutInvalid = roleTag === "leader"
@@ -474,7 +781,8 @@
   }
 
   async function loadCells() {
-    const cells = await api("/cells/");
+    const path = isLeaderMode() ? "/cells/my" : "/cells/";
+    const cells = await api(path);
     state.cells = Array.isArray(cells) ? cells : [];
 
     fillCellOptions(el.cellsSelect, state.cells, "Selecione");
@@ -532,6 +840,13 @@
   function memberStatusLabel(member) {
     const status = valueOr(member.status, "active");
     return status === "active" ? "Ativo" : status;
+  }
+
+  function memberStageLabel(member) {
+    const stage = valueOr(member.stage, "member");
+    if (stage === "visitor") return "Visitante";
+    if (stage === "assiduo") return "Assiduo";
+    return "Membro";
   }
 
   function fillMemberSelect(selectElement, members, selectedId, placeholder, excludedMemberId) {
@@ -604,6 +919,9 @@
       .map((cell) => {
         const meetingTime = valueOr(cell.meeting_time, "").slice(0, 5) || "-";
         const leadership = getCellLeadership(cell.id);
+        const actions = isLeaderMode()
+          ? "-"
+          : `<button class="btn ghost btn-inline cells-edit-cell-btn" type="button" data-cell-id="${cell.id}">Editar</button>`;
         return `<tr>
           <td>${escapeHtml(valueOr(cell.name, `Celula ${cell.id}`))}</td>
           <td>${escapeHtml(formatWeekday(cell.weekday))}</td>
@@ -611,7 +929,7 @@
           <td>${escapeHtml(leadership.disciplerName)}</td>
           <td>${escapeHtml(leadership.leaderName)}</td>
           <td>${escapeHtml(valueOr(cell.status, "-"))}</td>
-          <td><button class="btn ghost btn-inline cells-edit-cell-btn" type="button" data-cell-id="${cell.id}">Editar</button></td>
+          <td>${actions}</td>
         </tr>`;
       })
       .join("");
@@ -652,6 +970,556 @@
     renderCellsListTable();
     renderRoleMembersTable("leader", el.cellsLeadersBody);
     renderRoleMembersTable("discipler", el.cellsDisciplersBody);
+  }
+
+  function fillPeopleCellSelect() {
+    fillCellOptions(el.cellsPeopleCellSelect, state.cells, "Selecione");
+    if (el.cellsPeopleCellSelect && state.cells.length && !el.cellsPeopleCellSelect.value) {
+      el.cellsPeopleCellSelect.value = String(state.cells[0].id);
+    }
+  }
+
+  function renderPeopleTableRows(stage, members) {
+    if (!Array.isArray(members) || !members.length) {
+      return '<tr><td colspan="3">Sem registros.</td></tr>';
+    }
+
+    return members
+      .map((member) => {
+        const actions = stage === "visitor"
+          ? `<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="assiduo">Promover para assiduo</button>
+             <button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`
+          : stage === "assiduo"
+            ? `<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`
+            : "-";
+
+        return `<tr>
+          <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
+          <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
+          <td>${actions}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function renderPeopleTables() {
+    if (el.cellsPeopleVisitorsBody) {
+      el.cellsPeopleVisitorsBody.innerHTML = renderPeopleTableRows("visitor", state.peopleByStage.visitor);
+    }
+    if (el.cellsPeopleAssiduosBody) {
+      el.cellsPeopleAssiduosBody.innerHTML = renderPeopleTableRows("assiduo", state.peopleByStage.assiduo);
+    }
+    if (el.cellsPeopleMembersBody) {
+      const members = state.peopleByStage.member;
+      el.cellsPeopleMembersBody.innerHTML = members.length
+        ? members.map((member) => {
+          const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+          const actions = `<button class="btn ghost btn-inline cells-edit-member-people-btn" type="button" data-member-id="${member.id}">Editar</button>
+                           <button class="btn ghost btn-inline cells-transfer-member-btn" type="button" data-member-id="${member.id}">Transferir</button>
+                           <button class="btn ghost btn-inline cells-mark-lost-sheep-btn" type="button" data-member-id="${member.id}" data-cell-id="${cellId}" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Ovelha Perdida</button>`;
+          return `<tr>
+            <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
+            <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
+            <td>${escapeHtml(memberStageLabel(member))}</td>
+            <td>${actions}</td>
+          </tr>`;
+        }).join("")
+        : '<tr><td colspan="4">Sem registros.</td></tr>';
+    }
+  }
+
+  async function loadPeopleViewData() {
+    const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    if (!cellId) {
+      state.peopleByStage = { visitor: [], assiduo: [], member: [] };
+      renderPeopleTables();
+      return;
+    }
+
+    const [visitors, assiduos, members] = await Promise.all([
+      api(`/cells/${cellId}/people?stage=visitor`),
+      api(`/cells/${cellId}/people?stage=assiduo`),
+      api(`/cells/${cellId}/people?stage=member`),
+    ]);
+    state.peopleByStage = {
+      visitor: Array.isArray(visitors) ? visitors : [],
+      assiduo: Array.isArray(assiduos) ? assiduos : [],
+      member: Array.isArray(members) ? members : [],
+    };
+    renderPeopleTables();
+  }
+
+  async function addPersonToSelectedCell(stage, fullName, contact) {
+    const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    if (!cellId) throw new Error("Selecione uma celula para cadastrar pessoas.");
+    if (!fullName) throw new Error("Informe o nome completo.");
+
+    const member = await api("/cells/members/all", {
+      method: "POST",
+      body: JSON.stringify({
+        full_name: fullName,
+        contact: contact || null,
+        status: "active",
+        stage,
+      }),
+    });
+
+    await api(`/cells/${cellId}/members/${member.id}`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  async function promotePersonInSelectedCell(memberId, targetStage) {
+    const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    if (!cellId) throw new Error("Selecione uma celula para promover pessoas.");
+    await api(`/cells/${cellId}/members/${memberId}/promote`, {
+      method: "POST",
+      body: JSON.stringify({ target_stage: targetStage }),
+    });
+  }
+
+  async function disableMemberInPeople() {
+    const cellId = toNumber(el.cellsMemberModalCellId ? el.cellsMemberModalCellId.value : 0, 0);
+    const memberId = toNumber(el.cellsMemberModalId ? el.cellsMemberModalId.value : 0, 0);
+    if (!cellId || !memberId) throw new Error("Celula ou membro invalido.");
+    await api(`/cells/${cellId}/members/${memberId}`, {
+      method: "DELETE",
+    });
+    closeMemberPeopleModal();
+    await loadPeopleViewData();
+    setCellsMessage("Membro desativado com sucesso.", false);
+  }
+
+  function openTransferMemberModal(memberId) {
+    if (el.cellsTransferMemberModalMemberId) el.cellsTransferMemberModalMemberId.value = String(memberId);
+    if (el.cellsTransferMemberModalReason) el.cellsTransferMemberModalReason.value = "";
+    fillCellOptions(el.cellsTransferMemberModalTargetCell, state.cells, "Selecione");
+    if (el.cellsTransferMemberModal) el.cellsTransferMemberModal.classList.remove("hide");
+  }
+
+  function closeTransferMemberModal() {
+    if (el.cellsTransferMemberModal) el.cellsTransferMemberModal.classList.add("hide");
+  }
+
+  async function transferMemberToCell() {
+    const memberId = toNumber(el.cellsTransferMemberModalMemberId ? el.cellsTransferMemberModalMemberId.value : 0, 0);
+    const targetCellId = toNumber(el.cellsTransferMemberModalTargetCell ? el.cellsTransferMemberModalTargetCell.value : 0, 0);
+    const reason = valueOr(el.cellsTransferMemberModalReason ? el.cellsTransferMemberModalReason.value.trim() : "", null);
+
+    if (!memberId) throw new Error("Membro invalido.");
+    if (!targetCellId) throw new Error("Selecione uma celula de destino.");
+
+    const currentCellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    await api(`/cells/${currentCellId}/members/${memberId}/transfer`, {
+      method: "POST",
+      body: JSON.stringify({ target_cell_id: targetCellId, transfer_reason: reason }),
+    });
+    closeTransferMemberModal();
+    await loadPeopleViewData();
+    setCellsMessage("Membro transferido com sucesso.", false);
+  }
+
+  function openMemberPeopleModal(memberId) {
+    const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    const member = state.peopleByStage.member.find((m) => m.id === memberId);
+    if (!member) return;
+
+    if (el.cellsMemberModalId) el.cellsMemberModalId.value = String(memberId);
+    if (el.cellsMemberModalCellId) el.cellsMemberModalCellId.value = String(cellId);
+    if (el.cellsMemberModalName) el.cellsMemberModalName.value = valueOr(member.full_name, "");
+    if (el.cellsMemberModalContact) el.cellsMemberModalContact.value = valueOr(member.contact, "");
+    if (el.cellsMemberModalStatus) el.cellsMemberModalStatus.value = valueOr(member.status, "active");
+    if (el.cellsMemberModal) el.cellsMemberModal.classList.remove("hide");
+  }
+
+  function closeMemberPeopleModal() {
+    if (el.cellsMemberModal) el.cellsMemberModal.classList.add("hide");
+  }
+
+  async function disableMemberInPeople() {
+    const memberId = toNumber(el.cellsMemberModalId ? el.cellsMemberModalId.value : 0, 0);
+    if (!memberId) throw new Error("Membro invalido.");
+    await api(`/cells/members/${memberId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status: "inactive" }),
+    });
+    closeMemberPeopleModal();
+    await loadPeopleViewData();
+    setCellsMessage("Membro desativado com sucesso.", false);
+  }
+
+  function openTransferMemberModal(memberId) {
+    if (el.cellsTransferMemberModalMemberId) el.cellsTransferMemberModalMemberId.value = String(memberId);
+    if (el.cellsTransferMemberModalReason) el.cellsTransferMemberModalReason.value = "";
+    fillCellOptions(el.cellsTransferMemberModalTargetCell, state.cells, "Selecione");
+    if (el.cellsTransferMemberModal) el.cellsTransferMemberModal.classList.remove("hide");
+  }
+
+  function closeTransferMemberModal() {
+    if (el.cellsTransferMemberModal) el.cellsTransferMemberModal.classList.add("hide");
+  }
+
+  async function transferMemberToCell() {
+    const memberId = toNumber(el.cellsTransferMemberModalMemberId ? el.cellsTransferMemberModalMemberId.value : 0, 0);
+    const targetCellId = toNumber(el.cellsTransferMemberModalTargetCell ? el.cellsTransferMemberModalTargetCell.value : 0, 0);
+    const reason = valueOr(el.cellsTransferMemberModalReason ? el.cellsTransferMemberModalReason.value.trim() : "", null);
+
+    if (!memberId) throw new Error("Membro invalido.");
+    if (!targetCellId) throw new Error("Selecione uma celula de destino.");
+
+    const currentCellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    await api(`/cells/${currentCellId}/members/${memberId}/transfer`, {
+      method: "POST",
+      body: JSON.stringify({ target_cell_id: targetCellId, transfer_reason: reason }),
+    });
+    closeTransferMemberModal();
+    await loadPeopleViewData();
+    setCellsMessage("Membro transferido com sucesso.", false);
+  }
+
+  // Lost Sheep functions
+  async function loadLostSheepData() {
+    const lostSheep = await api("/lost-sheep");
+    state.lostSheep = Array.isArray(lostSheep) ? lostSheep : [];
+    renderLostSheepTable();
+  }
+
+  function renderLostSheepTable() {
+    if (!el.cellsLostSheepBody) return;
+    const lostSheep = state.lostSheep || [];
+
+    el.cellsLostSheepBody.innerHTML = lostSheep.length
+      ? lostSheep.map((sheep) => {
+        const visitedBadge = sheep.visit_completed ? "✓ Visitada" : "Pendente";
+        const visitedClass = sheep.visit_completed ? "badge-success" : "badge-warning";
+        const actions = `<button class="btn ghost btn-inline cells-lost-sheep-visit-btn" type="button" data-lost-sheep-id="${sheep.id}">Visita</button>`;
+        
+        return `<tr>
+          <td>${escapeHtml(valueOr(sheep.member_name, "Desconhecido"))}</td>
+          <td>${escapeHtml(valueOr(sheep.phone_number, "-"))}</td>
+          <td>${escapeHtml(valueOr(sheep.previous_cell_name, "Desconhecida"))}</td>
+          <td>${formatDatePtBr(sheep.marked_as_lost_date)}</td>
+          <td><span class="badge ${visitedClass}">${visitedBadge}</span></td>
+          <td>${actions}</td>
+        </tr>`;
+      }).join("")
+      : '<tr><td colspan="6">Sem registros.</td></tr>';
+  }
+
+  function openLostSheepModal(memberId, cellId, memberName) {
+    if (el.cellsLostSheepModalMemberId) el.cellsLostSheepModalMemberId.value = String(memberId);
+    if (el.cellsLostSheepModalCellId) el.cellsLostSheepModalCellId.value = String(cellId);
+    if (el.cellsLostSheepModalMemberName) el.cellsLostSheepModalMemberName.value = memberName;
+    if (el.cellsLostSheepModalPhone) el.cellsLostSheepModalPhone.value = "";
+    if (el.cellsLostSheepModalObservation) el.cellsLostSheepModalObservation.value = "";
+    if (el.cellsLostSheepModal) el.cellsLostSheepModal.classList.remove("hide");
+  }
+
+  function closeLostSheepModal() {
+    if (el.cellsLostSheepModal) el.cellsLostSheepModal.classList.add("hide");
+  }
+
+  async function markMemberAsLostSheep() {
+    const memberId = toNumber(el.cellsLostSheepModalMemberId ? el.cellsLostSheepModalMemberId.value : 0, 0);
+    const cellId = toNumber(el.cellsLostSheepModalCellId ? el.cellsLostSheepModalCellId.value : 0, 0);
+    const phone = valueOr(el.cellsLostSheepModalPhone ? el.cellsLostSheepModalPhone.value.trim() : "", null);
+    const observation = valueOr(el.cellsLostSheepModalObservation ? el.cellsLostSheepModalObservation.value.trim() : "", null);
+
+    if (!memberId || !cellId) throw new Error("Dados invalidos.");
+
+    await api("/lost-sheep", {
+      method: "POST",
+      body: JSON.stringify({
+        member_id: memberId,
+        cell_id: cellId,
+        phone_number: phone,
+        observation: observation,
+      }),
+    });
+
+    closeLostSheepModal();
+    await loadLostSheepData();
+    await loadPeopleViewData();
+    setCellsMessage("Pessoa marcada como ovelha perdida com sucesso.", false);
+  }
+
+  function openLostSheepVisitModal(lostSheepId) {
+    if (el.cellsLostSheepVisitModalId) el.cellsLostSheepVisitModalId.value = String(lostSheepId);
+    if (el.cellsLostSheepVisitModalObservation) el.cellsLostSheepVisitModalObservation.value = "";
+    const sheep = state.lostSheep.find((s) => s.id === lostSheepId);
+    if (sheep && el.cellsLostSheepVisitModalTitle) {
+      el.cellsLostSheepVisitModalTitle.textContent = `Visita - ${valueOr(sheep.member?.full_name, "Ovelha Perdida")}`;
+    }
+    if (el.cellsLostSheepVisitModal) el.cellsLostSheepVisitModal.classList.remove("hide");
+  }
+
+  function closeLostSheepVisitModal() {
+    if (el.cellsLostSheepVisitModal) el.cellsLostSheepVisitModal.classList.add("hide");
+  }
+
+  async function recordLostSheepVisit() {
+    const lostSheepId = toNumber(el.cellsLostSheepVisitModalId ? el.cellsLostSheepVisitModalId.value : 0, 0);
+    const observation = valueOr(el.cellsLostSheepVisitModalObservation ? el.cellsLostSheepVisitModalObservation.value.trim() : "", null);
+
+    if (!lostSheepId) throw new Error("Registro invalido.");
+
+    await api(`/lost-sheep/${lostSheepId}/visit`, {
+      method: "PUT",
+      body: JSON.stringify({ visit_observation: observation }),
+    });
+
+    closeLostSheepVisitModal();
+    await loadLostSheepData();
+    setCellsMessage("Visita registrada com sucesso.", false);
+  }
+
+  function fillMeetingsCellSelect() {
+    fillCellOptions(el.cellsMeetingsCellSelect, state.cells, "Selecione");
+    if (el.cellsMeetingsCellSelect && state.cells.length && !el.cellsMeetingsCellSelect.value) {
+      el.cellsMeetingsCellSelect.value = String(state.cells[0].id);
+    }
+  }
+
+  function buildMeetingsQueryParams() {
+    const params = new URLSearchParams();
+    const startDate = valueOr(el.cellsMeetingsStartDate ? el.cellsMeetingsStartDate.value : "", "");
+    const endDate = valueOr(el.cellsMeetingsEndDate ? el.cellsMeetingsEndDate.value : "", "");
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  function formatDatePtBr(isoDate) {
+    if (!isoDate) return "-";
+    const value = String(isoDate).slice(0, 10);
+    const [year, month, day] = value.split("-");
+    if (!year || !month || !day) return value;
+    return `${day}/${month}/${year}`;
+  }
+
+  function renderMeetingsTable() {
+    if (!el.cellsMeetingsBody) return;
+    if (!state.meetings.length) {
+      el.cellsMeetingsBody.innerHTML = '<tr><td colspan="5">Sem reunioes cadastradas.</td></tr>';
+      if (el.cellsMeetingsPageInfo) el.cellsMeetingsPageInfo.textContent = "Pag. 1/1";
+      if (el.cellsMeetingsPrevBtn) el.cellsMeetingsPrevBtn.disabled = true;
+      if (el.cellsMeetingsNextBtn) el.cellsMeetingsNextBtn.disabled = true;
+      return;
+    }
+
+    const ordered = [...state.meetings].sort((a, b) => {
+      const dateA = String(valueOr(a.meeting_date, ""));
+      const dateB = String(valueOr(b.meeting_date, ""));
+      if (dateA === dateB) return Number(b.id || 0) - Number(a.id || 0);
+      return dateB.localeCompare(dateA);
+    });
+
+    const totalPages = Math.max(1, Math.ceil(ordered.length / state.meetingsPagination.pageSize));
+    if (state.meetingsPagination.page > totalPages) state.meetingsPagination.page = totalPages;
+    if (state.meetingsPagination.page < 1) state.meetingsPagination.page = 1;
+    const start = (state.meetingsPagination.page - 1) * state.meetingsPagination.pageSize;
+    const end = start + state.meetingsPagination.pageSize;
+    const pageRows = ordered.slice(start, end);
+
+    el.cellsMeetingsBody.innerHTML = pageRows
+      .map((meeting) => {
+        const summary = state.meetingAttendanceSummary[String(meeting.id)] || { present: 0, absent: 0, justified: 0 };
+        const expectedTotalForMeeting = toNumber(state.meetingsExpectedTotalByMeeting[String(meeting.id)], 0);
+        const rate = expectedTotalForMeeting > 0
+          ? (summary.present / expectedTotalForMeeting) * 100
+          : 0;
+        const summaryClass = rate < 70
+          ? "cells-attendance-low"
+          : rate < 90
+            ? "cells-attendance-medium"
+            : "cells-attendance-good";
+        return `<tr>
+        <td>${escapeHtml(formatDatePtBr(meeting.meeting_date))}</td>
+        <td>${escapeHtml(valueOr(meeting.theme, "-"))}</td>
+        <td>${escapeHtml(valueOr(meeting.notes, "-"))}</td>
+        <td><span class="${summaryClass}">P: ${summary.present} | A: ${summary.absent} | J: ${summary.justified} / T: ${expectedTotalForMeeting}</span></td>
+        <td>
+          <button
+            class="btn ghost btn-inline cells-open-attendance-btn"
+            type="button"
+            data-meeting-id="${meeting.id}"
+            data-meeting-date="${escapeHtml(valueOr(meeting.meeting_date, ""))}"
+            data-cell-id="${meeting.cell_id}"
+          >Marcar frequencia</button>
+        </td>
+      </tr>`;
+      })
+      .join("");
+
+    if (el.cellsMeetingsPageInfo) {
+      el.cellsMeetingsPageInfo.textContent = `Pag. ${state.meetingsPagination.page}/${totalPages}`;
+    }
+    if (el.cellsMeetingsPrevBtn) el.cellsMeetingsPrevBtn.disabled = state.meetingsPagination.page <= 1;
+    if (el.cellsMeetingsNextBtn) el.cellsMeetingsNextBtn.disabled = state.meetingsPagination.page >= totalPages;
+  }
+
+  function summarizeAttendanceRows(rows) {
+    const summary = { present: 0, absent: 0, justified: 0 };
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const status = valueOr(row.attendance_status, "");
+      if (status === "present") summary.present += 1;
+      if (status === "absent") summary.absent += 1;
+      if (status === "justified") summary.justified += 1;
+    });
+    return summary;
+  }
+
+  async function loadMeetingsViewData() {
+    const cellId = toNumber(el.cellsMeetingsCellSelect ? el.cellsMeetingsCellSelect.value : 0, 0);
+    if (!cellId) {
+      state.meetings = [];
+      state.meetingAttendanceSummary = {};
+      state.meetingsExpectedTotal = 0;
+      state.meetingsExpectedTotalByMeeting = {};
+      renderMeetingsTable();
+      return;
+    }
+
+    const query = buildMeetingsQueryParams();
+    const meetings = await api(`/cells/${cellId}/meetings${query}`);
+    state.meetings = Array.isArray(meetings) ? meetings : [];
+    state.meetingsPagination.page = 1;
+    state.meetingAttendanceSummary = {};
+    state.meetingsExpectedTotalByMeeting = {};
+    if (state.meetings.length) {
+      const [attendancesByMeeting, peopleByMeeting] = await Promise.all([
+        Promise.all(state.meetings.map((meeting) => api(`/cells/meetings/${meeting.id}/attendances`))),
+        Promise.all(state.meetings.map((meeting) => api(`/cells/${cellId}/people?on_date=${meeting.meeting_date}`))),
+      ]);
+
+      state.meetings.forEach((meeting, index) => {
+        const attendances = Array.isArray(attendancesByMeeting[index]) ? attendancesByMeeting[index] : [];
+        state.meetingAttendanceSummary[String(meeting.id)] = summarizeAttendanceRows(attendances);
+        const people = peopleByMeeting[index];
+        const expected = Math.max(Array.isArray(people) ? people.length : 0, attendances.length);
+        state.meetingsExpectedTotalByMeeting[String(meeting.id)] = expected;
+      });
+
+      const expectedTotals = Object.values(state.meetingsExpectedTotalByMeeting);
+      state.meetingsExpectedTotal = expectedTotals.length
+        ? Math.max(...expectedTotals.map((value) => toNumber(value, 0)))
+        : 0;
+    }
+    renderMeetingsTable();
+  }
+
+  function closeAttendanceModal() {
+    if (!el.cellsAttendanceModal) return;
+    el.cellsAttendanceModal.classList.add("hide");
+    if (el.cellsAttendanceMeetingId) el.cellsAttendanceMeetingId.value = "";
+    state.attendanceMembers = [];
+  }
+
+  async function openAttendanceModal(meetingId, cellId, meetingDate) {
+    const [people, attendances, allMembers] = await Promise.all([
+      api(`/cells/${cellId}/people?on_date=${meetingDate}`),
+      api(`/cells/meetings/${meetingId}/attendances`),
+      api(`/cells/members/all`),
+    ]);
+
+    const attendanceByMemberId = new Map();
+    (Array.isArray(attendances) ? attendances : []).forEach((item) => {
+      attendanceByMemberId.set(Number(item.member_id), valueOr(item.attendance_status, "present"));
+    });
+
+    const allMembersById = new Map();
+    (Array.isArray(allMembers) ? allMembers : []).forEach((member) => {
+      const memberId = toNumber(member.id, 0);
+      if (memberId > 0) allMembersById.set(memberId, member);
+    });
+
+    const memberById = new Map();
+    (Array.isArray(people) ? people : []).forEach((member) => {
+      const memberId = toNumber(member.id, 0);
+      if (memberId > 0) memberById.set(memberId, member);
+    });
+
+    attendanceByMemberId.forEach((_status, memberId) => {
+      if (memberById.has(memberId)) return;
+      const knownMember = allMembersById.get(memberId);
+      memberById.set(memberId, {
+        id: memberId,
+        full_name: valueOr(knownMember ? knownMember.full_name : null, `Membro ${memberId}`),
+        __historical_only: true,
+      });
+    });
+
+    state.attendanceMembers = Array.from(memberById.values()).sort((a, b) => {
+      const nameA = normalizeText(a.full_name);
+      const nameB = normalizeText(b.full_name);
+      return nameA.localeCompare(nameB);
+    });
+    if (el.cellsAttendanceMeetingId) el.cellsAttendanceMeetingId.value = String(meetingId);
+    if (el.cellsAttendanceModalTitle) {
+      el.cellsAttendanceModalTitle.textContent = `Frequencia - ${formatDatePtBr(meetingDate)}`;
+    }
+
+    if (el.cellsAttendanceBody) {
+      if (!state.attendanceMembers.length) {
+        el.cellsAttendanceBody.innerHTML = '<tr><td colspan="2">Sem membros ativos.</td></tr>';
+      } else {
+        el.cellsAttendanceBody.innerHTML = state.attendanceMembers
+          .map((member) => {
+            const status = attendanceByMemberId.get(Number(member.id)) || "present";
+            const historicalTag = member && member.__historical_only
+              ? ' <small class="input-hint">(historico)</small>'
+              : "";
+            return `<tr>
+              <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}${historicalTag}</td>
+              <td>
+                <select class="cells-attendance-status" data-member-id="${member.id}">
+                  <option value="present" ${status === "present" ? "selected" : ""}>Presente</option>
+                  <option value="absent" ${status === "absent" ? "selected" : ""}>Ausente</option>
+                  <option value="justified" ${status === "justified" ? "selected" : ""}>Justificado</option>
+                </select>
+              </td>
+            </tr>`;
+          })
+          .join("");
+      }
+    }
+
+    if (el.cellsAttendanceModal) {
+      el.cellsAttendanceModal.classList.remove("hide");
+    }
+  }
+
+  async function saveAttendanceFromModal(openPeopleAfterSave = false) {
+    const meetingId = toNumber(el.cellsAttendanceMeetingId ? el.cellsAttendanceMeetingId.value : 0, 0);
+    if (!meetingId) throw new Error("Reuniao invalida para frequencia.");
+    const selectedCellId = toNumber(el.cellsMeetingsCellSelect ? el.cellsMeetingsCellSelect.value : 0, 0);
+
+    const rows = el.cellsAttendanceBody ? Array.from(el.cellsAttendanceBody.querySelectorAll("select.cells-attendance-status")) : [];
+    const items = rows
+      .map((select) => ({
+        member_id: toNumber(select.getAttribute("data-member-id"), 0),
+        attendance_status: select.value || "present",
+      }))
+      .filter((item) => item.member_id > 0);
+
+    await api(`/cells/meetings/${meetingId}/attendances/bulk`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    });
+
+    closeAttendanceModal();
+    await loadMeetingsViewData();
+    if (openPeopleAfterSave) {
+      setCellsView("people");
+      fillPeopleCellSelect();
+      if (el.cellsPeopleCellSelect && selectedCellId) {
+        el.cellsPeopleCellSelect.value = String(selectedCellId);
+      }
+      await loadPeopleViewData();
+    }
+    setCellsMessage("Frequencia salva com sucesso.", false);
   }
 
   async function openCellModal(cell) {
@@ -790,6 +1658,22 @@
     }
   }
 
+  async function ensureDisciplerIsSupervisorOnly(cellId, disciplerMemberId, leaderMemberId) {
+    const disciplerId = toNumber(disciplerMemberId, 0);
+    const leaderId = toNumber(leaderMemberId, 0);
+    if (!disciplerId || disciplerId === leaderId) return;
+
+    const links = await api(`/cells/${cellId}/members`);
+    const activeDisciplerLink = (Array.isArray(links) ? links : []).some(
+      (link) => link && link.active && toNumber(link.member_id, 0) === disciplerId
+    );
+    if (!activeDisciplerLink) return;
+
+    await api(`/cells/${cellId}/members/${disciplerId}`, {
+      method: "DELETE",
+    });
+  }
+
   async function syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId) {
     const assignments = await api(`/cells/${cellId}/leaders`);
     const rows = Array.isArray(assignments) ? assignments : [];
@@ -859,15 +1743,22 @@
 
     setCellsMessage("Carregando dados das celulas...", false);
 
-    const [retention, recurring, history] = await Promise.all([
+    const [retention, recurring, history, insights, charts] = await Promise.all([
       api(`/cells/${cellId}/dashboard/retention?start_date=${startDate}&end_date=${endDate}`),
       api(`/cells/${cellId}/dashboard/visitors-recurring?start_date=${startDate}&end_date=${endDate}`),
       api(`/cells/${cellId}/dashboard/history?months=${months}`),
+      api(`/cells/${cellId}/dashboard/insights?start_date=${startDate}&end_date=${endDate}`),
+      api(`/cells/${cellId}/dashboard/charts?start_date=${startDate}&end_date=${endDate}`),
     ]);
 
     renderRetention(retention);
     renderVisitors(recurring);
     renderHistory(history);
+    renderInsights(insights);
+    renderVisitorsByDateChart(charts && Array.isArray(charts.visitors_by_date) ? charts.visitors_by_date : []);
+    renderWeeklyPresenceChart(charts && Array.isArray(charts.weekly_presence) ? charts.weekly_presence : []);
+    renderVisitorRetentionChart(charts && Array.isArray(charts.visitor_retention) ? charts.visitor_retention : []);
+    renderCompositionPieChart(charts && Array.isArray(charts.composition) ? charts.composition : []);
     setCellsMessage("Dados de celula atualizados.", false);
   }
 
@@ -892,10 +1783,6 @@
 
     const createdCell = await api("/cells/", { method: "POST", body: JSON.stringify(payload) });
 
-    await api(`/cells/${createdCell.id}/members/${disciplerMemberId}`, {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
     await api(`/cells/${createdCell.id}/members/${leaderMemberId}`, {
       method: "POST",
       body: JSON.stringify({}),
@@ -914,13 +1801,14 @@
         is_primary: false,
       }),
     });
+    await ensureDisciplerIsSupervisorOnly(createdCell.id, disciplerMemberId, leaderMemberId);
 
     el.cellsCreateCellForm.reset();
     if (el.cellsCreateCellDisciplerId) el.cellsCreateCellDisciplerId.value = "";
     if (el.cellsCreateCellLeaderId) el.cellsCreateCellLeaderId.value = "";
     await Promise.all([loadCells(), loadMembers()]);
     await loadAvailableMembersForCellCreation();
-    setCellsMessage("Celula cadastrada com lider e discipulador vinculados com sucesso.", false);
+    setCellsMessage("Celula cadastrada com lider vinculado e discipulador supervisor definido.", false);
   }
 
   async function submitCreateDiscipler(event) {
@@ -953,6 +1841,8 @@
 
   async function ensureCellsInitialized() {
     if (state.initialized) return;
+    await loadCurrentUserRole();
+    applyRoleLayout();
     state.memberRoleTags = loadRoleTagsFromStorage();
     applyPreset(30);
     await Promise.all([loadCells(), loadMembers()]);
@@ -1000,13 +1890,15 @@
 
     if (cellId) {
       await api(`/cells/${cellId}`, { method: "PUT", body: JSON.stringify(payload) });
-      await ensureMembersLinkedToCell(cellId, [disciplerMemberId, leaderMemberId]);
+      await ensureMembersLinkedToCell(cellId, [leaderMemberId]);
       await syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId);
+      await ensureDisciplerIsSupervisorOnly(cellId, disciplerMemberId, leaderMemberId);
       setCellsMessage("Celula atualizada com sucesso.", false);
     } else {
       const createdCell = await api("/cells/", { method: "POST", body: JSON.stringify(payload) });
-      await ensureMembersLinkedToCell(createdCell.id, [disciplerMemberId, leaderMemberId]);
+      await ensureMembersLinkedToCell(createdCell.id, [leaderMemberId]);
       await syncCellLeadershipAssignments(createdCell.id, disciplerMemberId, leaderMemberId);
+      await ensureDisciplerIsSupervisorOnly(createdCell.id, disciplerMemberId, leaderMemberId);
       setCellsMessage("Celula cadastrada com sucesso.", false);
     }
 
@@ -1056,6 +1948,13 @@
   async function openCellsModule() {
     setActiveModule("cells");
     await ensureCellsInitialized();
+    if (isLeaderMode()) {
+      setCellsView("people");
+      fillPeopleCellSelect();
+      await loadPeopleViewData();
+      fillMeetingsCellSelect();
+      return;
+    }
     setCellsView("dashboard");
     await loadCellsDashboard();
   }
@@ -1077,6 +1976,10 @@
     handleLoadError(openCellsModule, "Falha ao carregar modulo de celulas.");
   });
 
+  if (valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase() === "leader" && getToken()) {
+    handleLoadError(openCellsModule, "Falha ao carregar modulo de celulas.");
+  }
+
   if (el.cellsNavDashboardBtn) {
     el.cellsNavDashboardBtn.addEventListener("click", function () {
       setCellsView("dashboard");
@@ -1088,6 +1991,26 @@
     el.cellsNavCellsBtn.addEventListener("click", function () {
       setCellsView("cells");
       handleLoadError(refreshCellsAdminData, "Falha ao carregar tabela de celulas.");
+    });
+  }
+
+  if (el.cellsNavPeopleBtn) {
+    el.cellsNavPeopleBtn.addEventListener("click", function () {
+      setCellsView("people");
+      handleLoadError(async function () {
+        fillPeopleCellSelect();
+        await loadPeopleViewData();
+      }, "Falha ao carregar pessoas da celula.");
+    });
+  }
+
+  if (el.cellsNavMeetingsBtn) {
+    el.cellsNavMeetingsBtn.addEventListener("click", function () {
+      setCellsView("meetings");
+      handleLoadError(async function () {
+        fillMeetingsCellSelect();
+        await loadMeetingsViewData();
+      }, "Falha ao carregar reunioes da celula.");
     });
   }
 
@@ -1105,6 +2028,13 @@
     });
   }
 
+  if (el.cellsNavLostSheepBtn) {
+    el.cellsNavLostSheepBtn.addEventListener("click", function () {
+      setCellsView("lost-sheep");
+      handleLoadError(loadLostSheepData, "Falha ao carregar ovelhas perdidas.");
+    });
+  }
+
   if (el.cellsApplyFiltersBtn) {
     el.cellsApplyFiltersBtn.addEventListener("click", function () {
       handleLoadError(loadCellsDashboard, "Falha ao aplicar filtros.");
@@ -1117,6 +2047,185 @@
         await Promise.all([loadCells(), loadMembers()]);
         await loadCellsDashboard();
       }, "Falha ao atualizar modulo de celulas.");
+    });
+  }
+
+  if (el.cellsPeopleRefreshBtn) {
+    el.cellsPeopleRefreshBtn.addEventListener("click", function () {
+      handleLoadError(async function () {
+        await loadCells();
+        fillPeopleCellSelect();
+        await loadPeopleViewData();
+      }, "Falha ao atualizar pessoas da celula.");
+    });
+  }
+
+  if (el.cellsMeetingsRefreshBtn) {
+    el.cellsMeetingsRefreshBtn.addEventListener("click", function () {
+      handleLoadError(async function () {
+        await loadCells();
+        fillMeetingsCellSelect();
+        await loadMeetingsViewData();
+      }, "Falha ao atualizar reunioes da celula.");
+    });
+  }
+
+  if (el.cellsPeopleCellSelect) {
+    el.cellsPeopleCellSelect.addEventListener("change", function () {
+      handleLoadError(loadPeopleViewData, "Falha ao carregar pessoas da celula.");
+    });
+  }
+
+  if (el.cellsMeetingsCellSelect) {
+    el.cellsMeetingsCellSelect.addEventListener("change", function () {
+      handleLoadError(loadMeetingsViewData, "Falha ao carregar reunioes da celula.");
+    });
+  }
+
+  if (el.cellsMeetingsStartDate) {
+    el.cellsMeetingsStartDate.addEventListener("change", function () {
+      handleLoadError(loadMeetingsViewData, "Falha ao aplicar filtro de data.");
+    });
+  }
+
+  if (el.cellsMeetingsEndDate) {
+    el.cellsMeetingsEndDate.addEventListener("change", function () {
+      handleLoadError(loadMeetingsViewData, "Falha ao aplicar filtro de data.");
+    });
+  }
+
+  if (el.cellsMeetingsPrevBtn) {
+    el.cellsMeetingsPrevBtn.addEventListener("click", function () {
+      state.meetingsPagination.page -= 1;
+      renderMeetingsTable();
+    });
+  }
+
+  if (el.cellsMeetingsNextBtn) {
+    el.cellsMeetingsNextBtn.addEventListener("click", function () {
+      state.meetingsPagination.page += 1;
+      renderMeetingsTable();
+    });
+  }
+
+  if (el.cellsPeopleVisitorForm) {
+    el.cellsPeopleVisitorForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleLoadError(async function () {
+        await addPersonToSelectedCell(
+          "visitor",
+          el.cellsPeopleVisitorName ? el.cellsPeopleVisitorName.value.trim() : "",
+          el.cellsPeopleVisitorContact ? el.cellsPeopleVisitorContact.value.trim() : ""
+        );
+        if (el.cellsPeopleVisitorForm) el.cellsPeopleVisitorForm.reset();
+        await loadPeopleViewData();
+        setCellsMessage("Visitante cadastrado com sucesso.", false);
+      }, "Falha ao cadastrar visitante.");
+    });
+  }
+
+  if (el.cellsPeopleAssiduoForm) {
+    el.cellsPeopleAssiduoForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleLoadError(async function () {
+        await addPersonToSelectedCell(
+          "assiduo",
+          el.cellsPeopleAssiduoName ? el.cellsPeopleAssiduoName.value.trim() : "",
+          el.cellsPeopleAssiduoContact ? el.cellsPeopleAssiduoContact.value.trim() : ""
+        );
+        if (el.cellsPeopleAssiduoForm) el.cellsPeopleAssiduoForm.reset();
+        await loadPeopleViewData();
+        setCellsMessage("Assiduo cadastrado com sucesso.", false);
+      }, "Falha ao cadastrar assiduo.");
+    });
+  }
+
+  if (el.cellsPeopleMemberForm) {
+    el.cellsPeopleMemberForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleLoadError(async function () {
+        await addPersonToSelectedCell(
+          "member",
+          el.cellsPeopleMemberName ? el.cellsPeopleMemberName.value.trim() : "",
+          el.cellsPeopleMemberContact ? el.cellsPeopleMemberContact.value.trim() : ""
+        );
+        if (el.cellsPeopleMemberForm) el.cellsPeopleMemberForm.reset();
+        await loadPeopleViewData();
+        setCellsMessage("Membro cadastrado com sucesso.", false);
+      }, "Falha ao cadastrar membro.");
+    });
+  }
+
+  if (el.cellsMeetingsForm) {
+    el.cellsMeetingsForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleLoadError(async function () {
+        const cellId = toNumber(el.cellsMeetingsCellSelect ? el.cellsMeetingsCellSelect.value : 0, 0);
+        const meetingDate = el.cellsMeetingDate ? el.cellsMeetingDate.value : "";
+        const theme = el.cellsMeetingTheme ? el.cellsMeetingTheme.value.trim() : "";
+        const notes = el.cellsMeetingNotes ? el.cellsMeetingNotes.value.trim() : "";
+
+        if (!cellId) throw new Error("Selecione uma celula para criar reuniao.");
+        if (!meetingDate) throw new Error("Informe a data da reuniao.");
+
+        await api(`/cells/${cellId}/meetings`, {
+          method: "POST",
+          body: JSON.stringify({
+            meeting_date: meetingDate,
+            theme: theme || null,
+            notes: notes || null,
+          }),
+        });
+
+        if (el.cellsMeetingsForm) el.cellsMeetingsForm.reset();
+        await loadMeetingsViewData();
+        setCellsMessage("Reuniao criada com sucesso.", false);
+      }, "Falha ao criar reuniao.");
+    });
+  }
+
+  if (el.cellsMeetingsView) {
+    el.cellsMeetingsView.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.classList.contains("cells-open-attendance-btn")) return;
+
+      const meetingId = toNumber(target.getAttribute("data-meeting-id"), 0);
+      const cellId = toNumber(target.getAttribute("data-cell-id"), 0);
+      const meetingDate = valueOr(target.getAttribute("data-meeting-date"), "");
+      if (!meetingId || !cellId) return;
+
+      handleLoadError(function () {
+        return openAttendanceModal(meetingId, cellId, meetingDate);
+      }, "Falha ao carregar frequencia da reuniao.");
+    });
+  }
+
+  if (el.cellsAttendanceModalCloseBtn) {
+    el.cellsAttendanceModalCloseBtn.addEventListener("click", closeAttendanceModal);
+  }
+
+  if (el.cellsAttendanceModalCancelBtn) {
+    el.cellsAttendanceModalCancelBtn.addEventListener("click", closeAttendanceModal);
+  }
+
+  if (el.cellsAttendanceModalSaveBtn) {
+    el.cellsAttendanceModalSaveBtn.addEventListener("click", function () {
+      handleLoadError(saveAttendanceFromModal, "Falha ao salvar frequencia.");
+    });
+  }
+
+  if (el.cellsAttendanceModalSaveAndPeopleBtn) {
+    el.cellsAttendanceModalSaveAndPeopleBtn.addEventListener("click", function () {
+      handleLoadError(function () { return saveAttendanceFromModal(true); }, "Falha ao salvar frequencia.");
+    });
+  }
+
+  if (el.cellsAttendanceModal) {
+    el.cellsAttendanceModal.addEventListener("click", function (event) {
+      if (event.target === el.cellsAttendanceModal) {
+        closeAttendanceModal();
+      }
     });
   }
 
@@ -1389,4 +2498,112 @@
       openMemberModal("discipler", member);
     });
   }
+
+  if (el.cellsMemberModalTransferBtn) {
+    el.cellsMemberModalTransferBtn.addEventListener("click", function () {
+      const memberId = toNumber(el.cellsMemberModalId ? el.cellsMemberModalId.value : 0, 0);
+      if (!memberId) return;
+      closeMemberPeopleModal();
+      openTransferMemberModal(memberId);
+    });
+  }
+
+  if (el.cellsTransferMemberModalCloseBtn) {
+    el.cellsTransferMemberModalCloseBtn.addEventListener("click", closeTransferMemberModal);
+  }
+
+  if (el.cellsTransferMemberModalCancelBtn) {
+    el.cellsTransferMemberModalCancelBtn.addEventListener("click", closeTransferMemberModal);
+  }
+
+  if (el.cellsTransferMemberModalSaveBtn) {
+    el.cellsTransferMemberModalSaveBtn.addEventListener("click", function () {
+      handleLoadError(transferMemberToCell, "Falha ao transferir membro.");
+    });
+  }
+
+  if (el.cellsLostSheepRefreshBtn) {
+    el.cellsLostSheepRefreshBtn.addEventListener("click", function () {
+      handleLoadError(loadLostSheepData, "Falha ao atualizar ovelhas perdidas.");
+    });
+  }
+
+  if (el.cellsLostSheepModalCloseBtn) {
+    el.cellsLostSheepModalCloseBtn.addEventListener("click", closeLostSheepModal);
+  }
+
+  if (el.cellsLostSheepModalCancelBtn) {
+    el.cellsLostSheepModalCancelBtn.addEventListener("click", closeLostSheepModal);
+  }
+
+  if (el.cellsLostSheepModalConfirmBtn) {
+    el.cellsLostSheepModalConfirmBtn.addEventListener("click", function () {
+      handleLoadError(markMemberAsLostSheep, "Falha ao marcar como ovelha perdida.");
+    });
+  }
+
+  if (el.cellsLostSheepVisitModalCloseBtn) {
+    el.cellsLostSheepVisitModalCloseBtn.addEventListener("click", closeLostSheepVisitModal);
+  }
+
+  if (el.cellsLostSheepVisitModalCancelBtn) {
+    el.cellsLostSheepVisitModalCancelBtn.addEventListener("click", closeLostSheepVisitModal);
+  }
+
+  if (el.cellsLostSheepVisitModalConfirmBtn) {
+    el.cellsLostSheepVisitModalConfirmBtn.addEventListener("click", function () {
+      handleLoadError(recordLostSheepVisit, "Falha ao registrar visita.");
+    });
+  }
+
+  if (el.cellsPeopleView) {
+    el.cellsPeopleView.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      if (target.classList.contains("cells-edit-member-people-btn")) {
+        const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+        if (!memberId) return;
+        openMemberPeopleModal(memberId);
+      }
+
+      if (target.classList.contains("cells-transfer-member-btn")) {
+        const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+        if (!memberId) return;
+        openTransferMemberModal(memberId);
+      }
+
+      if (target.classList.contains("cells-mark-lost-sheep-btn")) {
+        const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+        const cellId = toNumber(target.getAttribute("data-cell-id"), 0);
+        const memberName = valueOr(target.getAttribute("data-member-name"), "");
+        if (!memberId || !cellId) return;
+        openLostSheepModal(memberId, cellId, memberName);
+      }
+
+      if (target.classList.contains("cells-promote-btn")) {
+        const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+        const stage = valueOr(target.getAttribute("data-target-stage"), "");
+        if (!memberId || !stage) return;
+        handleLoadError(async function () {
+          await promotePersonInSelectedCell(memberId, stage);
+          await loadPeopleViewData();
+        }, "Falha ao promover pessoa.");
+      }
+    });
+  }
+
+  if (el.cellsLostSheepView) {
+    el.cellsLostSheepView.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      if (target.classList.contains("cells-lost-sheep-visit-btn")) {
+        const lostSheepId = toNumber(target.getAttribute("data-lost-sheep-id"), 0);
+        if (!lostSheepId) return;
+        openLostSheepVisitModal(lostSheepId);
+      }
+    });
+  }
+
 })();

@@ -18,6 +18,7 @@ from app.db.models.cell_meeting import CellMeeting
 from app.db.models.cell_meeting_attendance import CellMeetingAttendance
 from app.db.models.cell_visitor import CellVisitor
 from app.db.models.cell_meeting_visitor import CellMeetingVisitor
+from app.db.models.lost_sheep import LostSheep
 
 __all__ = [
     "User",

@@ -1,8 +1,9 @@
 # Role constants
 ROLE_ADMIN = "admin"
 ROLE_EDITOR = "editor"
+ROLE_LEADER = "leader"
 ROLE_VIEWER = "viewer"
-ROLES = [ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER]
+ROLES = [ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_VIEWER]
 
 # Transaction type constants
 INCOME = "income"

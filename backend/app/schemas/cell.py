@@ -97,8 +97,23 @@ class CellMemberBase(BaseModel):
     contact: Optional[str] = None
 
 
+def _normalize_member_stage(value: str) -> str:
+    allowed = {"visitor", "assiduo", "member"}
+    normalized = value.strip().lower()
+    if normalized not in allowed:
+        raise ValueError("stage must be visitor, assiduo or member")
+    return normalized
+
+
 class CellMemberCreate(CellMemberBase):
     status: str = "active"
+    user_id: Optional[int] = None
+    stage: str = "member"
+
+    @field_validator("stage")
+    @classmethod
+    def validate_stage(cls, value: str) -> str:
+        return _normalize_member_stage(value)
 
 
 class CellMemberUpdate(BaseModel):
@@ -106,10 +121,21 @@ class CellMemberUpdate(BaseModel):
     contact: Optional[str] = None
     status: Optional[str] = None
     is_active: Optional[bool] = None
+    user_id: Optional[int] = None
+    stage: Optional[str] = None
+
+    @field_validator("stage")
+    @classmethod
+    def validate_stage(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        return _normalize_member_stage(value)
 
 
 class CellMemberResponse(CellMemberBase):
     id: int
+    user_id: Optional[int] = None
+    stage: str
     status: str
     is_active: bool
     created_at: datetime
@@ -192,6 +218,15 @@ class CellMemberTransferRequest(BaseModel):
     target_cell_id: int
     transfer_date: Optional[date] = None
     transfer_reason: Optional[str] = None
+
+
+class CellMemberPromoteRequest(BaseModel):
+    target_stage: str
+
+    @field_validator("target_stage")
+    @classmethod
+    def validate_target_stage(cls, value: str) -> str:
+        return _normalize_member_stage(value)
 
 
 class CellMeetingBase(BaseModel):
@@ -337,3 +372,57 @@ class CellHistoryPoint(BaseModel):
     visitors_count: int
     new_members_count: int
     average_frequency_percent: float
+
+
+class CellMissingReportWeek(BaseModel):
+    week_start: date
+    week_end: date
+
+
+class CellDashboardInsightsResponse(BaseModel):
+    cell_id: int
+    period_start: date
+    period_end: date
+    meetings_count: int
+    total_visitors: int
+    member_frequency_percent: float
+    assiduous_members_count: int
+    visitors_average_per_meeting: float
+    low_frequency_meetings_count: int
+    weeks_without_reports_count: int
+    weeks_without_reports: list[CellMissingReportWeek]
+
+
+class CellVisitorsByDatePoint(BaseModel):
+    date: date
+    visitors_count: int
+
+
+class CellWeeklyPresencePoint(BaseModel):
+    week_start: date
+    week_end: date
+    present_total: int
+    absent_total: int
+    justified_total: int
+    expected_total: int
+
+
+class CellVisitorRetentionBucket(BaseModel):
+    bucket_label: str
+    visitors_count: int
+
+
+class CellCompositionSlice(BaseModel):
+    label: str
+    count: int
+    percent: float
+
+
+class CellDashboardChartsResponse(BaseModel):
+    cell_id: int
+    period_start: date
+    period_end: date
+    visitors_by_date: list[CellVisitorsByDatePoint]
+    weekly_presence: list[CellWeeklyPresencePoint]
+    visitor_retention: list[CellVisitorRetentionBucket]
+    composition: list[CellCompositionSlice]

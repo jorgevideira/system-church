@@ -700,8 +700,11 @@
         <p class="sidebar-title">Modulo Celulas</p>
         <button id="cellsNavDashboardBtn" class="nav-btn active" type="button">Dashboard</button>
         <button id="cellsNavCellsBtn" class="nav-btn" type="button">Celulas</button>
+        <button id="cellsNavPeopleBtn" class="nav-btn" type="button">Pessoas</button>
+        <button id="cellsNavMeetingsBtn" class="nav-btn" type="button">Reunioes</button>
         <button id="cellsNavLeadersBtn" class="nav-btn" type="button">Lideres</button>
         <button id="cellsNavDisciplersBtn" class="nav-btn" type="button">Discipuladores</button>
+        <button id="cellsNavLostSheepBtn" class="nav-btn" type="button">Ovelha Perdida</button>
       </aside>
 
       <section class="cells-content-stack">
@@ -760,23 +763,80 @@
               <span>Visitantes recorrentes</span>
               <strong id="cellsKpiRecurringTotal">0</strong>
             </article>
+            <article class="kpi-card">
+              <span>Visitantes no periodo</span>
+              <strong id="cellsKpiVisitorsPeriod">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Frequencia de membros</span>
+              <strong id="cellsKpiMembersFrequency">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Assiduos ativos</span>
+              <strong id="cellsKpiAssiduousCount">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Semanas sem relatorio</span>
+              <strong id="cellsKpiMissingWeeks">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Reunioes com alerta (&lt;70%)</span>
+              <strong id="cellsKpiLowFrequencyMeetings">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span>Tendencia da frequencia</span>
+              <strong id="cellsKpiFrequencyTrend">Estavel</strong>
+            </article>
           </section>
 
           <div class="cells-grid">
             <section class="panel">
-              <h4>Retencao no periodo</h4>
-              <canvas id="cellsRetentionChart" class="cells-canvas" aria-label="Retencao da celula"></canvas>
+              <h4>Visitantes por data (periodo filtrado)</h4>
+              <div class="cells-chart-box">
+                <canvas id="cellsRetentionChart" class="cells-canvas" aria-label="Visitantes por data"></canvas>
+              </div>
             </section>
             <section class="panel">
-              <h4>Top visitantes recorrentes</h4>
-              <canvas id="cellsVisitorsChart" class="cells-canvas" aria-label="Visitantes recorrentes"></canvas>
+              <h4>Resumo de frequencia (P/A/J/T) por reuniao</h4>
+              <div class="cells-chart-box">
+                <canvas id="cellsVisitorsChart" class="cells-canvas" aria-label="Presenca semanal de membros e assiduos"></canvas>
+              </div>
             </section>
           </div>
 
           <div class="cells-grid">
             <section class="panel">
-              <h4>Historico mensal</h4>
-              <canvas id="cellsHistoryChart" class="cells-canvas" aria-label="Historico mensal da celula"></canvas>
+              <h4>Retencao de visitantes (quantas vezes voltam)</h4>
+              <div class="cells-chart-box">
+                <canvas id="cellsHistoryChart" class="cells-canvas" aria-label="Retencao de visitantes"></canvas>
+              </div>
+            </section>
+            <section class="panel">
+              <h4>Visitantes x Membros x Assiduos (%)</h4>
+              <div class="cells-chart-box cells-chart-box-square">
+                <canvas id="cellsInsightsChart" class="cells-canvas" aria-label="Composicao visitantes membros assiduos"></canvas>
+              </div>
+            </section>
+          </div>
+
+          <div class="cells-grid">
+            <section class="panel">
+              <h4>Semanas sem relatorio preenchido</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Inicio da semana</th>
+                      <th>Fim da semana</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsMissingWeeksBody">
+                    <tr>
+                      <td colspan="2">Sem dados.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </section>
             <section class="panel">
               <h4>Visitantes recorrentes</h4>
@@ -829,6 +889,186 @@
           </div>
         </section>
 
+        <section id="cellsPeopleView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Pessoas da Celula</h3>
+            <div class="module-actions">
+              <button id="cellsPeopleRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <section class="dash-filters" aria-label="Filtro de pessoas por celula">
+            <div class="dash-filters-grid">
+              <label>Celula
+                <select id="cellsPeopleCellSelect">
+                  <option value="">Selecione</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <div class="cells-grid">
+            <section class="panel">
+              <h4>Adicionar Visitante</h4>
+              <form id="cellsPeopleVisitorForm" class="grid-form cells-form">
+                <label>Nome completo
+                  <input type="text" id="cellsPeopleVisitorName" required>
+                </label>
+                <label>Contato
+                  <input type="text" id="cellsPeopleVisitorContact" placeholder="Opcional">
+                </label>
+                <button class="btn" type="submit">Adicionar visitante</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <h4>Adicionar Assiduo</h4>
+              <form id="cellsPeopleAssiduoForm" class="grid-form cells-form">
+                <label>Nome completo
+                  <input type="text" id="cellsPeopleAssiduoName" required>
+                </label>
+                <label>Contato
+                  <input type="text" id="cellsPeopleAssiduoContact" placeholder="Opcional">
+                </label>
+                <button class="btn" type="submit">Adicionar assiduo</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <h4>Adicionar Membro</h4>
+              <form id="cellsPeopleMemberForm" class="grid-form cells-form">
+                <label>Nome completo
+                  <input type="text" id="cellsPeopleMemberName" required>
+                </label>
+                <label>Contato
+                  <input type="text" id="cellsPeopleMemberContact" placeholder="Opcional">
+                </label>
+                <button class="btn" type="submit">Adicionar membro</button>
+              </form>
+            </section>
+          </div>
+
+          <div class="cells-grid">
+            <section class="panel">
+              <h4>Visitantes</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Contato</th>
+                      <th>Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsPeopleVisitorsBody">
+                    <tr><td colspan="3">Sem registros.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h4>Assiduos</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Contato</th>
+                      <th>Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsPeopleAssiduosBody">
+                    <tr><td colspan="3">Sem registros.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h4>Membros</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Contato</th>
+                      <th>Estagio</th>
+                      <th>Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsPeopleMembersBody">
+                    <tr><td colspan="4">Sem registros.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="cellsMeetingsView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Reunioes e Frequencia</h3>
+            <div class="module-actions">
+              <button id="cellsMeetingsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <section class="dash-filters" aria-label="Filtro de reunioes por celula">
+            <div class="dash-filters-grid">
+              <label>Celula
+                <select id="cellsMeetingsCellSelect">
+                  <option value="">Selecione</option>
+                </select>
+              </label>
+              <label>Data inicial
+                <input type="date" id="cellsMeetingsStartDate">
+              </label>
+              <label>Data final
+                <input type="date" id="cellsMeetingsEndDate">
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h4>Nova reuniao</h4>
+            <form id="cellsMeetingsForm" class="grid-form cells-form">
+              <label>Data
+                <input type="date" id="cellsMeetingDate" required>
+              </label>
+              <label>Tema
+                <input type="text" id="cellsMeetingTheme" placeholder="Opcional">
+              </label>
+              <label>Observacoes
+                <input type="text" id="cellsMeetingNotes" placeholder="Opcional">
+              </label>
+              <button class="btn" type="submit">Criar reuniao</button>
+            </form>
+          </section>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tema</th>
+                  <th>Observacoes</th>
+                  <th>Resumo frequencia</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="cellsMeetingsBody">
+                <tr><td colspan="5">Sem reunioes cadastradas.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="module-actions">
+            <button id="cellsMeetingsPrevBtn" class="btn ghost btn-mini" type="button">Anterior</button>
+            <span id="cellsMeetingsPageInfo" class="tiny">Pag. 1/1</span>
+            <button id="cellsMeetingsNextBtn" class="btn ghost btn-mini" type="button">Proxima</button>
+          </div>
+        </section>
+
         <section id="cellsLeadersView" class="panel cells-view hide">
           <div class="section-title">
             <h3>Lideres</h3>
@@ -876,6 +1116,33 @@
               </thead>
               <tbody id="cellsDisciplersBody">
                 <tr><td colspan="4">Sem registros.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="cellsLostSheepView" class="panel cells-view hide">
+          <div class="section-title">
+            <h3>Ovelhas Perdidas</h3>
+            <div class="module-actions">
+              <button id="cellsLostSheepRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Numero</th>
+                  <th>Celula Anterior</th>
+                  <th>Data Marcada</th>
+                  <th>Visitada</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="cellsLostSheepBody">
+                <tr><td colspan="6">Sem registros.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1016,6 +1283,7 @@
       <form id="cellsMemberModalForm" class="grid-form modal-edit-form">
         <input type="hidden" id="cellsMemberModalId">
         <input type="hidden" id="cellsMemberModalRoleTag">
+        <input type="hidden" id="cellsMemberModalCellId">
         <label>Nome completo
           <input type="text" id="cellsMemberModalName" required>
         </label>
@@ -1030,10 +1298,77 @@
         </label>
         <div class="modal-actions">
           <button id="cellsMemberModalDisableBtn" class="btn ghost" type="button">Desabilitar</button>
-          <button id="cellsMemberModalDeleteBtn" class="btn ghost" type="button">Excluir</button>
+          <button id="cellsMemberModalTransferBtn" class="btn ghost" type="button">Transferir para outra celula</button>
           <button class="btn" type="submit">Salvar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="cellsTransferMemberModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Transferir Membro para Outra Celula</h3>
+        <button id="cellsTransferMemberModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="cellsTransferMemberModalForm" class="grid-form modal-edit-form">
+        <input type="hidden" id="cellsTransferMemberModalMemberId">
+        <label>Celula de destino
+          <select id="cellsTransferMemberModalTargetCell" required>
+            <option value="">Selecione</option>
+          </select>
+        </label>
+        <label>Motivo da transferencia
+          <input type="text" id="cellsTransferMemberModalReason" placeholder="Opcional">
+        </label>
+      </form>
+      <div class="modal-actions">
+        <button id="cellsTransferMemberModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="cellsTransferMemberModalSaveBtn" class="btn" type="button">Transferir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cellsLostSheepModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Marcar Ovelha Perdida</h3>
+        <button id="cellsLostSheepModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="cellsLostSheepModalForm" class="grid-form modal-edit-form">
+        <input type="hidden" id="cellsLostSheepModalMemberId">
+        <input type="hidden" id="cellsLostSheepModalCellId">
+        <input type="hidden" id="cellsLostSheepModalMemberName">
+        <label>Numero (telefone)
+          <input type="text" id="cellsLostSheepModalPhone" placeholder="Opcional">
+        </label>
+        <label>Motivo/Observacao
+          <textarea id="cellsLostSheepModalObservation" placeholder="Opcional" rows="3"></textarea>
+        </label>
+      </form>
+      <div class="modal-actions">
+        <button id="cellsLostSheepModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="cellsLostSheepModalConfirmBtn" class="btn" type="button">Marcar como Ovelha Perdida</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cellsLostSheepVisitModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3 id="cellsLostSheepVisitModalTitle">Registrar Visita</h3>
+        <button id="cellsLostSheepVisitModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="cellsLostSheepVisitModalForm" class="grid-form modal-edit-form">
+        <input type="hidden" id="cellsLostSheepVisitModalId">
+        <label>Observacao da Visita
+          <textarea id="cellsLostSheepVisitModalObservation" placeholder="Como foi a visita?" rows="4"></textarea>
+        </label>
+      </form>
+      <div class="modal-actions">
+        <button id="cellsLostSheepVisitModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="cellsLostSheepVisitModalConfirmBtn" class="btn" type="button">Registrar Visita</button>
+      </div>
     </div>
   </div>
 
@@ -1049,6 +1384,34 @@
       <div class="modal-actions">
         <button id="cellsConfirmModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
         <button id="cellsConfirmModalConfirmBtn" class="btn" type="button">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cellsAttendanceModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3 id="cellsAttendanceModalTitle">Frequencia</h3>
+        <button id="cellsAttendanceModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <input type="hidden" id="cellsAttendanceMeetingId">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="cellsAttendanceBody">
+            <tr><td colspan="2">Sem membros ativos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button id="cellsAttendanceModalCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="cellsAttendanceModalSaveAndPeopleBtn" class="btn ghost" type="button">Salvar e abrir Pessoas</button>
+        <button id="cellsAttendanceModalSaveBtn" class="btn" type="button">Salvar frequencia</button>
       </div>
     </div>
   </div>
@@ -1254,6 +1617,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
   <script src="cells-module.js"></script>
 </body>

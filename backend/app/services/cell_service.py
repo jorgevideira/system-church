@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from calendar import monthrange
 from typing import Optional
 
@@ -13,6 +13,7 @@ from app.db.models.cell_meeting import CellMeeting
 from app.db.models.cell_meeting_attendance import CellMeetingAttendance
 from app.db.models.cell_visitor import CellVisitor
 from app.db.models.cell_meeting_visitor import CellMeetingVisitor
+from app.db.models.user import User
 from app.schemas.cell import (
     CellCreate,
     CellLeaderAssignmentCreate,
@@ -27,11 +28,38 @@ from app.schemas.cell import (
 )
 
 
-def list_cells(db: Session, status_filter: Optional[str] = None) -> list[Cell]:
+def list_cells(
+    db: Session,
+    status_filter: Optional[str] = None,
+    allowed_cell_ids: Optional[list[int]] = None,
+) -> list[Cell]:
     q = db.query(Cell)
+    if allowed_cell_ids is not None:
+        if not allowed_cell_ids:
+            return []
+        q = q.filter(Cell.id.in_(allowed_cell_ids))
     if status_filter:
         q = q.filter(Cell.status == status_filter)
     return q.order_by(Cell.name.asc()).all()
+
+
+def list_cell_ids_led_by_user(db: Session, user: User) -> list[int]:
+    rows = (
+        db.query(CellLeaderAssignment.cell_id)
+        .join(CellMember, CellMember.id == CellLeaderAssignment.member_id)
+        .filter(
+            CellMember.user_id == user.id,
+            CellLeaderAssignment.active.is_(True),
+        )
+        .distinct()
+        .all()
+    )
+    return [row.cell_id for row in rows]
+
+
+def user_has_access_to_cell(db: Session, user: User, cell_id: int) -> bool:
+    led_cell_ids = list_cell_ids_led_by_user(db, user)
+    return cell_id in led_cell_ids
 
 
 def get_cell(db: Session, cell_id: int) -> Optional[Cell]:
@@ -69,11 +97,41 @@ def create_member(db: Session, payload: CellMemberCreate) -> CellMember:
     return member
 
 
-def list_members(db: Session, status_filter: Optional[str] = None) -> list[CellMember]:
+def list_members(
+    db: Session,
+    status_filter: Optional[str] = None,
+    allowed_cell_ids: Optional[list[int]] = None,
+) -> list[CellMember]:
     q = db.query(CellMember)
+    if allowed_cell_ids is not None:
+        if not allowed_cell_ids:
+            return []
+        q = (
+            q.join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+            .filter(
+                CellMemberLink.active.is_(True),
+                CellMemberLink.cell_id.in_(allowed_cell_ids),
+            )
+            .distinct()
+        )
     if status_filter:
         q = q.filter(CellMember.status == status_filter)
     return q.order_by(CellMember.full_name.asc()).all()
+
+
+def member_is_in_cells(db: Session, member_id: int, allowed_cell_ids: list[int]) -> bool:
+    if not allowed_cell_ids:
+        return False
+    link = (
+        db.query(CellMemberLink)
+        .filter(
+            CellMemberLink.member_id == member_id,
+            CellMemberLink.active.is_(True),
+            CellMemberLink.cell_id.in_(allowed_cell_ids),
+        )
+        .first()
+    )
+    return link is not None
 
 
 def get_member(db: Session, member_id: int) -> Optional[CellMember]:
@@ -100,6 +158,72 @@ def list_cell_members(db: Session, cell_id: int) -> list[CellMemberLink]:
     )
 
 
+def list_cell_people(
+    db: Session,
+    cell_id: int,
+    stage_filter: Optional[str] = None,
+    on_date: Optional[date] = None,
+) -> list[CellMember]:
+    q = (
+        db.query(CellMember)
+        .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+        .filter(
+            CellMemberLink.cell_id == cell_id,
+            CellMember.status == "active",
+            CellMember.is_active.is_(True),
+        )
+    )
+
+    if on_date:
+        q = q.filter(
+            CellMemberLink.start_date <= on_date,
+            (CellMemberLink.end_date.is_(None)) | (CellMemberLink.end_date >= on_date),
+        )
+    else:
+        q = q.filter(CellMemberLink.active.is_(True))
+
+    if stage_filter:
+        q = q.filter(CellMember.stage == stage_filter)
+    return q.order_by(CellMember.full_name.asc()).all()
+
+
+def promote_member_stage(
+    db: Session,
+    *,
+    cell_id: int,
+    member: CellMember,
+    target_stage: str,
+) -> CellMember:
+    active_link = (
+        db.query(CellMemberLink)
+        .filter(
+            CellMemberLink.cell_id == cell_id,
+            CellMemberLink.member_id == member.id,
+            CellMemberLink.active.is_(True),
+        )
+        .first()
+    )
+    if not active_link:
+        raise ValueError("Member is not linked to this cell")
+
+    current_stage = (member.stage or "member").strip().lower()
+    allowed_transitions = {
+        "visitor": {"assiduo", "member"},
+        "assiduo": {"member"},
+        "member": set(),
+    }
+
+    if target_stage == current_stage:
+        return member
+    if target_stage not in allowed_transitions.get(current_stage, set()):
+        raise ValueError("Invalid promotion transition")
+
+    member.stage = target_stage
+    db.commit()
+    db.refresh(member)
+    return member
+
+
 def assign_member_to_cell(
     db: Session,
     cell_id: int,
@@ -121,6 +245,32 @@ def assign_member_to_cell(
         active=True,
     )
     db.add(link)
+    db.commit()
+    db.refresh(link)
+    return link
+
+
+def unassign_member_from_cell(
+    db: Session,
+    *,
+    cell_id: int,
+    member_id: int,
+    end_date: Optional[date] = None,
+) -> CellMemberLink:
+    link = (
+        db.query(CellMemberLink)
+        .filter(
+            CellMemberLink.cell_id == cell_id,
+            CellMemberLink.member_id == member_id,
+            CellMemberLink.active.is_(True),
+        )
+        .first()
+    )
+    if not link:
+        raise ValueError("Member is not linked to this cell")
+
+    link.active = False
+    link.end_date = end_date or date.today()
     db.commit()
     db.refresh(link)
     return link
@@ -368,8 +518,9 @@ def get_cells_summary(
     db: Session,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    allowed_cell_ids: Optional[list[int]] = None,
 ) -> list[dict]:
-    cells = list_cells(db)
+    cells = list_cells(db, allowed_cell_ids=allowed_cell_ids)
     rows: list[dict] = []
     for cell in cells:
         active_members = (
@@ -672,3 +823,343 @@ def get_cell_history(db: Session, cell_id: int, months: int = 6) -> list[dict]:
             year += 1
 
     return rows
+
+
+def get_cell_dashboard_insights(
+    db: Session,
+    cell_id: int,
+    start_date: date,
+    end_date: date,
+) -> dict:
+    meetings = (
+        db.query(CellMeeting)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+        )
+        .order_by(CellMeeting.meeting_date.asc())
+        .all()
+    )
+
+    meeting_ids = [meeting.id for meeting in meetings]
+    meetings_count = len(meetings)
+
+    total_visitors = 0
+    present_total = 0
+    low_frequency_meetings_count = 0
+    if meeting_ids:
+        total_visitors = (
+            db.query(CellMeetingVisitor)
+            .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .count()
+        )
+
+        present_total = (
+            db.query(CellMeetingAttendance)
+            .filter(
+                CellMeetingAttendance.meeting_id.in_(meeting_ids),
+                CellMeetingAttendance.attendance_status == "present",
+            )
+            .count()
+        )
+
+    assiduous_members_count = (
+        db.query(CellMember)
+        .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+        .filter(
+            CellMemberLink.cell_id == cell_id,
+            CellMemberLink.active.is_(True),
+            CellMember.stage == "assiduo",
+        )
+        .count()
+    )
+
+    active_members = (
+        db.query(CellMemberLink)
+        .filter(CellMemberLink.cell_id == cell_id, CellMemberLink.active.is_(True))
+        .count()
+    )
+
+    denominator = meetings_count * active_members
+    member_frequency_percent = round((present_total / denominator) * 100, 2) if denominator else 0.0
+    visitors_average_per_meeting = round((total_visitors / meetings_count), 2) if meetings_count else 0.0
+
+    if meetings_count and active_members:
+        for meeting in meetings:
+            present_for_meeting = (
+                db.query(CellMeetingAttendance)
+                .filter(
+                    CellMeetingAttendance.meeting_id == meeting.id,
+                    CellMeetingAttendance.attendance_status == "present",
+                )
+                .count()
+            )
+            frequency_percent = (present_for_meeting / active_members) * 100
+            if frequency_percent < 70:
+                low_frequency_meetings_count += 1
+
+    weeks_without_reports: list[dict] = []
+    week_start = start_date - timedelta(days=start_date.weekday())
+    while week_start <= end_date:
+        week_end = min(week_start + timedelta(days=6), end_date)
+        has_meeting = any(week_start <= meeting.meeting_date <= week_end for meeting in meetings)
+        if not has_meeting:
+            weeks_without_reports.append({"week_start": week_start, "week_end": week_end})
+        week_start += timedelta(days=7)
+
+    return {
+        "cell_id": cell_id,
+        "period_start": start_date,
+        "period_end": end_date,
+        "meetings_count": meetings_count,
+        "total_visitors": total_visitors,
+        "member_frequency_percent": member_frequency_percent,
+        "assiduous_members_count": assiduous_members_count,
+        "visitors_average_per_meeting": visitors_average_per_meeting,
+        "low_frequency_meetings_count": low_frequency_meetings_count,
+        "weeks_without_reports_count": len(weeks_without_reports),
+        "weeks_without_reports": weeks_without_reports,
+    }
+
+
+def get_cell_dashboard_charts(
+    db: Session,
+    cell_id: int,
+    start_date: date,
+    end_date: date,
+) -> dict:
+    meetings = (
+        db.query(CellMeeting)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+        )
+        .order_by(CellMeeting.meeting_date.asc())
+        .all()
+    )
+
+    meeting_ids = [meeting.id for meeting in meetings]
+
+    stage_normalized = func.lower(func.trim(CellMember.stage))
+
+    visitors_count_by_meeting_id = {}
+    if meeting_ids:
+        external_visitors_rows = (
+            db.query(
+                CellMeetingVisitor.meeting_id,
+                func.count(CellMeetingVisitor.id).label("visitors_count"),
+            )
+            .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .group_by(CellMeetingVisitor.meeting_id)
+            .all()
+        )
+        visitors_count_by_meeting_id = {
+            int(row.meeting_id): int(row.visitors_count)
+            for row in external_visitors_rows
+        }
+
+        visitor_members_rows = (
+            db.query(
+                CellMeetingAttendance.meeting_id,
+                func.count(func.distinct(CellMeetingAttendance.member_id)).label("visitors_count"),
+            )
+            .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+            .filter(
+                CellMeetingAttendance.meeting_id.in_(meeting_ids),
+                CellMeetingAttendance.attendance_status == "present",
+                stage_normalized.in_(["visitor", "visitante"]),
+            )
+            .group_by(CellMeetingAttendance.meeting_id)
+            .all()
+        )
+
+        for row in visitor_members_rows:
+            meeting_id = int(row.meeting_id)
+            visitors_count_by_meeting_id[meeting_id] = visitors_count_by_meeting_id.get(meeting_id, 0) + int(row.visitors_count)
+
+    visitors_by_date: list[dict] = []
+    visitors_by_day_index: dict[date, int] = {}
+    for meeting in meetings:
+        visitors_for_meeting = visitors_count_by_meeting_id.get(int(meeting.id), 0)
+        visitors_by_day_index[meeting.meeting_date] = visitors_by_day_index.get(meeting.meeting_date, 0) + visitors_for_meeting
+
+    for meeting_date in sorted(visitors_by_day_index.keys()):
+        visitors_by_date.append(
+            {
+                "date": meeting_date,
+                "visitors_count": visitors_by_day_index[meeting_date],
+            }
+        )
+
+    weekly_presence: list[dict] = []
+    for meeting in meetings:
+        present_total = (
+            db.query(func.count(CellMeetingAttendance.id))
+            .filter(
+                CellMeetingAttendance.meeting_id == meeting.id,
+                CellMeetingAttendance.attendance_status == "present",
+            )
+            .scalar()
+        ) or 0
+
+        absent_total = (
+            db.query(func.count(CellMeetingAttendance.id))
+            .filter(
+                CellMeetingAttendance.meeting_id == meeting.id,
+                CellMeetingAttendance.attendance_status == "absent",
+            )
+            .scalar()
+        ) or 0
+
+        justified_total = (
+            db.query(func.count(CellMeetingAttendance.id))
+            .filter(
+                CellMeetingAttendance.meeting_id == meeting.id,
+                CellMeetingAttendance.attendance_status == "justified",
+            )
+            .scalar()
+        ) or 0
+
+        expected_total = int(present_total) + int(absent_total) + int(justified_total)
+
+        weekly_presence.append(
+            {
+                "week_start": meeting.meeting_date,
+                "week_end": meeting.meeting_date,
+                "present_total": int(present_total),
+                "absent_total": int(absent_total),
+                "justified_total": int(justified_total),
+                "expected_total": expected_total,
+            }
+        )
+
+    visitor_retention = [
+        {"bucket_label": "1x", "visitors_count": 0},
+        {"bucket_label": "2x", "visitors_count": 0},
+        {"bucket_label": "3x", "visitors_count": 0},
+        {"bucket_label": "4x+", "visitors_count": 0},
+    ]
+    if meeting_ids:
+        visits_per_visitor = (
+            db.query(
+                CellMeetingVisitor.visitor_id,
+                func.count(CellMeetingVisitor.id).label("visits_count"),
+            )
+            .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .group_by(CellMeetingVisitor.visitor_id)
+            .all()
+        )
+
+        for row in visits_per_visitor:
+            visits = int(row.visits_count)
+            if visits <= 1:
+                visitor_retention[0]["visitors_count"] += 1
+            elif visits == 2:
+                visitor_retention[1]["visitors_count"] += 1
+            elif visits == 3:
+                visitor_retention[2]["visitors_count"] += 1
+            else:
+                visitor_retention[3]["visitors_count"] += 1
+
+        visits_per_visitor_member = (
+            db.query(
+                CellMeetingAttendance.member_id,
+                func.count(CellMeetingAttendance.id).label("visits_count"),
+            )
+            .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+            .filter(
+                CellMeetingAttendance.meeting_id.in_(meeting_ids),
+                CellMeetingAttendance.attendance_status == "present",
+                stage_normalized.in_(["visitor", "visitante"]),
+            )
+            .group_by(CellMeetingAttendance.member_id)
+            .all()
+        )
+
+        for row in visits_per_visitor_member:
+            visits = int(row.visits_count)
+            if visits <= 1:
+                visitor_retention[0]["visitors_count"] += 1
+            elif visits == 2:
+                visitor_retention[1]["visitors_count"] += 1
+            elif visits == 3:
+                visitor_retention[2]["visitors_count"] += 1
+            else:
+                visitor_retention[3]["visitors_count"] += 1
+
+    unique_external_visitors_count = 0
+    if meeting_ids:
+        unique_external_visitors_count = (
+            db.query(func.count(func.distinct(CellMeetingVisitor.visitor_id)))
+            .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .scalar()
+        ) or 0
+
+    unique_visitor_members_present_count = (
+        db.query(func.count(func.distinct(CellMeetingAttendance.member_id)))
+        .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
+        .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+            CellMeetingAttendance.attendance_status == "present",
+            stage_normalized.in_(["visitor", "visitante"]),
+        )
+        .scalar()
+    ) or 0
+
+    unique_members_present_count = (
+        db.query(func.count(func.distinct(CellMeetingAttendance.member_id)))
+        .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
+        .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+            CellMeetingAttendance.attendance_status == "present",
+            stage_normalized.in_(["member", "membro"]),
+        )
+        .scalar()
+    ) or 0
+
+    unique_assiduous_present_count = (
+        db.query(func.count(func.distinct(CellMeetingAttendance.member_id)))
+        .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
+        .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+            CellMeetingAttendance.attendance_status == "present",
+            stage_normalized.in_(["assiduo", "assíduo", "assidua", "assídua"]),
+        )
+        .scalar()
+    ) or 0
+
+    composition_raw = [
+        ("Visitantes", int(unique_external_visitors_count) + int(unique_visitor_members_present_count)),
+        ("Membros", int(unique_members_present_count)),
+        ("Assiduos", int(unique_assiduous_present_count)),
+    ]
+    total_composition = sum(item[1] for item in composition_raw)
+    composition = [
+        {
+            "label": label,
+            "count": count,
+            "percent": round((count / total_composition) * 100, 2) if total_composition else 0.0,
+        }
+        for label, count in composition_raw
+    ]
+
+    return {
+        "cell_id": cell_id,
+        "period_start": start_date,
+        "period_end": end_date,
+        "visitors_by_date": visitors_by_date,
+        "weekly_presence": weekly_presence,
+        "visitor_retention": visitor_retention,
+        "composition": composition,
+    }
