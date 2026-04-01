@@ -26,12 +26,15 @@
     cellsPeopleVisitorForm: document.getElementById("cellsPeopleVisitorForm"),
     cellsPeopleVisitorName: document.getElementById("cellsPeopleVisitorName"),
     cellsPeopleVisitorContact: document.getElementById("cellsPeopleVisitorContact"),
+    cellsPeopleVisitorCountStartDate: document.getElementById("cellsPeopleVisitorCountStartDate"),
     cellsPeopleAssiduoForm: document.getElementById("cellsPeopleAssiduoForm"),
     cellsPeopleAssiduoName: document.getElementById("cellsPeopleAssiduoName"),
     cellsPeopleAssiduoContact: document.getElementById("cellsPeopleAssiduoContact"),
+    cellsPeopleAssiduoCountStartDate: document.getElementById("cellsPeopleAssiduoCountStartDate"),
     cellsPeopleMemberForm: document.getElementById("cellsPeopleMemberForm"),
     cellsPeopleMemberName: document.getElementById("cellsPeopleMemberName"),
     cellsPeopleMemberContact: document.getElementById("cellsPeopleMemberContact"),
+    cellsPeopleMemberCountStartDate: document.getElementById("cellsPeopleMemberCountStartDate"),
     cellsPeopleVisitorsBody: document.getElementById("cellsPeopleVisitorsBody"),
     cellsPeopleAssiduosBody: document.getElementById("cellsPeopleAssiduosBody"),
     cellsPeopleMembersBody: document.getElementById("cellsPeopleMembersBody"),
@@ -87,6 +90,7 @@
     cellsMemberModalName: document.getElementById("cellsMemberModalName"),
     cellsMemberModalContact: document.getElementById("cellsMemberModalContact"),
     cellsMemberModalStatus: document.getElementById("cellsMemberModalStatus"),
+    cellsMemberModalCountStartDate: document.getElementById("cellsMemberModalCountStartDate"),
     cellsMemberModalCellId: document.getElementById("cellsMemberModalCellId"),
     cellsMemberModalDisableBtn: document.getElementById("cellsMemberModalDisableBtn"),
     cellsMemberModalTransferBtn: document.getElementById("cellsMemberModalTransferBtn"),
@@ -130,12 +134,8 @@
     cellsSelect: document.getElementById("cellsSelect"),
     cellsStartDate: document.getElementById("cellsStartDate"),
     cellsEndDate: document.getElementById("cellsEndDate"),
-    cellsHistoryMonths: document.getElementById("cellsHistoryMonths"),
     cellsApplyFiltersBtn: document.getElementById("cellsApplyFiltersBtn"),
     cellsRefreshBtn: document.getElementById("cellsRefreshBtn"),
-    cellsPreset30Btn: document.getElementById("cellsPreset30Btn"),
-    cellsPreset90Btn: document.getElementById("cellsPreset90Btn"),
-    cellsPreset180Btn: document.getElementById("cellsPreset180Btn"),
     cellsKpiActiveStart: document.getElementById("cellsKpiActiveStart"),
     cellsKpiRetained: document.getElementById("cellsKpiRetained"),
     cellsKpiRetentionRate: document.getElementById("cellsKpiRetentionRate"),
@@ -148,10 +148,15 @@
     cellsKpiFrequencyTrend: document.getElementById("cellsKpiFrequencyTrend"),
     cellsRecurringBody: document.getElementById("cellsRecurringBody"),
     cellsMissingWeeksBody: document.getElementById("cellsMissingWeeksBody"),
+    cellsMissingMembersBody: document.getElementById("cellsMissingMembersBody"),
     cellsRetentionChart: document.getElementById("cellsRetentionChart"),
     cellsVisitorsChart: document.getElementById("cellsVisitorsChart"),
     cellsHistoryChart: document.getElementById("cellsHistoryChart"),
+    cellsStageCountsChart: document.getElementById("cellsStageCountsChart"),
     cellsInsightsChart: document.getElementById("cellsInsightsChart"),
+    cellsDashboardLostSheepPending: document.getElementById("cellsDashboardLostSheepPending"),
+    cellsDashboardLostSheepVisited: document.getElementById("cellsDashboardLostSheepVisited"),
+    cellsDashboardLostSheepBody: document.getElementById("cellsDashboardLostSheepBody"),
     cellsCreateCellForm: document.getElementById("cellsCreateCellForm"),
     cellsCreateCellName: document.getElementById("cellsCreateCellName"),
     cellsCreateCellWeekday: document.getElementById("cellsCreateCellWeekday"),
@@ -169,6 +174,12 @@
     cellsCreateLeaderForm: document.getElementById("cellsCreateLeaderForm"),
     cellsCreateLeaderName: document.getElementById("cellsCreateLeaderName"),
     cellsCreateLeaderContact: document.getElementById("cellsCreateLeaderContact"),
+    cellsCellInfoCard: document.getElementById("cellsCellInfoCard"),
+    cellsCellInfoName: document.getElementById("cellsCellInfoName"),
+    cellsCellInfoMembers: document.getElementById("cellsCellInfoMembers"),
+    cellsCellInfoAssiduos: document.getElementById("cellsCellInfoAssiduos"),
+    cellsCellInfoVisitors: document.getElementById("cellsCellInfoVisitors"),
+    cellsCellInfoLeader: document.getElementById("cellsCellInfoLeader"),
   };
 
   if (!el.financeBtn || !el.cellsBtn || !el.financeModule || !el.cellsModule) return;
@@ -179,6 +190,7 @@
     retentionChart: null,
     visitorsChart: null,
     historyChart: null,
+    stageCountsChart: null,
     insightsChart: null,
     cells: [],
     members: [],
@@ -378,6 +390,17 @@
 
   function formatDate(date) {
     return date.toISOString().slice(0, 10);
+  }
+
+  function getTodayIsoDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function resetPeopleCountStartDateInputs() {
+    const today = getTodayIsoDate();
+    if (el.cellsPeopleVisitorCountStartDate) el.cellsPeopleVisitorCountStartDate.value = today;
+    if (el.cellsPeopleAssiduoCountStartDate) el.cellsPeopleAssiduoCountStartDate.value = today;
+    if (el.cellsPeopleMemberCountStartDate) el.cellsPeopleMemberCountStartDate.value = today;
   }
 
   function applyPreset(days) {
@@ -639,6 +662,54 @@
     });
   }
 
+  function renderStageCountsChart(points) {
+    const data = Array.isArray(points) ? points : [];
+    state.stageCountsChart = createOrUpdateChart(state.stageCountsChart, el.cellsStageCountsChart, {
+      type: "line",
+      data: {
+        labels: data.map((item) => formatDatePtBr(item.date)),
+        datasets: [
+          {
+            label: "Membros",
+            data: data.map((item) => toNumber(item.members_count, 0)),
+            borderColor: "#1565c0",
+            backgroundColor: "rgba(21, 101, 192, 0.15)",
+            pointRadius: 3,
+            tension: 0.25,
+          },
+          {
+            label: "Visitantes",
+            data: data.map((item) => toNumber(item.visitors_count, 0)),
+            borderColor: "#f57c00",
+            backgroundColor: "rgba(245, 124, 0, 0.15)",
+            pointRadius: 3,
+            tension: 0.25,
+          },
+          {
+            label: "Assiduos",
+            data: data.map((item) => toNumber(item.assiduous_count, 0)),
+            borderColor: "#0a8f72",
+            backgroundColor: "rgba(10, 143, 114, 0.15)",
+            pointRadius: 3,
+            tension: 0.25,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0,
+            },
+          },
+        },
+      },
+    });
+  }
+
   function renderMissingWeeks(rows) {
     if (!el.cellsMissingWeeksBody) return;
     if (!Array.isArray(rows) || !rows.length) {
@@ -646,8 +717,100 @@
       return;
     }
 
-    el.cellsMissingWeeksBody.innerHTML = rows
+    // Filter weeks by cell members count_start_date
+    const allMembers = state.peopleByStage ? [
+      ...(state.peopleByStage.member || []),
+      ...(state.peopleByStage.assiduo || []),
+      ...(state.peopleByStage.visitor || [])
+    ] : [];
+    
+    const earliestCountDate = allMembers.length > 0
+      ? new Date(Math.min(...allMembers.map((m) => new Date(valueOr(m.count_start_date, "1970-01-01")).getTime())))
+      : new Date("1970-01-01");
+
+    const filteredRows = rows.filter((week) => {
+      const weekStart = new Date(week.week_start);
+      return weekStart >= earliestCountDate;
+    });
+
+    if (!filteredRows.length) {
+      el.cellsMissingWeeksBody.innerHTML = '<tr><td colspan="2">Nenhuma semana sem relatorio no periodo (apos data de cadastro).</td></tr>';
+      return;
+    }
+
+    el.cellsMissingWeeksBody.innerHTML = filteredRows
       .map((item) => `<tr><td>${escapeHtml(formatDatePtBr(item.week_start))}</td><td>${escapeHtml(formatDatePtBr(item.week_end))}</td></tr>`)
+      .join("");
+  }
+
+  function renderMissingMembers(meetings) {
+    if (!el.cellsMissingMembersBody) return;
+
+    const members = state.peopleByStage ? (state.peopleByStage.member || []) : [];
+    const assiduos = state.peopleByStage ? (state.peopleByStage.assiduo || []) : [];
+    const allPeople = [...members, ...assiduos];
+
+    if (!Array.isArray(meetings) || meetings.length === 0 || allPeople.length === 0) {
+      el.cellsMissingMembersBody.innerHTML = '<tr><td colspan="3">Sem dados ou nenhuma reuniao no periodo.</td></tr>';
+      return;
+    }
+
+    const meetsCount = meetings.length;
+    const peopleWithAbsences = allPeople.map((person) => {
+      const absences = meetings.filter((meeting) => {
+        const isDueDate = new Date(meeting.meeting_date) >= new Date(valueOr(person.count_start_date, "1970-01-01"));
+        if (!isDueDate) return false;
+        const attendance = Array.isArray(meeting.attendance) ? meeting.attendance : [];
+        return !attendance.some((a) => toNumber(a.member_id, 0) === person.id && valueOr(a.status, "").toLowerCase() !== "absent");
+      }).length;
+      return { person, absences };
+    }).filter((item) => item.absences > 0);
+
+    if (!peopleWithAbsences.length) {
+      el.cellsMissingMembersBody.innerHTML = '<tr><td colspan="3">Todos compareceram em todas as reunioes.</td></tr>';
+      return;
+    }
+
+    el.cellsMissingMembersBody.innerHTML = peopleWithAbsences
+      .sort((a, b) => b.absences - a.absences)
+      .map((item) => {
+        const type = members.some((m) => m.id === item.person.id) ? "Membro" : "Assiduo";
+        return `<tr>
+          <td>${escapeHtml(valueOr(item.person.full_name, `Pessoa ${item.person.id}`))}</td>
+          <td>${escapeHtml(type)}</td>
+          <td>${item.absences}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function renderDashboardLostSheep(cellId, lostSheepRows) {
+    const rows = (Array.isArray(lostSheepRows) ? lostSheepRows : []).filter(
+      (item) => toNumber(item && item.previous_cell_id, 0) === toNumber(cellId, 0)
+    );
+
+    const pending = rows.filter((item) => !(item && item.visit_completed)).length;
+    const visited = rows.filter((item) => item && item.visit_completed).length;
+
+    if (el.cellsDashboardLostSheepPending) el.cellsDashboardLostSheepPending.textContent = String(pending);
+    if (el.cellsDashboardLostSheepVisited) el.cellsDashboardLostSheepVisited.textContent = String(visited);
+
+    if (!el.cellsDashboardLostSheepBody) return;
+    if (!rows.length) {
+      el.cellsDashboardLostSheepBody.innerHTML = '<tr><td colspan="3">Sem ovelhas perdidas nesta celula.</td></tr>';
+      return;
+    }
+
+    el.cellsDashboardLostSheepBody.innerHTML = rows
+      .slice(0, 8)
+      .map((item) => {
+        const status = item && item.visit_completed ? "Visitada" : "Pendente";
+        return `<tr>
+          <td>${escapeHtml(valueOr(item && item.member_name, "-"))}</td>
+          <td>${escapeHtml(formatDatePtBr(valueOr(item && item.marked_as_lost_date, "")))}</td>
+          <td>${escapeHtml(status)}</td>
+        </tr>`;
+      })
       .join("");
   }
 
@@ -670,6 +833,25 @@
     renderMissingWeeks(Array.isArray(insights.weeks_without_reports) ? insights.weeks_without_reports : []);
 
     if (!el.cellsInsightsChart) return;
+  }
+
+  function renderCellInfoCard() {
+    const cellId = toNumber(el.cellsSelect ? el.cellsSelect.value : 0, 0);
+    if (!cellId) return;
+
+    const cell = state.cells.find((c) => c.id === cellId);
+    if (!cell) return;
+
+    const leadership = getCellLeadership(cellId);
+    const totalMembers = state.peopleByStage ? (state.peopleByStage.member || []).length : 0;
+    const totalAssiduos = state.peopleByStage ? (state.peopleByStage.assiduo || []).length : 0;
+    const totalVisitors = state.peopleByStage ? (state.peopleByStage.visitor || []).length : 0;
+
+    if (el.cellsCellInfoName) el.cellsCellInfoName.textContent = valueOr(cell.name, `Celula ${cellId}`);
+    if (el.cellsCellInfoMembers) el.cellsCellInfoMembers.textContent = String(totalMembers);
+    if (el.cellsCellInfoAssiduos) el.cellsCellInfoAssiduos.textContent = String(totalAssiduos);
+    if (el.cellsCellInfoVisitors) el.cellsCellInfoVisitors.textContent = String(totalVisitors);
+    if (el.cellsCellInfoLeader) el.cellsCellInfoLeader.textContent = valueOr(leadership.leaderName, "-");
   }
 
   function fillCellOptions(selectElement, cells, placeholder) {
@@ -953,19 +1135,25 @@
       .join("");
   }
 
+  async function refreshLeadershipByCellMap() {
+    if (!state.cells.length) {
+      state.leadershipByCellId = {};
+      return;
+    }
+
+    const assignmentsByCell = await Promise.all(state.cells.map((cell) => api(`/cells/${cell.id}/leaders`)));
+    tagMembersFromAssignments(assignmentsByCell);
+
+    state.leadershipByCellId = {};
+    state.cells.forEach((cell, index) => {
+      const selections = getCellActiveRoleSelections(assignmentsByCell[index]);
+      state.leadershipByCellId[String(cell.id)] = selections;
+    });
+  }
+
   async function refreshCellsAdminData() {
     await Promise.all([loadCells(), loadMembers()]);
-    if (state.cells.length) {
-      const assignmentsByCell = await Promise.all(state.cells.map((cell) => api(`/cells/${cell.id}/leaders`)));
-      tagMembersFromAssignments(assignmentsByCell);
-      state.leadershipByCellId = {};
-      state.cells.forEach((cell, index) => {
-        const selections = getCellActiveRoleSelections(assignmentsByCell[index]);
-        state.leadershipByCellId[String(cell.id)] = selections;
-      });
-    } else {
-      state.leadershipByCellId = {};
-    }
+    await refreshLeadershipByCellMap();
 
     renderCellsListTable();
     renderRoleMembersTable("leader", el.cellsLeadersBody);
@@ -981,7 +1169,7 @@
 
   function renderPeopleTableRows(stage, members) {
     if (!Array.isArray(members) || !members.length) {
-      return '<tr><td colspan="3">Sem registros.</td></tr>';
+      return '<tr><td colspan="4">Sem registros.</td></tr>';
     }
 
     return members
@@ -996,6 +1184,7 @@
         return `<tr>
           <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
           <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
+          <td>${escapeHtml(formatDatePtBr(valueOr(member.count_start_date, "")))}</td>
           <td>${actions}</td>
         </tr>`;
       })
@@ -1021,10 +1210,11 @@
             <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
             <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
             <td>${escapeHtml(memberStageLabel(member))}</td>
+            <td>${escapeHtml(formatDatePtBr(valueOr(member.count_start_date, "")))}</td>
             <td>${actions}</td>
           </tr>`;
         }).join("")
-        : '<tr><td colspan="4">Sem registros.</td></tr>';
+        : '<tr><td colspan="5">Sem registros.</td></tr>';
     }
   }
 
@@ -1049,10 +1239,11 @@
     renderPeopleTables();
   }
 
-  async function addPersonToSelectedCell(stage, fullName, contact) {
+  async function addPersonToSelectedCell(stage, fullName, contact, countStartDate) {
     const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
     if (!cellId) throw new Error("Selecione uma celula para cadastrar pessoas.");
     if (!fullName) throw new Error("Informe o nome completo.");
+    if (!countStartDate) throw new Error("Informe a data de cadastrado.");
 
     const member = await api("/cells/members/all", {
       method: "POST",
@@ -1061,12 +1252,13 @@
         contact: contact || null,
         status: "active",
         stage,
+        count_start_date: countStartDate,
       }),
     });
 
     await api(`/cells/${cellId}/members/${member.id}`, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ start_date: countStartDate }),
     });
   }
 
@@ -1130,6 +1322,9 @@
     if (el.cellsMemberModalName) el.cellsMemberModalName.value = valueOr(member.full_name, "");
     if (el.cellsMemberModalContact) el.cellsMemberModalContact.value = valueOr(member.contact, "");
     if (el.cellsMemberModalStatus) el.cellsMemberModalStatus.value = valueOr(member.status, "active");
+    if (el.cellsMemberModalCountStartDate) {
+      el.cellsMemberModalCountStartDate.value = valueOr(member.count_start_date, getTodayIsoDate());
+    }
     if (el.cellsMemberModal) el.cellsMemberModal.classList.remove("hide");
   }
 
@@ -1576,6 +1771,11 @@
     if (el.cellsMemberModalName) el.cellsMemberModalName.value = editing ? valueOr(member.full_name, "") : "";
     if (el.cellsMemberModalContact) el.cellsMemberModalContact.value = editing ? valueOr(member.contact, "") : "";
     if (el.cellsMemberModalStatus) el.cellsMemberModalStatus.value = editing ? valueOr(member.status, "active") : "active";
+    if (el.cellsMemberModalCountStartDate) {
+      el.cellsMemberModalCountStartDate.value = editing
+        ? valueOr(member.count_start_date, getTodayIsoDate())
+        : getTodayIsoDate();
+    }
 
     if (el.cellsMemberModalDisableBtn) el.cellsMemberModalDisableBtn.classList.toggle("hide", !editing);
     if (el.cellsMemberModalDeleteBtn) el.cellsMemberModalDeleteBtn.classList.toggle("hide", !editing);
@@ -1734,22 +1934,36 @@
     const cellId = toNumber(el.cellsSelect.value, 0);
     if (!cellId) throw new Error("Selecione uma celula.");
 
+    if (!state.leadershipByCellId[String(cellId)]) {
+      await refreshLeadershipByCellMap();
+    }
+
     const startDate = el.cellsStartDate.value;
     const endDate = el.cellsEndDate.value;
-    const months = toNumber(el.cellsHistoryMonths.value, 6);
 
     if (!startDate || !endDate) throw new Error("Informe data inicial e final.");
     if (new Date(startDate) > new Date(endDate)) throw new Error("Data inicial nao pode ser maior que data final.");
 
     setCellsMessage("Carregando dados das celulas...", false);
 
-    const [retention, recurring, history, insights, charts] = await Promise.all([
+    const [retention, recurring, history, insights, charts, visitors, assiduos, members, meetingsData, lostSheepRows] = await Promise.all([
       api(`/cells/${cellId}/dashboard/retention?start_date=${startDate}&end_date=${endDate}`),
       api(`/cells/${cellId}/dashboard/visitors-recurring?start_date=${startDate}&end_date=${endDate}`),
-      api(`/cells/${cellId}/dashboard/history?months=${months}`),
+      api(`/cells/${cellId}/dashboard/history?start_date=${startDate}&end_date=${endDate}`),
       api(`/cells/${cellId}/dashboard/insights?start_date=${startDate}&end_date=${endDate}`),
       api(`/cells/${cellId}/dashboard/charts?start_date=${startDate}&end_date=${endDate}`),
+      api(`/cells/${cellId}/people?stage=visitor`),
+      api(`/cells/${cellId}/people?stage=assiduo`),
+      api(`/cells/${cellId}/people?stage=member`),
+      api(`/cells/${cellId}/meetings?start_date=${startDate}&end_date=${endDate}`),
+      api(`/lost-sheep`),
     ]);
+
+    state.peopleByStage = {
+      visitor: Array.isArray(visitors) ? visitors : [],
+      assiduo: Array.isArray(assiduos) ? assiduos : [],
+      member: Array.isArray(members) ? members : [],
+    };
 
     renderRetention(retention);
     renderVisitors(recurring);
@@ -1759,6 +1973,10 @@
     renderWeeklyPresenceChart(charts && Array.isArray(charts.weekly_presence) ? charts.weekly_presence : []);
     renderVisitorRetentionChart(charts && Array.isArray(charts.visitor_retention) ? charts.visitor_retention : []);
     renderCompositionPieChart(charts && Array.isArray(charts.composition) ? charts.composition : []);
+    renderStageCountsChart(charts && Array.isArray(charts.stage_counts_by_date) ? charts.stage_counts_by_date : []);
+    renderMissingMembers(Array.isArray(meetingsData) ? meetingsData : []);
+    renderDashboardLostSheep(cellId, Array.isArray(lostSheepRows) ? lostSheepRows : []);
+    renderCellInfoCard();
     setCellsMessage("Dados de celula atualizados.", false);
   }
 
@@ -1846,6 +2064,8 @@
     state.memberRoleTags = loadRoleTagsFromStorage();
     applyPreset(30);
     await Promise.all([loadCells(), loadMembers()]);
+    await refreshLeadershipByCellMap();
+    resetPeopleCountStartDateInputs();
     state.initialized = true;
   }
 
@@ -1913,9 +2133,11 @@
     const fullName = el.cellsMemberModalName ? el.cellsMemberModalName.value.trim() : "";
     const contact = el.cellsMemberModalContact ? el.cellsMemberModalContact.value.trim() : "";
     const status = el.cellsMemberModalStatus ? el.cellsMemberModalStatus.value : "active";
+    const countStartDate = el.cellsMemberModalCountStartDate ? el.cellsMemberModalCountStartDate.value : "";
 
     if (!fullName) throw new Error("Informe o nome completo.");
     if (!roleTag) throw new Error("Perfil invalido para o registro.");
+    if (!countStartDate) throw new Error("Informe a data de cadastrado.");
 
     if (memberId) {
       await api(`/cells/members/${memberId}`, {
@@ -1924,6 +2146,7 @@
           full_name: fullName,
           contact: contact || null,
           status,
+          count_start_date: countStartDate,
         }),
       });
       setMemberRoleTag(memberId, roleTag);
@@ -1935,6 +2158,7 @@
           full_name: fullName,
           contact: contact || null,
           status,
+          count_start_date: countStartDate,
         }),
       });
       setMemberRoleTag(member.id, roleTag);
@@ -2115,9 +2339,11 @@
         await addPersonToSelectedCell(
           "visitor",
           el.cellsPeopleVisitorName ? el.cellsPeopleVisitorName.value.trim() : "",
-          el.cellsPeopleVisitorContact ? el.cellsPeopleVisitorContact.value.trim() : ""
+          el.cellsPeopleVisitorContact ? el.cellsPeopleVisitorContact.value.trim() : "",
+          el.cellsPeopleVisitorCountStartDate ? el.cellsPeopleVisitorCountStartDate.value : ""
         );
         if (el.cellsPeopleVisitorForm) el.cellsPeopleVisitorForm.reset();
+        if (el.cellsPeopleVisitorCountStartDate) el.cellsPeopleVisitorCountStartDate.value = getTodayIsoDate();
         await loadPeopleViewData();
         setCellsMessage("Visitante cadastrado com sucesso.", false);
       }, "Falha ao cadastrar visitante.");
@@ -2131,9 +2357,11 @@
         await addPersonToSelectedCell(
           "assiduo",
           el.cellsPeopleAssiduoName ? el.cellsPeopleAssiduoName.value.trim() : "",
-          el.cellsPeopleAssiduoContact ? el.cellsPeopleAssiduoContact.value.trim() : ""
+          el.cellsPeopleAssiduoContact ? el.cellsPeopleAssiduoContact.value.trim() : "",
+          el.cellsPeopleAssiduoCountStartDate ? el.cellsPeopleAssiduoCountStartDate.value : ""
         );
         if (el.cellsPeopleAssiduoForm) el.cellsPeopleAssiduoForm.reset();
+        if (el.cellsPeopleAssiduoCountStartDate) el.cellsPeopleAssiduoCountStartDate.value = getTodayIsoDate();
         await loadPeopleViewData();
         setCellsMessage("Assiduo cadastrado com sucesso.", false);
       }, "Falha ao cadastrar assiduo.");
@@ -2147,9 +2375,11 @@
         await addPersonToSelectedCell(
           "member",
           el.cellsPeopleMemberName ? el.cellsPeopleMemberName.value.trim() : "",
-          el.cellsPeopleMemberContact ? el.cellsPeopleMemberContact.value.trim() : ""
+          el.cellsPeopleMemberContact ? el.cellsPeopleMemberContact.value.trim() : "",
+          el.cellsPeopleMemberCountStartDate ? el.cellsPeopleMemberCountStartDate.value : ""
         );
         if (el.cellsPeopleMemberForm) el.cellsPeopleMemberForm.reset();
+        if (el.cellsPeopleMemberCountStartDate) el.cellsPeopleMemberCountStartDate.value = getTodayIsoDate();
         await loadPeopleViewData();
         setCellsMessage("Membro cadastrado com sucesso.", false);
       }, "Falha ao cadastrar membro.");
@@ -2358,10 +2588,6 @@
       confirmModalAction();
     });
   }
-
-  if (el.cellsPreset30Btn) el.cellsPreset30Btn.addEventListener("click", function () { applyPreset(30); });
-  if (el.cellsPreset90Btn) el.cellsPreset90Btn.addEventListener("click", function () { applyPreset(90); });
-  if (el.cellsPreset180Btn) el.cellsPreset180Btn.addEventListener("click", function () { applyPreset(180); });
 
   if (el.cellsSelect) {
     el.cellsSelect.addEventListener("change", function () {

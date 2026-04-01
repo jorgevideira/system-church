@@ -109,6 +109,7 @@ class CellMemberCreate(CellMemberBase):
     status: str = "active"
     user_id: Optional[int] = None
     stage: str = "member"
+    count_start_date: Optional[date] = None
 
     @field_validator("stage")
     @classmethod
@@ -123,6 +124,7 @@ class CellMemberUpdate(BaseModel):
     is_active: Optional[bool] = None
     user_id: Optional[int] = None
     stage: Optional[str] = None
+    count_start_date: Optional[date] = None
 
     @field_validator("stage")
     @classmethod
@@ -136,6 +138,7 @@ class CellMemberResponse(CellMemberBase):
     id: int
     user_id: Optional[int] = None
     stage: str
+    count_start_date: date
     status: str
     is_active: bool
     created_at: datetime
@@ -288,6 +291,7 @@ class CellMeetingAttendanceResponse(BaseModel):
 class CellVisitorCreate(BaseModel):
     full_name: str
     contact: Optional[str] = None
+    count_start_date: Optional[date] = None
     is_first_time: bool = True
     notes: Optional[str] = None
 
@@ -296,6 +300,7 @@ class CellVisitorResponse(BaseModel):
     id: int
     full_name: str
     contact: Optional[str] = None
+    count_start_date: date
     created_at: datetime
     updated_at: datetime
 
@@ -418,6 +423,13 @@ class CellCompositionSlice(BaseModel):
     percent: float
 
 
+class CellStageCountsByDatePoint(BaseModel):
+    date: date
+    visitors_count: int
+    members_count: int
+    assiduous_count: int
+
+
 class CellDashboardChartsResponse(BaseModel):
     cell_id: int
     period_start: date
@@ -426,3 +438,4 @@ class CellDashboardChartsResponse(BaseModel):
     weekly_presence: list[CellWeeklyPresencePoint]
     visitor_retention: list[CellVisitorRetentionBucket]
     composition: list[CellCompositionSlice]
+    stage_counts_by_date: list[CellStageCountsByDatePoint]

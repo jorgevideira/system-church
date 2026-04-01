@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import Base
@@ -19,6 +19,7 @@ class CellMember(Base):
         index=True,
     )
     stage: Mapped[str] = mapped_column(String(20), nullable=False, default="member", index=True)
+    count_start_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

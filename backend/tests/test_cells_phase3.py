@@ -128,3 +128,70 @@ def test_dashboard_recurring_visitors(test_client: TestClient, test_admin: User)
     data = recurring.json()
     assert data["total_recurring_visitors"] >= 1
     assert any(item["full_name"] == visitor_name for item in data["visitors"])
+
+
+def test_dashboard_respects_count_start_date(test_client: TestClient, test_admin: User):
+    headers = auth_headers(test_admin)
+    cell = _create_cell(test_client, headers, "Celula Datas Relatorio")
+
+    visitor_member = test_client.post(
+        "/api/v1/cells/members/all",
+        json={
+            "full_name": "Visitante com Data",
+            "contact": "11955554444",
+            "status": "active",
+            "stage": "visitor",
+            "count_start_date": "2026-03-15",
+        },
+        headers=headers,
+    ).json()
+
+    assiduous_member = test_client.post(
+        "/api/v1/cells/members/all",
+        json={
+            "full_name": "Assiduo com Data",
+            "contact": "11955553333",
+            "status": "active",
+            "stage": "assiduo",
+            "count_start_date": "2026-03-20",
+        },
+        headers=headers,
+    ).json()
+
+    assign_visitor = test_client.post(
+        f"/api/v1/cells/{cell['id']}/members/{visitor_member['id']}",
+        json={"start_date": "2026-03-01"},
+        headers=headers,
+    )
+    assign_assiduous = test_client.post(
+        f"/api/v1/cells/{cell['id']}/members/{assiduous_member['id']}",
+        json={"start_date": "2026-03-01"},
+        headers=headers,
+    )
+    assert assign_visitor.status_code == 201
+    assert assign_assiduous.status_code == 201
+
+    meeting = _create_meeting(test_client, headers, cell["id"], "2026-03-10")
+    attendance = test_client.post(
+        f"/api/v1/cells/meetings/{meeting['id']}/attendances/bulk",
+        json={"items": [{"member_id": visitor_member["id"], "attendance_status": "present"}]},
+        headers=headers,
+    )
+    assert attendance.status_code == 200
+
+    insights = test_client.get(
+        f"/api/v1/cells/{cell['id']}/dashboard/insights",
+        params={"start_date": "2026-03-01", "end_date": "2026-03-12"},
+        headers=headers,
+    )
+    assert insights.status_code == 200
+    assert insights.json()["assiduous_members_count"] == 0
+
+    charts = test_client.get(
+        f"/api/v1/cells/{cell['id']}/dashboard/charts",
+        params={"start_date": "2026-03-01", "end_date": "2026-03-12"},
+        headers=headers,
+    )
+    assert charts.status_code == 200
+    composition = {item["label"]: item["count"] for item in charts.json()["composition"]}
+    assert composition["Visitantes"] == 0

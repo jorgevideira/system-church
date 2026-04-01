@@ -592,6 +592,8 @@ def dashboard_visitors_recurring(
 def dashboard_history(
     cell_id: int,
     months: int = Query(6, ge=1, le=24),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[CellHistoryPoint]:
@@ -599,7 +601,11 @@ def dashboard_history(
     cell = cell_service.get_cell(db, cell_id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
-    return cell_service.get_cell_history(db, cell_id, months=months)
+    if (start_date and not end_date) or (end_date and not start_date):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="start_date and end_date must be provided together")
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="end_date must be >= start_date")
+    return cell_service.get_cell_history(db, cell_id, months=months, start_date=start_date, end_date=end_date)
 
 
 @router.get("/{cell_id}/dashboard/insights", response_model=CellDashboardInsightsResponse)

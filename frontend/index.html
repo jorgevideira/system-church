@@ -729,62 +729,75 @@
               <label>Data final
                 <input type="date" id="cellsEndDate">
               </label>
-              <label>Historico
-                <select id="cellsHistoryMonths">
-                  <option value="3">3 meses</option>
-                  <option value="6" selected>6 meses</option>
-                  <option value="12">12 meses</option>
-                  <option value="24">24 meses</option>
-                </select>
-              </label>
             </div>
             <div class="module-actions">
-              <button id="cellsPreset30Btn" class="btn ghost" type="button">30 dias</button>
-              <button id="cellsPreset90Btn" class="btn ghost" type="button">90 dias</button>
-              <button id="cellsPreset180Btn" class="btn ghost" type="button">180 dias</button>
               <button id="cellsApplyFiltersBtn" class="btn" type="button">Aplicar filtros</button>
             </div>
           </section>
 
+          <section class="dashboard-grid">
+            <article id="cellsCellInfoCard" class="dashboard-card">
+              <h4 id="cellsCellInfoName">Celula</h4>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                <div>
+                  <span style="font-size: 0.85rem; color: #666;">Membros</span>
+                  <strong id="cellsCellInfoMembers" style="display: block; font-size: 1.5rem;">0</strong>
+                </div>
+                <div>
+                  <span style="font-size: 0.85rem; color: #666;">Assiduos</span>
+                  <strong id="cellsCellInfoAssiduos" style="display: block; font-size: 1.5rem;">0</strong>
+                </div>
+                <div>
+                  <span style="font-size: 0.85rem; color: #666;">Visitantes</span>
+                  <strong id="cellsCellInfoVisitors" style="display: block; font-size: 1.5rem;">0</strong>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                  <span style="font-size: 0.85rem; color: #666;">Lider</span>
+                  <strong id="cellsCellInfoLeader" style="display: block;">-</strong>
+                </div>
+              </div>
+            </article>
+          </section>
+
           <section class="kpis cells-kpis">
             <article class="kpi-card">
-              <span>Ativos no inicio</span>
+              <span class="kpi-label">Ativos no inicio <span class="kpi-help" title="Quantidade de pessoas ativas na celula no primeiro dia do periodo filtrado." aria-label="Ajuda: Ativos no inicio">?</span></span>
               <strong id="cellsKpiActiveStart">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Retidos</span>
+              <span class="kpi-label">Retidos <span class="kpi-help" title="Pessoas que estavam ativas no inicio e continuaram ativas ate o fim do periodo." aria-label="Ajuda: Retidos">?</span></span>
               <strong id="cellsKpiRetained">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Taxa de retencao</span>
+              <span class="kpi-label">Taxa de retencao <span class="kpi-help" title="Percentual de retidos em relacao aos ativos no inicio do periodo." aria-label="Ajuda: Taxa de retencao">?</span></span>
               <strong id="cellsKpiRetentionRate">0%</strong>
             </article>
             <article class="kpi-card">
-              <span>Visitantes recorrentes</span>
+              <span class="kpi-label">Visitantes recorrentes <span class="kpi-help" title="Visitantes externos que participaram de mais de uma reuniao no periodo." aria-label="Ajuda: Visitantes recorrentes">?</span></span>
               <strong id="cellsKpiRecurringTotal">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Visitantes no periodo</span>
+              <span class="kpi-label">Visitantes no periodo <span class="kpi-help" title="Soma de visitantes externos cadastrados nas reunioes e presencas de pessoas em etapa Visitante no periodo." aria-label="Ajuda: Visitantes no periodo">?</span></span>
               <strong id="cellsKpiVisitorsPeriod">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Frequencia de membros</span>
+              <span class="kpi-label">Frequencia de membros <span class="kpi-help" title="Percentual medio de presenca: presentes / (reunioes no periodo x membros ativos atuais)." aria-label="Ajuda: Frequencia de membros">?</span></span>
               <strong id="cellsKpiMembersFrequency">0%</strong>
             </article>
             <article class="kpi-card">
-              <span>Assiduos ativos</span>
+              <span class="kpi-label">Assiduos ativos <span class="kpi-help" title="Quantidade de pessoas em etapa Assiduo com vinculo ativo na celula no fim do periodo." aria-label="Ajuda: Assiduos ativos">?</span></span>
               <strong id="cellsKpiAssiduousCount">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Semanas sem relatorio</span>
+              <span class="kpi-label">Semanas sem relatorio <span class="kpi-help" title="Semanas do periodo sem nenhuma reuniao registrada na celula." aria-label="Ajuda: Semanas sem relatorio">?</span></span>
               <strong id="cellsKpiMissingWeeks">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Reunioes com alerta (&lt;70%)</span>
+              <span class="kpi-label">Reunioes com alerta (&lt;70%) <span class="kpi-help" title="Quantidade de reunioes com frequencia de presenca abaixo de 70%." aria-label="Ajuda: Reunioes com alerta">?</span></span>
               <strong id="cellsKpiLowFrequencyMeetings">0</strong>
             </article>
             <article class="kpi-card">
-              <span>Tendencia da frequencia</span>
+              <span class="kpi-label">Tendencia da frequencia <span class="kpi-help" title="Variacao da frequencia media entre o primeiro e o ultimo ponto do historico no periodo filtrado." aria-label="Ajuda: Tendencia da frequencia">?</span></span>
               <strong id="cellsKpiFrequencyTrend">Estavel</strong>
             </article>
           </section>
@@ -812,9 +825,44 @@
               </div>
             </section>
             <section class="panel">
+              <h4>Membros x Visitantes x Assiduos (por data)</h4>
+              <div class="cells-chart-box">
+                <canvas id="cellsStageCountsChart" class="cells-canvas" aria-label="Quantidade de membros, visitantes e assiduos por data"></canvas>
+              </div>
+            </section>
+            <section class="panel">
               <h4>Visitantes x Membros x Assiduos (%)</h4>
               <div class="cells-chart-box cells-chart-box-square">
                 <canvas id="cellsInsightsChart" class="cells-canvas" aria-label="Composicao visitantes membros assiduos"></canvas>
+              </div>
+            </section>
+            <section class="panel">
+              <h4>Ovelhas perdidas da celula</h4>
+              <div class="kpis" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 0.5rem;">
+                <article class="kpi-card" style="padding: 0.45rem;">
+                  <span>Pendentes</span>
+                  <strong id="cellsDashboardLostSheepPending">0</strong>
+                </article>
+                <article class="kpi-card" style="padding: 0.45rem;">
+                  <span>Visitadas</span>
+                  <strong id="cellsDashboardLostSheepVisited">0</strong>
+                </article>
+              </div>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Data</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsDashboardLostSheepBody">
+                    <tr>
+                      <td colspan="3">Sem registros.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </section>
           </div>
@@ -850,6 +898,25 @@
                     </tr>
                   </thead>
                   <tbody id="cellsRecurringBody">
+                    <tr>
+                      <td colspan="3">Sem dados.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel">
+              <h4>Membros e Assiduos com Faltas</h4>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Tipo</th>
+                      <th>Faltas</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cellsMissingMembersBody">
                     <tr>
                       <td colspan="3">Sem dados.</td>
                     </tr>
@@ -917,6 +984,9 @@
                 <label>Contato
                   <input type="text" id="cellsPeopleVisitorContact" placeholder="Opcional">
                 </label>
+                <label>Data de cadastrado
+                  <input type="date" id="cellsPeopleVisitorCountStartDate" required>
+                </label>
                 <button class="btn" type="submit">Adicionar visitante</button>
               </form>
             </section>
@@ -930,6 +1000,9 @@
                 <label>Contato
                   <input type="text" id="cellsPeopleAssiduoContact" placeholder="Opcional">
                 </label>
+                <label>Data de cadastrado
+                  <input type="date" id="cellsPeopleAssiduoCountStartDate" required>
+                </label>
                 <button class="btn" type="submit">Adicionar assiduo</button>
               </form>
             </section>
@@ -942,6 +1015,9 @@
                 </label>
                 <label>Contato
                   <input type="text" id="cellsPeopleMemberContact" placeholder="Opcional">
+                </label>
+                <label>Data de cadastrado
+                  <input type="date" id="cellsPeopleMemberCountStartDate" required>
                 </label>
                 <button class="btn" type="submit">Adicionar membro</button>
               </form>
@@ -957,11 +1033,12 @@
                     <tr>
                       <th>Nome</th>
                       <th>Contato</th>
+                      <th>Data de cadastrado</th>
                       <th>Acoes</th>
                     </tr>
                   </thead>
                   <tbody id="cellsPeopleVisitorsBody">
-                    <tr><td colspan="3">Sem registros.</td></tr>
+                    <tr><td colspan="4">Sem registros.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -975,11 +1052,12 @@
                     <tr>
                       <th>Nome</th>
                       <th>Contato</th>
+                      <th>Data de cadastrado</th>
                       <th>Acoes</th>
                     </tr>
                   </thead>
                   <tbody id="cellsPeopleAssiduosBody">
-                    <tr><td colspan="3">Sem registros.</td></tr>
+                    <tr><td colspan="4">Sem registros.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -994,11 +1072,12 @@
                       <th>Nome</th>
                       <th>Contato</th>
                       <th>Estagio</th>
+                      <th>Data de cadastrado</th>
                       <th>Acoes</th>
                     </tr>
                   </thead>
                   <tbody id="cellsPeopleMembersBody">
-                    <tr><td colspan="4">Sem registros.</td></tr>
+                    <tr><td colspan="5">Sem registros.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1295,6 +1374,9 @@
             <option value="active">Ativo</option>
             <option value="inactive">Inativo</option>
           </select>
+        </label>
+        <label>Data de cadastrado
+          <input type="date" id="cellsMemberModalCountStartDate" required>
         </label>
         <div class="modal-actions">
           <button id="cellsMemberModalDisableBtn" class="btn ghost" type="button">Desabilitar</button>

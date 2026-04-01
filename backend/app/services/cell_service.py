@@ -90,6 +90,7 @@ def delete_cell(db: Session, cell: Cell) -> None:
 
 def create_member(db: Session, payload: CellMemberCreate) -> CellMember:
     data = payload.model_dump()
+    data["count_start_date"] = data.get("count_start_date") or date.today()
     member = CellMember(**data, is_active=(data.get("status", "active") == "active"))
     db.add(member)
     db.commit()
@@ -142,6 +143,12 @@ def update_member(db: Session, member: CellMember, payload: CellMemberUpdate) ->
     changes = payload.model_dump(exclude_unset=True)
     if "status" in changes and "is_active" not in changes:
         changes["is_active"] = changes["status"] == "active"
+    if (
+        "stage" in changes
+        and changes["stage"] != member.stage
+        and "count_start_date" not in changes
+    ):
+        changes["count_start_date"] = date.today()
     for field, value in changes.items():
         setattr(member, field, value)
     db.commit()
@@ -219,6 +226,7 @@ def promote_member_stage(
         raise ValueError("Invalid promotion transition")
 
     member.stage = target_stage
+    member.count_start_date = date.today()
     db.commit()
     db.refresh(member)
     return member
@@ -238,10 +246,13 @@ def assign_member_to_cell(
     if current_link:
         raise ValueError("Member is already linked to an active cell")
 
+    member = get_member(db, member_id)
+    default_start_date = start_date or (member.count_start_date if member else None) or date.today()
+
     link = CellMemberLink(
         cell_id=cell_id,
         member_id=member_id,
-        start_date=start_date or date.today(),
+        start_date=default_start_date,
         active=True,
     )
     db.add(link)
@@ -342,6 +353,29 @@ def assign_leader(
         active=True,
     )
     db.add(assignment)
+
+    # Leadership assignment must also exist as an active member link in the same cell.
+    active_link = (
+        db.query(CellMemberLink)
+        .filter(
+            CellMemberLink.cell_id == cell_id,
+            CellMemberLink.member_id == payload.member_id,
+            CellMemberLink.active.is_(True),
+        )
+        .first()
+    )
+    if active_link is None:
+        member = get_member(db, payload.member_id)
+        link_start_date = payload.start_date or (member.count_start_date if member else None) or date.today()
+        db.add(
+            CellMemberLink(
+                cell_id=cell_id,
+                member_id=payload.member_id,
+                start_date=link_start_date,
+                active=True,
+            )
+        )
+
     db.commit()
     db.refresh(assignment)
     return assignment
@@ -489,7 +523,11 @@ def add_meeting_visitor(
         .first()
     )
     if visitor is None:
-        visitor = CellVisitor(full_name=payload.full_name, contact=payload.contact)
+        visitor = CellVisitor(
+            full_name=payload.full_name,
+            contact=payload.contact,
+            count_start_date=payload.count_start_date or date.today(),
+        )
         db.add(visitor)
         db.flush()
 
@@ -703,7 +741,7 @@ def get_cell_recurring_visitors(
     start_date: date,
     end_date: date,
 ) -> dict:
-    rows = (
+    external_rows = (
         db.query(
             CellVisitor.id.label("visitor_id"),
             CellVisitor.full_name.label("full_name"),
@@ -719,19 +757,57 @@ def get_cell_recurring_visitors(
         )
         .group_by(CellVisitor.id, CellVisitor.full_name, CellVisitor.contact)
         .having(func.count(CellMeetingVisitor.id) > 1)
-        .order_by(func.count(CellMeetingVisitor.id).desc(), CellVisitor.full_name.asc())
         .all()
     )
 
-    visitors = [
+    stage_normalized = func.lower(func.trim(CellMember.stage))
+    member_rows = (
+        db.query(
+            CellMember.id.label("member_id"),
+            CellMember.full_name.label("full_name"),
+            CellMember.contact.label("contact"),
+            func.count(CellMeetingAttendance.id).label("visits_count"),
+        )
+        .join(CellMeetingAttendance, CellMeetingAttendance.member_id == CellMember.id)
+        .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
+        .filter(
+            CellMeeting.cell_id == cell_id,
+            CellMeeting.meeting_date >= start_date,
+            CellMeeting.meeting_date <= end_date,
+            CellMeetingAttendance.attendance_status == "present",
+            stage_normalized.in_(["visitor", "visitante"]),
+        )
+        .group_by(CellMember.id, CellMember.full_name, CellMember.contact)
+        .having(func.count(CellMeetingAttendance.id) > 1)
+        .all()
+    )
+
+    external_visitors = [
         {
             "visitor_id": row.visitor_id,
             "full_name": row.full_name,
             "contact": row.contact,
             "visits_count": int(row.visits_count),
         }
-        for row in rows
+        for row in external_rows
     ]
+
+    member_visitors = [
+        {
+            # Keep IDs unique vs external visitors while preserving int schema.
+            "visitor_id": -int(row.member_id),
+            "full_name": row.full_name,
+            "contact": row.contact,
+            "visits_count": int(row.visits_count),
+        }
+        for row in member_rows
+    ]
+
+    visitors = sorted(
+        external_visitors + member_visitors,
+        key=lambda item: (-int(item["visits_count"]), str(item["full_name"] or "").lower()),
+    )
+
     return {
         "cell_id": cell_id,
         "period_start": start_date,
@@ -741,14 +817,31 @@ def get_cell_recurring_visitors(
     }
 
 
-def get_cell_history(db: Session, cell_id: int, months: int = 6) -> list[dict]:
-    safe_months = max(1, min(months, 24))
-    today = date.today()
-    start_year = today.year
-    start_month = today.month - (safe_months - 1)
-    while start_month <= 0:
-        start_month += 12
-        start_year -= 1
+def get_cell_history(
+    db: Session,
+    cell_id: int,
+    months: int = 6,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> list[dict]:
+    if start_date and end_date:
+        start_anchor = date(start_date.year, start_date.month, 1)
+        end_anchor = date(end_date.year, end_date.month, 1)
+        span_months = ((end_anchor.year - start_anchor.year) * 12) + (end_anchor.month - start_anchor.month) + 1
+        safe_months = max(1, min(span_months, 24))
+        start_year = end_anchor.year
+        start_month = end_anchor.month - (safe_months - 1)
+        while start_month <= 0:
+            start_month += 12
+            start_year -= 1
+    else:
+        safe_months = max(1, min(months, 24))
+        today = date.today()
+        start_year = today.year
+        start_month = today.month - (safe_months - 1)
+        while start_month <= 0:
+            start_month += 12
+            start_year -= 1
 
     rows: list[dict] = []
     year = start_year
@@ -831,6 +924,8 @@ def get_cell_dashboard_insights(
     start_date: date,
     end_date: date,
 ) -> dict:
+    stage_normalized = func.lower(func.trim(CellMember.stage))
+
     meetings = (
         db.query(CellMeeting)
         .filter(
@@ -849,11 +944,25 @@ def get_cell_dashboard_insights(
     present_total = 0
     low_frequency_meetings_count = 0
     if meeting_ids:
-        total_visitors = (
+        external_visitors_total = (
             db.query(CellMeetingVisitor)
             .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
             .count()
         )
+
+        visitor_members_total = (
+            db.query(CellMeetingAttendance)
+            .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
+            .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
+            .filter(
+                CellMeetingAttendance.meeting_id.in_(meeting_ids),
+                CellMeetingAttendance.attendance_status == "present",
+                stage_normalized.in_(["visitor", "visitante"]),
+                CellMember.count_start_date <= CellMeeting.meeting_date,
+            )
+            .count()
+        )
+        total_visitors = external_visitors_total + visitor_members_total
 
         present_total = (
             db.query(CellMeetingAttendance)
@@ -871,6 +980,7 @@ def get_cell_dashboard_insights(
             CellMemberLink.cell_id == cell_id,
             CellMemberLink.active.is_(True),
             CellMember.stage == "assiduo",
+            CellMember.count_start_date <= end_date,
         )
         .count()
     )
@@ -951,7 +1061,10 @@ def get_cell_dashboard_charts(
                 CellMeetingVisitor.meeting_id,
                 func.count(CellMeetingVisitor.id).label("visitors_count"),
             )
+            .join(CellVisitor, CellVisitor.id == CellMeetingVisitor.visitor_id)
             .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .join(CellMeeting, CellMeeting.id == CellMeetingVisitor.meeting_id)
+            .filter(CellVisitor.count_start_date <= CellMeeting.meeting_date)
             .group_by(CellMeetingVisitor.meeting_id)
             .all()
         )
@@ -965,11 +1078,13 @@ def get_cell_dashboard_charts(
                 CellMeetingAttendance.meeting_id,
                 func.count(func.distinct(CellMeetingAttendance.member_id)).label("visitors_count"),
             )
+            .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
             .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
             .filter(
                 CellMeetingAttendance.meeting_id.in_(meeting_ids),
                 CellMeetingAttendance.attendance_status == "present",
                 stage_normalized.in_(["visitor", "visitante"]),
+                CellMember.count_start_date <= CellMeeting.meeting_date,
             )
             .group_by(CellMeetingAttendance.meeting_id)
             .all()
@@ -1035,6 +1150,62 @@ def get_cell_dashboard_charts(
             }
         )
 
+    stage_counts_by_date: list[dict] = []
+    for meeting in meetings:
+        visitors_count = (
+            db.query(func.count(func.distinct(CellMember.id)))
+            .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+            .filter(
+                CellMemberLink.cell_id == cell_id,
+                CellMemberLink.start_date <= meeting.meeting_date,
+                (CellMemberLink.end_date.is_(None)) | (CellMemberLink.end_date >= meeting.meeting_date),
+                CellMember.status == "active",
+                CellMember.is_active.is_(True),
+                stage_normalized.in_(["visitor", "visitante"]),
+                CellMember.count_start_date <= meeting.meeting_date,
+            )
+            .scalar()
+        ) or 0
+
+        members_count = (
+            db.query(func.count(func.distinct(CellMember.id)))
+            .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+            .filter(
+                CellMemberLink.cell_id == cell_id,
+                CellMemberLink.start_date <= meeting.meeting_date,
+                (CellMemberLink.end_date.is_(None)) | (CellMemberLink.end_date >= meeting.meeting_date),
+                CellMember.status == "active",
+                CellMember.is_active.is_(True),
+                stage_normalized.in_(["member", "membro"]),
+                CellMember.count_start_date <= meeting.meeting_date,
+            )
+            .scalar()
+        ) or 0
+
+        assiduous_count = (
+            db.query(func.count(func.distinct(CellMember.id)))
+            .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
+            .filter(
+                CellMemberLink.cell_id == cell_id,
+                CellMemberLink.start_date <= meeting.meeting_date,
+                (CellMemberLink.end_date.is_(None)) | (CellMemberLink.end_date >= meeting.meeting_date),
+                CellMember.status == "active",
+                CellMember.is_active.is_(True),
+                stage_normalized.in_(["assiduo", "assíduo", "assidua", "assídua"]),
+                CellMember.count_start_date <= meeting.meeting_date,
+            )
+            .scalar()
+        ) or 0
+
+        stage_counts_by_date.append(
+            {
+                "date": meeting.meeting_date,
+                "visitors_count": int(visitors_count),
+                "members_count": int(members_count),
+                "assiduous_count": int(assiduous_count),
+            }
+        )
+
     visitor_retention = [
         {"bucket_label": "1x", "visitors_count": 0},
         {"bucket_label": "2x", "visitors_count": 0},
@@ -1047,7 +1218,10 @@ def get_cell_dashboard_charts(
                 CellMeetingVisitor.visitor_id,
                 func.count(CellMeetingVisitor.id).label("visits_count"),
             )
+            .join(CellVisitor, CellVisitor.id == CellMeetingVisitor.visitor_id)
+            .join(CellMeeting, CellMeeting.id == CellMeetingVisitor.meeting_id)
             .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .filter(CellVisitor.count_start_date <= CellMeeting.meeting_date)
             .group_by(CellMeetingVisitor.visitor_id)
             .all()
         )
@@ -1068,11 +1242,13 @@ def get_cell_dashboard_charts(
                 CellMeetingAttendance.member_id,
                 func.count(CellMeetingAttendance.id).label("visits_count"),
             )
+            .join(CellMeeting, CellMeeting.id == CellMeetingAttendance.meeting_id)
             .join(CellMember, CellMember.id == CellMeetingAttendance.member_id)
             .filter(
                 CellMeetingAttendance.meeting_id.in_(meeting_ids),
                 CellMeetingAttendance.attendance_status == "present",
                 stage_normalized.in_(["visitor", "visitante"]),
+                CellMember.count_start_date <= CellMeeting.meeting_date,
             )
             .group_by(CellMeetingAttendance.member_id)
             .all()
@@ -1093,7 +1269,10 @@ def get_cell_dashboard_charts(
     if meeting_ids:
         unique_external_visitors_count = (
             db.query(func.count(func.distinct(CellMeetingVisitor.visitor_id)))
+            .join(CellVisitor, CellVisitor.id == CellMeetingVisitor.visitor_id)
+            .join(CellMeeting, CellMeeting.id == CellMeetingVisitor.meeting_id)
             .filter(CellMeetingVisitor.meeting_id.in_(meeting_ids))
+            .filter(CellVisitor.count_start_date <= CellMeeting.meeting_date)
             .scalar()
         ) or 0
 
@@ -1107,6 +1286,7 @@ def get_cell_dashboard_charts(
             CellMeeting.meeting_date <= end_date,
             CellMeetingAttendance.attendance_status == "present",
             stage_normalized.in_(["visitor", "visitante"]),
+            CellMember.count_start_date <= CellMeeting.meeting_date,
         )
         .scalar()
     ) or 0
@@ -1121,6 +1301,7 @@ def get_cell_dashboard_charts(
             CellMeeting.meeting_date <= end_date,
             CellMeetingAttendance.attendance_status == "present",
             stage_normalized.in_(["member", "membro"]),
+            CellMember.count_start_date <= CellMeeting.meeting_date,
         )
         .scalar()
     ) or 0
@@ -1135,6 +1316,7 @@ def get_cell_dashboard_charts(
             CellMeeting.meeting_date <= end_date,
             CellMeetingAttendance.attendance_status == "present",
             stage_normalized.in_(["assiduo", "assíduo", "assidua", "assídua"]),
+            CellMember.count_start_date <= CellMeeting.meeting_date,
         )
         .scalar()
     ) or 0
@@ -1162,4 +1344,5 @@ def get_cell_dashboard_charts(
         "weekly_presence": weekly_presence,
         "visitor_retention": visitor_retention,
         "composition": composition,
+        "stage_counts_by_date": stage_counts_by_date,
     }
