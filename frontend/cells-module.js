@@ -1,6 +1,8 @@
 (function () {
   const apiPrefix = "/api/v1";
   const roleTagsStorageKey = "cellsMemberRoleTags";
+  const permissionStorageKey = "currentUserPermissions";
+  const isAdminStorageKey = "currentUserIsAdmin";
 
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
@@ -189,6 +191,8 @@
   const state = {
     initialized: false,
     currentUserRole: "",
+    permissionSet: new Set(),
+    isAdmin: false,
     retentionChart: null,
     visitorsChart: null,
     historyChart: null,
@@ -230,6 +234,67 @@
       el.financeBtn.classList.add("hide");
       el.financeBtn.disabled = true;
     }
+  }
+
+  function loadPermissionState() {
+    try {
+      const raw = localStorage.getItem(permissionStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const permissions = Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+      state.permissionSet = new Set(permissions);
+    } catch (_error) {
+      state.permissionSet = new Set();
+    }
+    state.isAdmin = localStorage.getItem(isAdminStorageKey) === "true";
+  }
+
+  function hasPermission(permissionName) {
+    if (!permissionName) return false;
+    if (state.isAdmin) return true;
+    return state.permissionSet.has(permissionName);
+  }
+
+  function hasCellsModuleAccess() {
+    if (state.isAdmin) return true;
+    for (const permissionName of state.permissionSet) {
+      if (permissionName.indexOf("cells_") === 0) return true;
+    }
+    return false;
+  }
+
+  function getFirstAllowedCellsView() {
+    const ordered = [
+      ["dashboard", "cells_dashboard_view"],
+      ["cells", "cells_cells_view"],
+      ["people", "cells_people_view"],
+      ["meetings", "cells_meetings_view"],
+      ["leaders", "cells_leaders_view"],
+      ["disciplers", "cells_disciplers_view"],
+      ["lost-sheep", "cells_lost_sheep_view"],
+    ];
+
+    for (const [viewName, permissionName] of ordered) {
+      if (hasPermission(permissionName)) {
+        return viewName;
+      }
+    }
+    return null;
+  }
+
+  function applyCellsPermissionLayout() {
+    if (el.cellsBtn) {
+      const canOpenModule = hasCellsModuleAccess();
+      el.cellsBtn.classList.toggle("hide", !canOpenModule);
+      el.cellsBtn.disabled = !canOpenModule;
+    }
+
+    if (el.cellsNavDashboardBtn) el.cellsNavDashboardBtn.classList.toggle("hide", !hasPermission("cells_dashboard_view"));
+    if (el.cellsNavCellsBtn) el.cellsNavCellsBtn.classList.toggle("hide", !hasPermission("cells_cells_view"));
+    if (el.cellsNavPeopleBtn) el.cellsNavPeopleBtn.classList.toggle("hide", !hasPermission("cells_people_view"));
+    if (el.cellsNavMeetingsBtn) el.cellsNavMeetingsBtn.classList.toggle("hide", !hasPermission("cells_meetings_view"));
+    if (el.cellsNavLeadersBtn) el.cellsNavLeadersBtn.classList.toggle("hide", !hasPermission("cells_leaders_view"));
+    if (el.cellsNavDisciplersBtn) el.cellsNavDisciplersBtn.classList.toggle("hide", !hasPermission("cells_disciplers_view"));
+    if (el.cellsNavLostSheepBtn) el.cellsNavLostSheepBtn.classList.toggle("hide", !hasPermission("cells_lost_sheep_view"));
   }
 
   async function loadCurrentUserRole() {
@@ -371,6 +436,26 @@
   }
 
   function setCellsView(viewName) {
+    const viewPermissions = {
+      dashboard: "cells_dashboard_view",
+      cells: "cells_cells_view",
+      people: "cells_people_view",
+      meetings: "cells_meetings_view",
+      leaders: "cells_leaders_view",
+      disciplers: "cells_disciplers_view",
+      "lost-sheep": "cells_lost_sheep_view",
+    };
+
+    const requiredPermission = viewPermissions[viewName];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+      setCellsMessage("Acesso negado: sua role nao permite esta tela.", true);
+      const fallbackView = getFirstAllowedCellsView();
+      if (!fallbackView || fallbackView === viewName) {
+        return;
+      }
+      viewName = fallbackView;
+    }
+
     state.currentView = viewName;
 
     if (el.cellsDashboardView) el.cellsDashboardView.classList.toggle("hide", viewName !== "dashboard");
@@ -2175,17 +2260,54 @@
   }
 
   async function openCellsModule() {
+    loadPermissionState();
+    applyCellsPermissionLayout();
+    if (!hasCellsModuleAccess()) {
+      throw new Error("Acesso negado ao modulo de Celulas.");
+    }
+
+    const fallbackView = getFirstAllowedCellsView();
+    if (!fallbackView) {
+      throw new Error("Sua role nao possui permissao de visualizacao no modulo de Celulas.");
+    }
+
     setActiveModule("cells");
     await ensureCellsInitialized();
     if (isLeaderMode()) {
-      setCellsView("people");
-      fillPeopleCellSelect();
-      await loadPeopleViewData();
-      fillMeetingsCellSelect();
+      setCellsView(hasPermission("cells_people_view") ? "people" : fallbackView);
+      if (state.currentView === "people") {
+        fillPeopleCellSelect();
+        await loadPeopleViewData();
+      }
+      if (state.currentView === "meetings") {
+        fillMeetingsCellSelect();
+        await loadMeetingsViewData();
+      }
       return;
     }
-    setCellsView("dashboard");
-    await loadCellsDashboard();
+    setCellsView(fallbackView);
+
+    if (state.currentView === "dashboard") {
+      await loadCellsDashboard();
+      return;
+    }
+    if (state.currentView === "cells" || state.currentView === "leaders" || state.currentView === "disciplers") {
+      await refreshCellsAdminData();
+      return;
+    }
+    if (state.currentView === "people") {
+      fillPeopleCellSelect();
+      await loadPeopleViewData();
+      return;
+    }
+    if (state.currentView === "meetings") {
+      fillMeetingsCellSelect();
+      await loadMeetingsViewData();
+      return;
+    }
+    if (state.currentView === "lost-sheep") {
+      await loadLostSheepData();
+    }
   }
 
   async function handleLoadError(fn, fallbackMessage) {
@@ -2208,6 +2330,9 @@
   if (valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase() === "leader" && getToken()) {
     handleLoadError(openCellsModule, "Falha ao carregar modulo de celulas.");
   }
+
+  loadPermissionState();
+  applyCellsPermissionLayout();
 
   if (el.cellsNavDashboardBtn) {
     el.cellsNavDashboardBtn.addEventListener("click", function () {

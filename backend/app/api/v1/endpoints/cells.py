@@ -42,13 +42,71 @@ from app.services import cell_service
 
 router = APIRouter()
 
+CELL_VIEW_PERMISSIONS = {
+    "cells_dashboard_view",
+    "cells_cells_view",
+    "cells_people_view",
+    "cells_meetings_view",
+    "cells_leaders_view",
+    "cells_disciplers_view",
+    "cells_lost_sheep_view",
+}
+
+CELL_MANAGE_PERMISSIONS = {
+    "cells_cells_create",
+    "cells_cells_edit",
+    "cells_cells_delete",
+    "cells_people_add_visitor",
+    "cells_people_add_assiduo",
+    "cells_people_add_member",
+    "cells_people_promote_member",
+    "cells_people_transfer_member",
+    "cells_people_disable_member",
+    "cells_meetings_create",
+    "cells_attendance_manage",
+    "cells_leaders_create",
+    "cells_leaders_edit",
+    "cells_leaders_delete",
+    "cells_disciplers_create",
+    "cells_disciplers_edit",
+    "cells_disciplers_delete",
+    "cells_lost_sheep_manage",
+}
+
+
+def _active_permission_names(user: User) -> set[str]:
+    role_obj = getattr(user, "role_obj", None)
+    permissions = getattr(role_obj, "permissions", None)
+    if not permissions:
+        return set()
+    return {
+        permission.name
+        for permission in permissions
+        if permission and permission.active and permission.name
+    }
+
+
+def _is_role_obj_admin(user: User) -> bool:
+    role_obj = getattr(user, "role_obj", None)
+    return bool(role_obj and role_obj.is_admin)
+
+
+def _has_any_cell_view_permission(user: User) -> bool:
+    return bool(_active_permission_names(user) & CELL_VIEW_PERMISSIONS)
+
+
+def _has_any_cell_manage_permission(user: User) -> bool:
+    return bool(_active_permission_names(user) & CELL_MANAGE_PERMISSIONS)
+
 
 def _is_editor_user(user: User) -> bool:
-    return user.role in (ROLE_ADMIN, ROLE_EDITOR)
+    return user.role in (ROLE_ADMIN, ROLE_EDITOR) or _is_role_obj_admin(user) or _has_any_cell_manage_permission(user)
 
 
 def _get_allowed_cell_ids_for_user(db: Session, user: User) -> Optional[list[int]]:
     if _is_editor_user(user):
+        return None
+    if _has_any_cell_view_permission(user):
         return None
     if user.role == ROLE_LEADER:
         return cell_service.list_cell_ids_led_by_user(db, user)
@@ -58,6 +116,8 @@ def _get_allowed_cell_ids_for_user(db: Session, user: User) -> Optional[list[int
 def _require_cell_access(db: Session, user: User, cell_id: int) -> None:
     if _is_editor_user(user):
         return
+    if _has_any_cell_view_permission(user):
+        return
     if user.role != ROLE_LEADER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
     if not cell_service.user_has_access_to_cell(db, user, cell_id):
@@ -65,8 +125,9 @@ def _require_cell_access(db: Session, user: User, cell_id: int) -> None:
 
 
 def _require_editor_or_leader(user: User) -> None:
-    if user.role not in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor or leader access required")
+    if user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER) or _is_role_obj_admin(user) or _has_any_cell_manage_permission(user):
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor or leader access required")
 
 @router.get("/", response_model=list[CellResponse])
 def list_cells(

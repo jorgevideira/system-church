@@ -4,6 +4,26 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 
+class UserPermissionResponse(BaseModel):
+    id: int
+    name: str
+    category: str
+    module: str
+    active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class UserRoleResponse(BaseModel):
+    id: int
+    name: str
+    is_admin: bool
+    active: bool
+    permissions: list[UserPermissionResponse]
+
+    model_config = {"from_attributes": True}
+
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
@@ -36,6 +56,7 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    role_obj: Optional[UserRoleResponse] = None
 
     model_config = {"from_attributes": True}
 

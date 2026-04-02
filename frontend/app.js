@@ -2,6 +2,8 @@ const API_PREFIX = "/api/v1";
 const TX_FILTERS_STORAGE_KEY = "txFiltersV1";
 const TX_PAGINATION_STORAGE_KEY = "txPaginationV1";
 const DASH_BUDGETS_STORAGE_KEY = "dashBudgetsV1";
+const CURRENT_USER_PERMISSIONS_STORAGE_KEY = "currentUserPermissions";
+const CURRENT_USER_IS_ADMIN_STORAGE_KEY = "currentUserIsAdmin";
 
 const state = {
   accessToken: localStorage.getItem("accessToken") || "",
@@ -69,6 +71,9 @@ const state = {
   editingCategoryId: null,
   editingMinistryId: null,
   currentUserRole: "",
+  currentUserPermissions: [],
+  currentUserPermissionSet: new Set(),
+  currentUserIsAdmin: false,
   previewAttachmentUrl: "",
 };
 
@@ -94,6 +99,10 @@ const el = {
   ministryMessage: document.getElementById("ministryMessage"),
   uploadMessage: document.getElementById("uploadMessage"),
   reportMessage: document.getElementById("reportMessage"),
+  moduleFinanceBtn: document.getElementById("moduleFinanceBtn"),
+  moduleCellsBtn: document.getElementById("moduleCellsBtn"),
+  moduleBibleSchoolBtn: document.getElementById("moduleBibleSchoolBtn"),
+  moduleUsersBtn: document.getElementById("moduleUsersBtn"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -464,6 +473,27 @@ function showApp(isAuthed) {
 }
 
 function setActiveView(viewId) {
+  const viewPermissionById = {
+    dashboardView: "finance_dashboard_view",
+    transactionsView: "finance_transactions_view",
+    payablesView: "finance_payables_view",
+    receivablesView: "finance_receivables_view",
+    categoriesView: "finance_categories_view",
+    ministriesView: "finance_ministries_view",
+    uploadView: "finance_upload_manage",
+    reportsView: "finance_reports_view",
+  };
+
+  const requiredPermission = viewPermissionById[viewId];
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    setMessage(el.dashboardMessage, "Acesso negado: sua role nao permite esta tela.", true);
+    const fallbackView = getFirstFinanceAllowedView();
+    if (!fallbackView || fallbackView === viewId) {
+      return;
+    }
+    viewId = fallbackView;
+  }
+
   const views = [
     el.dashboardView,
     el.transactionsView,
@@ -480,6 +510,121 @@ function setActiveView(viewId) {
   for (const btn of el.navButtons) {
     btn.classList.toggle("active", btn.dataset.view === viewId);
   }
+}
+
+function getPermissionsFromStorage() {
+  try {
+    const raw = localStorage.getItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function syncPermissionStateFromStorage() {
+  state.currentUserPermissions = getPermissionsFromStorage();
+  state.currentUserPermissionSet = new Set(state.currentUserPermissions);
+  state.currentUserIsAdmin = localStorage.getItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY) === "true";
+  if (!state.currentUserRole) {
+    state.currentUserRole = String(localStorage.getItem("currentUserRole") || "").toLowerCase();
+  }
+}
+
+function hasPermission(permissionName) {
+  if (!permissionName) return false;
+  if (state.currentUserIsAdmin || state.currentUserRole === "admin") return true;
+  if (!state.currentUserPermissionSet || !state.currentUserPermissionSet.size) {
+    syncPermissionStateFromStorage();
+  }
+  return state.currentUserPermissionSet.has(permissionName);
+}
+
+function hasModuleAccess(moduleName) {
+  if (state.currentUserIsAdmin || state.currentUserRole === "admin") return true;
+  if (!state.currentUserPermissionSet || !state.currentUserPermissionSet.size) {
+    syncPermissionStateFromStorage();
+  }
+  const prefix = `${moduleName}_`;
+  for (const permissionName of state.currentUserPermissionSet) {
+    if (permissionName.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getFirstAccessibleModule() {
+  const orderedModules = ["finance", "cells", "school", "users"];
+  for (const moduleName of orderedModules) {
+    if (hasModuleAccess(moduleName)) {
+      return moduleName;
+    }
+  }
+  return null;
+}
+
+function openFirstAccessibleModule() {
+  const moduleName = getFirstAccessibleModule();
+  if (!moduleName) return false;
+
+  if (moduleName === "finance") {
+    const firstFinanceView = getFirstFinanceAllowedView();
+    if (firstFinanceView) {
+      setActiveView(firstFinanceView);
+      return true;
+    }
+    return false;
+  }
+
+  const clickMap = {
+    cells: el.moduleCellsBtn,
+    school: el.moduleBibleSchoolBtn,
+    users: el.moduleUsersBtn,
+  };
+  const targetBtn = clickMap[moduleName];
+  if (targetBtn && !targetBtn.disabled) {
+    targetBtn.click();
+    return true;
+  }
+
+  return false;
+}
+
+function getFirstFinanceAllowedView() {
+  const orderedViewPermissions = [
+    ["dashboardView", "finance_dashboard_view"],
+    ["transactionsView", "finance_transactions_view"],
+    ["payablesView", "finance_payables_view"],
+    ["receivablesView", "finance_receivables_view"],
+    ["categoriesView", "finance_categories_view"],
+    ["ministriesView", "finance_ministries_view"],
+    ["uploadView", "finance_upload_manage"],
+    ["reportsView", "finance_reports_view"],
+  ];
+
+  for (const [viewId, permissionName] of orderedViewPermissions) {
+    if (hasPermission(permissionName)) {
+      return viewId;
+    }
+  }
+  return null;
+}
+
+function applyTopModulePermissions() {
+  const modules = [
+    [el.moduleFinanceBtn, "finance"],
+    [el.moduleCellsBtn, "cells"],
+    [el.moduleBibleSchoolBtn, "school"],
+    [el.moduleUsersBtn, "users"],
+  ];
+
+  modules.forEach(([button, moduleName]) => {
+    if (!button) return;
+    const allowed = hasModuleAccess(moduleName);
+    button.classList.toggle("hide", !allowed);
+    button.disabled = !allowed;
+  });
 }
 
 function setTransactionSort(sortValue) {
@@ -2435,9 +2580,14 @@ function logout() {
   state.accessToken = "";
   state.refreshToken = "";
   state.currentUserRole = "";
+  state.currentUserPermissions = [];
+  state.currentUserPermissionSet = new Set();
+  state.currentUserIsAdmin = false;
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("currentUserRole");
+  localStorage.removeItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY);
+  localStorage.removeItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY);
   document.body.dataset.userRole = "";
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");
@@ -2447,9 +2597,25 @@ function logout() {
 async function loadMe() {
   const me = await api("/auth/me");
   state.currentUserRole = String(me.role || "").toLowerCase();
+
+  const rolePermissions = Array.isArray(me && me.role_obj && me.role_obj.permissions)
+    ? me.role_obj.permissions
+    : [];
+  const permissionNames = rolePermissions
+    .filter((permission) => permission && permission.active !== false && typeof permission.name === "string")
+    .map((permission) => permission.name);
+
+  state.currentUserPermissions = permissionNames;
+  state.currentUserPermissionSet = new Set(permissionNames);
+  state.currentUserIsAdmin = Boolean(me && me.role_obj && me.role_obj.is_admin) || state.currentUserRole === "admin";
+
   localStorage.setItem("currentUserRole", state.currentUserRole);
+  localStorage.setItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY, JSON.stringify(permissionNames));
+  localStorage.setItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY, String(state.currentUserIsAdmin));
   document.body.dataset.userRole = state.currentUserRole;
   el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
+
+  applyTopModulePermissions();
   return me;
 }
 
@@ -2815,9 +2981,24 @@ async function initializeApp() {
 
   try {
     showApp(true);
-    setActiveView("dashboardView");
     el.reportYear.value = new Date().getFullYear();
     const me = await loadMe();
+
+    if (!hasModuleAccess("finance")) {
+      const opened = openFirstAccessibleModule();
+      if (!opened) {
+        setMessage(el.dashboardMessage, "Sem acesso a nenhum modulo para esta role.", true);
+      }
+      return;
+    }
+
+    const firstFinanceView = getFirstFinanceAllowedView();
+    if (!firstFinanceView) {
+      setMessage(el.dashboardMessage, "Sua role nao possui permissoes de visualizacao no modulo Financeiro.", true);
+      return;
+    }
+
+    setActiveView(firstFinanceView);
     if (String(me.role || "").toLowerCase() === "leader") {
       setMessage(el.dashboardMessage, "Perfil de lider: use o modulo de Celulas para gerenciar sua equipe e frequencia.");
       return;

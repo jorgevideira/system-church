@@ -1,5 +1,7 @@
 (function () {
   const apiPrefix = "/api/v1";
+  const permissionStorageKey = "currentUserPermissions";
+  const isAdminStorageKey = "currentUserIsAdmin";
 
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
@@ -138,6 +140,8 @@
   const state = {
     initialized: false,
     view: "courses",
+    permissionSet: new Set(),
+    isAdmin: false,
     courses: [],
     classes: [],
     professors: [],
@@ -186,6 +190,26 @@
   }
 
   function setSchoolView(viewName) {
+    const viewPermissions = {
+      courses: "school_courses_view",
+      classes: "school_classes_view",
+      professors: "school_professors_view",
+      lessons: "school_lessons_view",
+      students: "school_students_view",
+      attendance: "school_attendance_view",
+      dashboard: "school_dashboard_view",
+    };
+
+    const requiredPermission = viewPermissions[viewName];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+      setSchoolMessage("Acesso negado: sua role nao permite esta tela.", true);
+      const fallbackView = getFirstAllowedSchoolView();
+      if (!fallbackView || fallbackView === viewName) {
+        return;
+      }
+      viewName = fallbackView;
+    }
+
     state.view = viewName;
     if (el.schoolNavCoursesBtn) el.schoolNavCoursesBtn.classList.toggle("active", viewName === "courses");
     if (el.schoolNavClassesBtn) el.schoolNavClassesBtn.classList.toggle("active", viewName === "classes");
@@ -201,6 +225,75 @@
     if (el.schoolStudentsView) el.schoolStudentsView.classList.toggle("hide", viewName !== "students");
     if (el.schoolAttendanceView) el.schoolAttendanceView.classList.toggle("hide", viewName !== "attendance");
     if (el.schoolDashboardView) el.schoolDashboardView.classList.toggle("hide", viewName !== "dashboard");
+  }
+
+  function loadPermissionState() {
+    try {
+      const raw = localStorage.getItem(permissionStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const permissions = Array.isArray(parsed) ? parsed.filter(function (item) { return typeof item === "string"; }) : [];
+      state.permissionSet = new Set(permissions);
+    } catch (_error) {
+      state.permissionSet = new Set();
+    }
+    state.isAdmin = localStorage.getItem(isAdminStorageKey) === "true";
+  }
+
+  function hasPermission(permissionName) {
+    if (!permissionName) return false;
+    if (state.isAdmin) return true;
+    return state.permissionSet.has(permissionName);
+  }
+
+  function hasSchoolModuleAccess() {
+    if (state.isAdmin) return true;
+    for (const permissionName of state.permissionSet) {
+      if (permissionName.indexOf("school_") === 0) return true;
+    }
+    return false;
+  }
+
+  function getFirstAllowedSchoolView() {
+    const ordered = [
+      ["dashboard", "school_dashboard_view"],
+      ["courses", "school_courses_view"],
+      ["classes", "school_classes_view"],
+      ["professors", "school_professors_view"],
+      ["lessons", "school_lessons_view"],
+      ["students", "school_students_view"],
+      ["attendance", "school_attendance_view"],
+    ];
+
+    for (const row of ordered) {
+      if (hasPermission(row[1])) return row[0];
+    }
+    return null;
+  }
+
+  function applySchoolPermissionLayout() {
+    const allowedByView = {
+      courses: hasPermission("school_courses_view"),
+      classes: hasPermission("school_classes_view"),
+      professors: hasPermission("school_professors_view"),
+      lessons: hasPermission("school_lessons_view"),
+      students: hasPermission("school_students_view"),
+      attendance: hasPermission("school_attendance_view"),
+      dashboard: hasPermission("school_dashboard_view"),
+    };
+
+    if (el.schoolNavCoursesBtn) el.schoolNavCoursesBtn.classList.toggle("hide", !allowedByView.courses);
+    if (el.schoolNavClassesBtn) el.schoolNavClassesBtn.classList.toggle("hide", !allowedByView.classes);
+    if (el.schoolNavProfessorsBtn) el.schoolNavProfessorsBtn.classList.toggle("hide", !allowedByView.professors);
+    if (el.schoolNavLessonsBtn) el.schoolNavLessonsBtn.classList.toggle("hide", !allowedByView.lessons);
+    if (el.schoolNavStudentsBtn) el.schoolNavStudentsBtn.classList.toggle("hide", !allowedByView.students);
+    if (el.schoolNavAttendanceBtn) el.schoolNavAttendanceBtn.classList.toggle("hide", !allowedByView.attendance);
+    if (el.schoolNavDashboardBtn) el.schoolNavDashboardBtn.classList.toggle("hide", !allowedByView.dashboard);
+
+    if (el.schoolBtn) {
+      const canOpen = hasSchoolModuleAccess();
+      el.schoolBtn.classList.toggle("hide", !canOpen);
+      el.schoolBtn.disabled = !canOpen;
+    }
   }
 
   async function api(path, options) {
@@ -611,11 +704,40 @@
   }
 
   async function refreshAll() {
-    await loadCourses();
-    await loadClasses();
-    await loadProfessors();
-    await loadLessons();
-    await loadStudents();
+    if (hasPermission("school_courses_view")) {
+      await loadCourses();
+    } else {
+      state.courses = [];
+      renderCourses();
+    }
+
+    if (hasPermission("school_classes_view")) {
+      await loadClasses();
+    } else {
+      state.classes = [];
+      renderClasses();
+    }
+
+    if (hasPermission("school_professors_view")) {
+      await loadProfessors();
+    } else {
+      state.professors = [];
+      renderProfessors();
+    }
+
+    if (hasPermission("school_lessons_view")) {
+      await loadLessons();
+    } else {
+      state.lessons = [];
+      renderLessons();
+    }
+
+    if (hasPermission("school_students_view")) {
+      await loadStudents();
+    } else {
+      state.students = [];
+      renderStudents();
+    }
   }
 
   // Modal management functions
@@ -1236,6 +1358,8 @@
 
   async function ensureSchoolInitialized() {
     if (state.initialized) return;
+    loadPermissionState();
+    applySchoolPermissionLayout();
     await refreshAll();
     resetCourseForm();
     resetClassForm();
@@ -1246,9 +1370,24 @@
   }
 
   async function openSchoolModule() {
+    loadPermissionState();
+    applySchoolPermissionLayout();
+    if (!hasSchoolModuleAccess()) {
+      throw new Error("Acesso negado ao modulo Escola Biblica.");
+    }
+
+    const fallbackView = getFirstAllowedSchoolView();
+    if (!fallbackView) {
+      throw new Error("Sua role nao possui permissao de visualizacao no modulo Escola Biblica.");
+    }
+
     setActiveModule("school");
-    setSchoolView(state.view || "courses");
+    setSchoolView(state.view || fallbackView);
     await ensureSchoolInitialized();
+
+    if (state.view === "dashboard" && hasPermission("school_dashboard_view")) {
+      await loadDashboardData();
+    }
   }
 
   async function handleLoadError(fn, fallbackMessage) {
@@ -1265,6 +1404,9 @@
       handleLoadError(openSchoolModule, "Falha ao carregar modulo de escola biblica.");
     });
   }
+
+  loadPermissionState();
+  applySchoolPermissionLayout();
 
   if (el.schoolNavCoursesBtn) {
     el.schoolNavCoursesBtn.addEventListener("click", function () {

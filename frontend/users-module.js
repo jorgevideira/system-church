@@ -4,6 +4,8 @@
   const rolesEndpoint = `${apiPrefix}/roles/roles`;
   const permissionsEndpoint = `${apiPrefix}/roles/permissions?skip=0&limit=200`;
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
+  const permissionStorageKey = "currentUserPermissions";
+  const isAdminStorageKey = "currentUserIsAdmin";
 
   const MODULE_LABELS = {
     finance: "Financeiro",
@@ -234,6 +236,8 @@
     users: [],
     roles: [],
     permissions: [],
+    permissionSet: new Set(),
+    isAdmin: false,
     mode: "create",
     currentView: "users",
     editingUserId: null,
@@ -406,6 +410,21 @@
   }
 
   function setUsersView(viewName) {
+    const viewPermissions = {
+      users: "users_users_view",
+      roles: "users_roles_view",
+    };
+
+    const requiredPermission = viewPermissions[viewName];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+      setMessage("Acesso negado: sua role nao permite esta tela.", true);
+      const fallback = getFirstAllowedUsersView();
+      if (!fallback || fallback === viewName) {
+        return;
+      }
+      viewName = fallback;
+    }
+
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
@@ -414,6 +433,53 @@
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
+  }
+
+  function loadPermissionState() {
+    try {
+      const raw = localStorage.getItem(permissionStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const permissions = Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+      state.permissionSet = new Set(permissions);
+    } catch (_error) {
+      state.permissionSet = new Set();
+    }
+    state.isAdmin = localStorage.getItem(isAdminStorageKey) === "true";
+  }
+
+  function hasPermission(permissionName) {
+    if (!permissionName) return false;
+    if (state.isAdmin) return true;
+    return state.permissionSet.has(permissionName);
+  }
+
+  function hasUsersModuleAccess() {
+    if (state.isAdmin) return true;
+    for (const permissionName of state.permissionSet) {
+      if (permissionName.indexOf("users_") === 0) return true;
+    }
+    return false;
+  }
+
+  function getFirstAllowedUsersView() {
+    if (hasPermission("users_users_view")) return "users";
+    if (hasPermission("users_roles_view")) return "roles";
+    return null;
+  }
+
+  function applyUsersPermissionLayout() {
+    const canOpenModule = hasUsersModuleAccess();
+    if (el.usersBtn) {
+      el.usersBtn.classList.toggle("hide", !canOpenModule);
+      el.usersBtn.disabled = !canOpenModule;
+    }
+
+    if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("hide", !hasPermission("users_users_view"));
+    if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
+    if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
+    if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.classList.toggle("hide", !hasPermission("users_roles_create"));
+    if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.classList.toggle("hide", !hasPermission("users_permissions_create"));
+    if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.classList.toggle("hide", !hasPermission("users_system_permissions_manage"));
   }
 
   async function loadUsers() {
@@ -528,14 +594,22 @@
         const roleName = (user.role_obj && user.role_obj.name) || user.role || "N/A";
         const statusClass = user.is_active ? "bg-success" : "bg-secondary";
         const statusLabel = user.is_active ? "Ativo" : "Inativo";
+        const canEdit = hasPermission("users_users_edit");
+        const canDelete = hasPermission("users_users_delete");
+        const editButton = canEdit
+          ? `<button type="button" class="btn btn-sm btn-warning" data-user-edit="${user.id}" onclick="window.usersEditUser && window.usersEditUser(${user.id})">Editar</button>`
+          : "";
+        const deleteButton = canDelete
+          ? `<button type="button" class="btn btn-sm btn-danger" data-user-delete="${user.id}" onclick="window.usersDeleteUser && window.usersDeleteUser(${user.id})">Excluir</button>`
+          : "";
         return `<tr>
           <td><strong>${user.email}</strong></td>
           <td>${user.full_name || "-"}</td>
           <td><span class="badge bg-info">${roleName}</span></td>
           <td><span class="badge ${statusClass}">${statusLabel}</span></td>
           <td>
-            <button class="btn btn-sm btn-warning" data-user-edit="${user.id}">Editar</button>
-            <button class="btn btn-sm btn-danger" data-user-delete="${user.id}">Excluir</button>
+            ${editButton}
+            ${deleteButton}
           </td>
         </tr>`;
       })
@@ -560,6 +634,10 @@
 
     el.rolesTableBody.innerHTML = state.roles
       .map((role) => {
+        const canEditRole = hasPermission("users_roles_edit");
+        const canDeleteRole = hasPermission("users_roles_delete");
+        const editRoleButton = canEditRole ? `<button class="btn btn-sm btn-warning" data-role-edit="${role.id}">Editar</button>` : "";
+        const deleteRoleButton = canDeleteRole ? `<button class="btn btn-sm btn-danger" data-role-delete="${role.id}">Excluir</button>` : "";
         const permissionList = Array.isArray(role.permissions) ? role.permissions : [];
         const permissionCount = permissionList.length;
 
@@ -574,8 +652,8 @@
           <td>${role.active ? "Ativa" : "Inativa"}</td>
           <td title="${tooltip || "Sem permissões"}">${permissionCount}</td>
           <td>
-            <button class="btn btn-sm btn-warning" data-role-edit="${role.id}">Editar</button>
-            <button class="btn btn-sm btn-danger" data-role-delete="${role.id}">Excluir</button>
+            ${editRoleButton}
+            ${deleteRoleButton}
           </td>
         </tr>`;
       })
@@ -820,15 +898,38 @@
   }
 
   async function openUsersModule() {
+    loadPermissionState();
+    applyUsersPermissionLayout();
+
+    if (!hasUsersModuleAccess()) {
+      throw new Error("Acesso negado ao modulo Configuracoes.");
+    }
+
+    const fallbackView = getFirstAllowedUsersView();
+    if (!fallbackView) {
+      throw new Error("Sua role nao possui permissao de visualizacao no modulo Configuracoes.");
+    }
+
     setActiveModule("users");
-    setUsersView("users");
-    await loadPermissions();
-    await loadRoles();
-    ensureRolesOptions();
-    await loadUsers();
+    setUsersView(fallbackView);
+    if (hasPermission("users_roles_view") || hasPermission("users_users_view")) {
+      await loadPermissions();
+    }
+    if (hasPermission("users_roles_view") || hasPermission("users_users_view")) {
+      await loadRoles();
+      ensureRolesOptions();
+    }
+    if (hasPermission("users_users_view")) {
+      await loadUsers();
+    }
   }
 
   async function openRolesView() {
+    if (!hasPermission("users_roles_view")) {
+      setRolesMessage("Acesso negado: sua role nao permite visualizar roles.", true);
+      return;
+    }
+
     setUsersView("roles");
     await loadPermissions();
     await loadRoles();
@@ -843,6 +944,9 @@
         openUsersModule().catch((error) => setMessage(error.message, true));
       });
     }
+
+    loadPermissionState();
+    applyUsersPermissionLayout();
 
     if (el.financeBtn) el.financeBtn.addEventListener("click", () => setActiveModule("finance"));
     if (el.cellsBtn) el.cellsBtn.addEventListener("click", () => setActiveModule("cells"));
@@ -896,9 +1000,35 @@
         if (event.target === el.usersDeleteModal) closeDeleteModal();
       });
     }
+
+    document.addEventListener("click", (event) => {
+      const addButton = event.target.closest && event.target.closest("#usersAddBtn");
+      if (addButton) {
+        openUserForm("create", null);
+        return;
+      }
+
+      const editButton = event.target.closest && event.target.closest("[data-user-edit]");
+      if (editButton) {
+        openEditUser(parseInt(editButton.getAttribute("data-user-edit"), 10));
+        return;
+      }
+
+      const deleteButton = event.target.closest && event.target.closest("[data-user-delete]");
+      if (deleteButton) {
+        openDeleteModal(parseInt(deleteButton.getAttribute("data-user-delete"), 10));
+      }
+    });
+
+    if (el.usersAddBtn) {
+      el.usersAddBtn.setAttribute("onclick", "window.usersOpenCreateUserModal && window.usersOpenCreateUserModal()");
+    }
   }
 
   window.openUsersModule = () => openUsersModule().catch((error) => setMessage(error.message, true));
+  window.usersOpenCreateUserModal = () => openUserForm("create", null);
+  window.usersEditUser = (userId) => openEditUser(Number(userId));
+  window.usersDeleteUser = (userId) => openDeleteModal(Number(userId));
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindEvents);
