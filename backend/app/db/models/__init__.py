@@ -1,4 +1,5 @@
 from app.db.models.user import User
+from app.db.models.role import Role, Permission
 from app.db.models.category import Category
 from app.db.models.ministry import Ministry
 from app.db.models.bank_account import BankAccount
@@ -19,9 +20,17 @@ from app.db.models.cell_meeting_attendance import CellMeetingAttendance
 from app.db.models.cell_visitor import CellVisitor
 from app.db.models.cell_meeting_visitor import CellMeetingVisitor
 from app.db.models.lost_sheep import LostSheep
+from app.db.models.bible_school_course import BibleSchoolCourse
+from app.db.models.bible_school_class import BibleSchoolClass
+from app.db.models.bible_school_professor import BibleSchoolProfessor
+from app.db.models.bible_school_lesson import BibleSchoolLesson
+from app.db.models.bible_school_student import BibleSchoolStudent
+from app.db.models.bible_school_attendance import BibleSchoolAttendance
 
 __all__ = [
     "User",
+    "Role",
+    "Permission",
     "Category",
     "Ministry",
     "BankAccount",
@@ -41,4 +50,11 @@ __all__ = [
     "CellMeetingAttendance",
     "CellVisitor",
     "CellMeetingVisitor",
+    "LostSheep",
+    "BibleSchoolCourse",
+    "BibleSchoolClass",
+    "BibleSchoolProfessor",
+    "BibleSchoolLesson",
+    "BibleSchoolStudent",
+    "BibleSchoolAttendance",
 ]

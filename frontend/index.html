@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -45,10 +45,11 @@
   <div id="appShell" class="app-shell hide">
     <header class="topbar">
       <h2>Church Finance Console</h2>
-      <div class="module-nav" aria-label="Selecao de modulo">
+      <div class="module-nav" aria-label="Selecao de Módulo">
         <button id="moduleFinanceBtn" class="module-btn active" type="button">Financeiro</button>
-        <button id="moduleCellsBtn" class="module-btn" type="button">Celulas</button>
-        <button class="module-btn module-btn-disabled" type="button" disabled>Mais em breve</button>
+        <button id="moduleCellsBtn" class="module-btn" type="button">Células</button>
+        <button id="moduleBibleSchoolBtn" class="module-btn" type="button">Escola Bíblica</button>
+        <button id="moduleUsersBtn" class="module-btn" type="button" onclick="window.openUsersModule && window.openUsersModule()">Configurações</button>
       </div>
       <div class="session-box">
         <span id="sessionUser">Nao autenticado</span>
@@ -58,7 +59,7 @@
 
     <main id="financeModule" class="app-grid">
       <aside class="sidebar panel">
-        <p class="sidebar-title">Modulos</p>
+        <p class="sidebar-title">Módulos</p>
         <button class="nav-btn active" data-view="dashboardView">Dashboard</button>
         <button class="nav-btn" data-view="transactionsView">Lancamentos</button>
         <button class="nav-btn" data-view="payablesView">Contas a Pagar</button>
@@ -262,7 +263,7 @@
         <section class="panel view hide" id="transactionsView">
           <h3>Entradas e Saidas</h3>
           <form id="transactionForm" class="grid-form">
-            <label>Descricao
+            <label>Descrição
               <input type="text" id="txDescription" required>
             </label>
             <label>Valor
@@ -309,7 +310,7 @@
           <section class="tx-filters" aria-label="Filtros de lancamentos">
             <div class="tx-filters-grid">
               <label>Buscar
-                <input type="text" id="txFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+                <input type="text" id="txFilterSearch" placeholder="Descrição, banco, categoria, ministerio">
               </label>
               <label>Data inicial
                 <input type="date" id="txFilterStartDate">
@@ -363,7 +364,7 @@
               <thead>
                 <tr>
                   <th><button class="th-sort-btn" id="txHeaderDateSort" data-sort-base="date" type="button">Data</button></th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Tipo</th>
                   <th>Banco</th>
                   <th>Categoria</th>
@@ -408,8 +409,8 @@
                 <option value="both">Ambos</option>
               </select>
             </label>
-            <label>Descricao
-              <input type="text" id="categoryDescription" placeholder="Descricao opcional">
+            <label>Descrição
+              <input type="text" id="categoryDescription" placeholder="Descrição opcional">
             </label>
             <div class="category-form-actions">
               <button class="btn" type="submit" id="categorySaveBtn">Salvar categoria</button>
@@ -423,7 +424,7 @@
                 <tr>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Sistema</th>
                   <th>Ativa</th>
                   <th>Acoes</th>
@@ -437,7 +438,7 @@
         <section class="panel view hide" id="payablesView">
           <h3>Contas a Pagar</h3>
           <form id="payableForm" class="grid-form">
-            <label>Descricao
+            <label>Descrição
               <input type="text" id="payableDescription" required>
             </label>
             <label>Valor
@@ -492,7 +493,7 @@
           <section class="tx-filters" aria-label="Filtros de contas a pagar">
             <div class="tx-filters-grid">
               <label>Buscar
-                <input type="text" id="payableFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+                <input type="text" id="payableFilterSearch" placeholder="Descrição, banco, categoria, ministerio">
               </label>
               <label>Status
                 <select id="payableFilterStatus">
@@ -521,7 +522,7 @@
                 <tr>
                   <th>Vencimento</th>
                   <th>Pagamento</th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Status</th>
                   <th>Forma pgto</th>
                   <th>Categoria</th>
@@ -542,7 +543,7 @@
         <section class="panel view hide" id="receivablesView">
           <h3>Contas a Receber</h3>
           <form id="receivableForm" class="grid-form">
-            <label>Descricao
+            <label>Descrição
               <input type="text" id="receivableDescription" required>
             </label>
             <label>Valor
@@ -587,7 +588,7 @@
           <section class="tx-filters" aria-label="Filtros de contas a receber">
             <div class="tx-filters-grid">
               <label>Buscar
-                <input type="text" id="receivableFilterSearch" placeholder="Descricao, banco, categoria, ministerio">
+                <input type="text" id="receivableFilterSearch" placeholder="Descrição, banco, categoria, ministerio">
               </label>
               <label>Status
                 <select id="receivableFilterStatus">
@@ -615,7 +616,7 @@
               <thead>
                 <tr>
                   <th>Vencimento</th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Status</th>
                   <th>Categoria</th>
                   <th>Ministerio</th>
@@ -636,8 +637,8 @@
             <label>Nome
               <input type="text" id="ministryName" placeholder="Ex: Louvor, Jovens, Infantil" required>
             </label>
-            <label>Descricao
-              <input type="text" id="ministryDescription" placeholder="Descricao opcional">
+            <label>Descrição
+              <input type="text" id="ministryDescription" placeholder="Descrição opcional">
             </label>
             <div class="category-form-actions">
               <button class="btn" type="submit" id="ministrySaveBtn">Salvar ministerio</button>
@@ -650,7 +651,7 @@
               <thead>
                 <tr>
                   <th>Nome</th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Ativo</th>
                   <th>Acoes</th>
                 </tr>
@@ -694,12 +695,64 @@
     </main>
   </div>
 
+  <section id="bibleSchoolModule" class="module-panel hide">
+    <div class="school-module-grid">
+      <aside class="school-sidebar panel">
+        <p class="sidebar-title">Escola Bíblica</p>
+        <button id="schoolNavCoursesBtn" class="nav-btn active" type="button">Cursos</button>
+        <button id="schoolNavClassesBtn" class="nav-btn" type="button">Turmas</button>
+        <button id="schoolNavProfessorsBtn" class="nav-btn" type="button">Professores</button>
+        <button id="schoolNavLessonsBtn" class="nav-btn" type="button">Aulas</button>
+        <button id="schoolNavStudentsBtn" class="nav-btn" type="button">Alunos</button>
+        <button id="schoolNavAttendanceBtn" class="nav-btn" type="button">Chamada</button>
+        <button id="schoolNavDashboardBtn" class="nav-btn" type="button">Dashboard</button>
+      </aside>
+      <section class="school-content-stack">
+        <p id="schoolMessage" class="message"></p>
+        <section id="schoolCoursesView" class="panel school-view">
+          <div class="section-title"><h3>Cursos</h3><div class="module-actions"><button id="schoolCoursesAddBtn" class="btn" type="button">Novo curso</button><button id="schoolCoursesRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <form id="schoolCourseForm" class="stack"><input type="hidden" id="schoolCourseId"><label>Nome do curso <input type="text" id="schoolCourseName"></label><label>Descrição <input type="text" id="schoolCourseDescription"></label><label>Total de aulas <input type="number" id="schoolCourseTotalLessons" min="0"></label><label class="inline-check"><input type="checkbox" id="schoolCourseActive" checked> Ativo</label><div class="modal-actions"><button class="btn ghost" type="reset">Limpar</button><button class="btn" type="submit">Salvar curso</button></div></form>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Curso</th><th>Aulas</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="schoolCoursesBody"><tr><td colspan="4">Sem registros.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolClassesView" class="panel school-view hide">
+          <div class="section-title"><h3>Turmas</h3><div class="module-actions"><button id="schoolClassesAddBtn" class="btn" type="button">Nova turma</button><button id="schoolClassesRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <form id="schoolClassForm" class="stack"><input type="hidden" id="schoolClassId"><label>Curso <select id="schoolClassCourseId"></select></label><label>Nome da turma <input type="text" id="schoolClassName"></label><label>Dia da semana <input type="text" id="schoolClassWeekday"></label><label>Horario inicio <input type="time" id="schoolClassStartTime"></label><label>Horario fim <input type="time" id="schoolClassEndTime"></label><label>Professor <input type="text" id="schoolClassProfessorName"></label><label>Contato <input type="text" id="schoolClassContact"></label><label class="inline-check"><input type="checkbox" id="schoolClassActive" checked> Ativa</label><div class="modal-actions"><button class="btn ghost" type="reset">Limpar</button><button class="btn" type="submit">Salvar turma</button></div></form>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Turma</th><th>Curso</th><th>Dia</th><th>Horario</th><th>Professor</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="schoolClassesBody"><tr><td colspan="7">Sem registros.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolProfessorsView" class="panel school-view hide">
+          <div class="section-title"><h3>Professores</h3><div class="module-actions"><button id="schoolProfessorsAddBtn" class="btn" type="button">Novo professor</button><button id="schoolProfessorsRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Professor</th><th>Contato</th><th>Email</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="schoolProfessorsBody"><tr><td colspan="5">Sem registros.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolLessonsView" class="panel school-view hide">
+          <div class="section-title"><h3>Aulas</h3><div class="module-actions"><button id="schoolLessonsAddBtn" class="btn" type="button">Nova aula</button><button id="schoolLessonsRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <form id="schoolLessonForm" class="stack"><input type="hidden" id="schoolLessonId"><label>Data <input type="date" id="schoolLessonDate"></label><label>Turma <select id="schoolLessonClassId"></select></label><label>Professor <select id="schoolLessonProfessorId"></select></label><label>Topico <input type="text" id="schoolLessonTopic"></label><label class="inline-check"><input type="checkbox" id="schoolLessonActive" checked> Ativa</label><div class="modal-actions"><button class="btn ghost" type="reset">Limpar</button><button class="btn" type="submit">Salvar aula</button></div></form>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Data</th><th>Turma</th><th>Professor</th><th>Topico</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="schoolLessonsBody"><tr><td colspan="6">Sem registros.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolStudentsView" class="panel school-view hide">
+          <div class="section-title"><h3>Alunos</h3><div class="module-actions"><button id="schoolStudentsAddBtn" class="btn" type="button">Novo aluno</button><button id="schoolStudentsRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <form id="schoolStudentForm" class="stack"><input type="hidden" id="schoolStudentId"><label>Turma <select id="schoolStudentClassId"></select></label><label>Nome do aluno <input type="text" id="schoolStudentName"></label><label>Contato <input type="text" id="schoolStudentContact"></label><label>Email <input type="email" id="schoolStudentEmail"></label><label class="inline-check"><input type="checkbox" id="schoolStudentActive" checked> Ativo</label><div class="modal-actions"><button class="btn ghost" type="reset">Limpar</button><button class="btn" type="submit">Salvar aluno</button></div></form>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Aluno</th><th>Turma</th><th>Contato</th><th>Email</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="schoolStudentsBody"><tr><td colspan="6">Sem registros.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolAttendanceView" class="panel school-view hide">
+          <div class="section-title"><h3>Chamada</h3><div class="module-actions"><button id="schoolAttendanceRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <section class="dash-filters"><div class="dash-filters-grid"><label>Curso <select id="schoolAttendanceCourseId"><option value="">Selecione</option></select></label><label>Turma <select id="schoolAttendanceClassId"><option value="">Selecione</option></select></label><label>Aula <select id="schoolAttendanceLessonId"><option value="">Selecione</option></select></label></div><div class="module-actions"><button id="schoolAttendanceLoadBtn" class="btn ghost" type="button">Carregar chamada</button><button id="schoolAttendanceSaveBtn" class="btn" type="button">Salvar chamada</button></div></section>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Aluno</th><th>Status</th><th>Observacoes</th></tr></thead><tbody id="schoolAttendanceBody"><tr><td colspan="3">Selecione um curso, turma e aula para iniciar a chamada.</td></tr></tbody></table></div>
+        </section>
+        <section id="schoolDashboardView" class="panel school-view hide">
+          <div class="section-title"><h3>Dashboard - EstatÃ­sticas</h3><div class="module-actions"><button id="schoolDashboardRefreshBtn" class="btn ghost" type="button">Atualizar</button></div></div>
+          <section class="dash-filters"><div class="dash-filters-grid"><label>Curso <select id="schoolDashboardCourseId"><option value="">Todos</option></select></label><label>Turma <select id="schoolDashboardClassId"><option value="">Todas</option></select></label><label>% Mínimo para Aprovação <input type="number" id="schoolDashboardMinPercentage" value="70" min="0" max="100" step="5"></label></div></section>
+          <div class="stats-grid"><div class="stat-card"><div class="stat-label">Total de Aulas</div><div class="stat-value" id="dashboardTotalLessons">0</div></div><div class="stat-card"><div class="stat-label">Total de Alunos</div><div class="stat-value" id="dashboardTotalStudents">0</div></div><div class="stat-card"><div class="stat-label">Frequência Média</div><div class="stat-value" id="dashboardAvgAttendance">0%</div></div><div class="stat-card"><div class="stat-label">Alunos Aprovados</div><div class="stat-value approved" id="dashboardApprovedCount">0</div></div><div class="stat-card"><div class="stat-label">Alunos Reprovados</div><div class="stat-value failed" id="dashboardFailedCount">0</div></div><div class="stat-card"><div class="stat-label">Taxa de Aprovação</div><div class="stat-value" id="dashboardApprovalRate">0%</div></div></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Aluno</th><th>Aulas Presentes</th><th>Aulas Total</th><th>Frequência</th><th>Status</th></tr></thead><tbody id="schoolDashboardBody"><tr><td colspan="5">Selecione os filtros para ver a análise.</td></tr></tbody></table></div>
+        </section>
+      </section>
+    </div>
+  </section>
   <section id="cellsModule" class="module-panel hide">
     <div class="cells-module-grid">
       <aside class="cells-sidebar panel">
-        <p class="sidebar-title">Modulo Celulas</p>
+        <p class="sidebar-title">Módulo Células</p>
         <button id="cellsNavDashboardBtn" class="nav-btn active" type="button">Dashboard</button>
-        <button id="cellsNavCellsBtn" class="nav-btn" type="button">Celulas</button>
+        <button id="cellsNavCellsBtn" class="nav-btn" type="button">Células</button>
         <button id="cellsNavPeopleBtn" class="nav-btn" type="button">Pessoas</button>
         <button id="cellsNavMeetingsBtn" class="nav-btn" type="button">Reunioes</button>
         <button id="cellsNavLeadersBtn" class="nav-btn" type="button">Lideres</button>
@@ -712,11 +765,11 @@
 
         <section id="cellsDashboardView" class="panel cells-view">
           <div class="section-title">
-            <h3>Analise de Celulas</h3>
+            <h3>Analise de Células</h3>
             <button id="cellsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
           </div>
 
-          <section class="dash-filters" aria-label="Filtros de celulas">
+          <section class="dash-filters" aria-label="Filtros de Células">
             <div class="dash-filters-grid">
               <label>Celula
                 <select id="cellsSelect">
@@ -929,7 +982,7 @@
 
         <section id="cellsListView" class="panel cells-view hide">
           <div class="section-title">
-            <h3>Celulas</h3>
+            <h3>Células</h3>
             <div class="module-actions">
               <button id="cellsCellsAddBtn" class="btn" type="button">Add</button>
               <button id="cellsCellsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
@@ -1523,7 +1576,7 @@
         <button id="editModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
       </div>
       <form id="editTransactionForm" class="grid-form modal-edit-form">
-        <label>Descricao
+        <label>Descrição
           <input type="text" id="editTxDescription" required>
         </label>
         <label>Valor
@@ -1582,7 +1635,7 @@
         <button id="editPayableCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
       </div>
       <form id="editPayableForm" class="grid-form modal-edit-form">
-        <label>Descricao
+        <label>Descrição
           <input type="text" id="editPayableDescription" required>
         </label>
         <label>Valor
@@ -1699,8 +1752,161 @@
     </div>
   </div>
 
+  <section id="usersModule" class="module-panel hide">
+    <div class="users-module-grid">
+      <aside class="users-sidebar panel">
+        <p class="sidebar-title">Configurações</p>
+        <button id="usersNavUsersBtn" class="nav-btn active" type="button">Usuários</button>
+        <button id="usersNavRolesBtn" class="nav-btn" type="button">Roles</button>
+      </aside>
+      <section class="users-content-stack">
+        <section class="panel view show" id="usersUsersView">
+          <div class="section-title">
+            <h3>Gerenciamento de Usuários</h3>
+            <div class="module-actions">
+              <button id="usersAddBtn" class="btn" type="button">Novo usuário</button>
+            </div>
+          </div>
+          <p id="usersMessage" class="message"></p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Email</th><th>Nome</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="usersTableBody"><tr><td colspan="5">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel view hide" id="usersRolesView">
+          <div class="section-title">
+            <h3>Gerenciamento de Roles</h3>
+            <div class="module-actions">
+              <button id="usersOpenRoleModalBtn" class="btn ghost" type="button">Nova role</button>
+              <button id="usersOpenPermissionModalBtn" class="btn ghost" type="button">Nova permissão</button>
+              <button id="usersGeneratePermissionsBtn" class="btn ghost" type="button">Gerar permissões do sistema</button>
+            </div>
+          </div>
+          <p id="rolesMessage" class="message"></p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Role</th><th>Descrição</th><th>Admin</th><th>Ativa</th><th>Permissões</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="rolesTableBody"><tr><td colspan="6">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </div>
+  </section>
+  <div id="usersRoleModal" class="modal-overlay hide">
+
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Nova role</h3>
+        <div class="module-actions">
+          <button id="usersRoleCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+        </div>
+      </div>
+      <form id="usersRoleForm" class="grid-form modal-edit-form">
+        <label>Nome da role
+          <input id="usersRoleName" type="text" required maxlength="100">
+        </label>
+        <label>Descrição
+          <input id="usersRoleDescription" type="text" maxlength="255">
+        </label>
+        <label>Administrador
+          <select id="usersRoleIsAdmin" required>
+            <option value="false">Não</option>
+            <option value="true">Sim</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="usersRoleActive" required>
+            <option value="true">Ativa</option>
+            <option value="false">Inativa</option>
+          </select>
+        </label>
+        <div class="role-permissions-block">
+          <p class="sidebar-title">Permissões da role</p>
+          <div id="usersRolePermissions" class="role-permissions-list">
+            <p class="tiny">Carregando permissões...</p>
+          </div>
+        </div>
+      </form>
+      <p id="usersRoleMessage" class="message"></p>
+      <div class="modal-actions">
+        <button id="usersRoleCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="usersRoleSubmitBtn" class="btn" type="submit" form="usersRoleForm">Criar role</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="usersPermissionModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Nova permissão</h3>
+        <button id="usersPermissionCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="usersPermissionForm" class="grid-form modal-edit-form">
+        <label>Nome da permissão
+          <input id="usersPermissionName" type="text" required maxlength="100" placeholder="Ex: edit_transactions">
+        </label>
+        <label>Descrição
+          <input id="usersPermissionDescription" type="text" maxlength="255" placeholder="Ex: Pode editar lancamentos financeiros">
+        </label>
+        <label>Módulo
+          <select id="usersPermissionModule" required>
+            <option value="finance">Financeiro</option>
+            <option value="cells">Células</option>
+            <option value="school">Escola Bíblica</option>
+            <option value="users">Configurações</option>
+          </select>
+        </label>
+        <label>Categoria
+          <select id="usersPermissionCategory" required>
+            <option value="view">Visualizar</option>
+            <option value="create">Criar</option>
+            <option value="edit">Editar</option>
+            <option value="delete">Excluir</option>
+            <option value="manage">Gerenciar</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="usersPermissionActive" required>
+            <option value="true">Ativa</option>
+            <option value="false">Inativa</option>
+          </select>
+        </label>
+      </form>
+      <p id="usersPermissionMessage" class="message"></p>
+      <div class="modal-actions">
+        <button id="usersPermissionCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="usersPermissionSubmitBtn" class="btn" type="submit" form="usersPermissionForm">Criar permissão</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
   <script src="cells-module.js"></script>
+  <script src="school-module.js"></script>
+  <script src="users-module.js?v=20260401-roles-perms-step4"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

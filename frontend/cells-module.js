@@ -5,8 +5,10 @@
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
+    schoolBtn: document.getElementById("moduleBibleSchoolBtn"),
     financeModule: document.getElementById("financeModule"),
     cellsModule: document.getElementById("cellsModule"),
+    schoolModule: document.getElementById("bibleSchoolModule"),
     cellsNavDashboardBtn: document.getElementById("cellsNavDashboardBtn"),
     cellsNavCellsBtn: document.getElementById("cellsNavCellsBtn"),
     cellsNavPeopleBtn: document.getElementById("cellsNavPeopleBtn"),
@@ -359,10 +361,13 @@
 
   function setActiveModule(moduleName) {
     const isFinance = moduleName === "finance";
+    const isSchool = moduleName === "school";
     el.financeBtn.classList.toggle("active", isFinance);
-    el.cellsBtn.classList.toggle("active", !isFinance);
+    el.cellsBtn.classList.toggle("active", !isFinance && !isSchool);
+    if (el.schoolBtn) el.schoolBtn.classList.toggle("active", isSchool);
     el.financeModule.classList.toggle("hide", !isFinance);
-    el.cellsModule.classList.toggle("hide", isFinance);
+    el.cellsModule.classList.toggle("hide", isFinance || isSchool);
+    if (el.schoolModule) el.schoolModule.classList.toggle("hide", !isSchool);
   }
 
   function setCellsView(viewName) {

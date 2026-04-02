@@ -1,19 +1,26 @@
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
+
+if TYPE_CHECKING:
+    from app.db.models.audit_log import AuditLog
+    from app.db.models.role import Role
+    from app.db.models.transaction import Transaction
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)      
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)   
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)   
     role: Mapped[str] = mapped_column(String(50), default="viewer", nullable=False)
+    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -27,6 +34,11 @@ class User(Base):
         nullable=False,
     )
 
+    role_obj: Mapped["Role"] = relationship(  # noqa: F821
+        "Role",
+        back_populates="users",
+        foreign_keys=[role_id],
+    )
     transactions: Mapped[list["Transaction"]] = relationship(  # noqa: F821
         "Transaction",
         back_populates="user",

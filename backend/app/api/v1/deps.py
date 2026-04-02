@@ -52,7 +52,9 @@ def get_current_active_user(
 def require_admin(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
-    if current_user.role != ROLE_ADMIN:
+    has_admin_role_name = current_user.role == ROLE_ADMIN
+    has_admin_role_obj = bool(current_user.role_obj and current_user.role_obj.is_admin)
+    if not (has_admin_role_name or has_admin_role_obj):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
