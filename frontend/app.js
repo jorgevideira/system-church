@@ -166,6 +166,7 @@ const el = {
   tenantOnboardingScore: document.getElementById("tenantOnboardingScore"),
   tenantOnboardingChecklist: document.getElementById("tenantOnboardingChecklist"),
   tenantOnboardingManageBtn: document.getElementById("tenantOnboardingManageBtn"),
+  tenantOnboardingInviteBtn: document.getElementById("tenantOnboardingInviteBtn"),
   tenantOnboardingPreviewLink: document.getElementById("tenantOnboardingPreviewLink"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
@@ -3729,6 +3730,18 @@ if (el.tenantOnboardingManageBtn) {
   el.tenantOnboardingManageBtn.addEventListener("click", () => {
     if (window.openChurchSettings) {
       window.openChurchSettings();
+      return;
+    }
+    if (window.openUsersModule) {
+      window.openUsersModule();
+    }
+  });
+}
+
+if (el.tenantOnboardingInviteBtn) {
+  el.tenantOnboardingInviteBtn.addEventListener("click", () => {
+    if (window.openUsersInviteModal) {
+      window.openUsersInviteModal();
       return;
     }
     if (window.openUsersModule) {

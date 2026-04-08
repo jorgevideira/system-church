@@ -5,6 +5,7 @@
   const permissionsEndpoint = `${apiPrefix}/roles/permissions?skip=0&limit=200`;
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
+  const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const permissionStorageKey = "currentUserPermissions";
   const isAdminStorageKey = "currentUserIsAdmin";
 
@@ -212,6 +213,7 @@
     rolesTableBody: document.getElementById("rolesTableBody"),
 
     usersAddBtn: document.getElementById("usersAddBtn"),
+    usersInviteBtn: document.getElementById("usersInviteBtn"),
     usersOpenRoleModalBtn: document.getElementById("usersOpenRoleModalBtn"),
     usersOpenPermissionModalBtn: document.getElementById("usersOpenPermissionModalBtn"),
     usersGeneratePermissionsBtn: document.getElementById("usersGeneratePermissionsBtn"),
@@ -234,6 +236,15 @@
     usersDeleteCloseBtn: document.getElementById("usersDeleteCloseBtn"),
     usersDeleteCancelBtn: document.getElementById("usersDeleteCancelBtn"),
     usersDeleteConfirmBtn: document.getElementById("usersDeleteConfirmBtn"),
+
+    usersInviteModal: document.getElementById("usersInviteModal"),
+    usersInviteForm: document.getElementById("usersInviteForm"),
+    usersInviteEmail: document.getElementById("usersInviteEmail"),
+    usersInviteRoleId: document.getElementById("usersInviteRoleId"),
+    usersInviteIsDefault: document.getElementById("usersInviteIsDefault"),
+    usersInviteMessage: document.getElementById("usersInviteMessage"),
+    usersInviteCloseBtn: document.getElementById("usersInviteCloseBtn"),
+    usersInviteCancelBtn: document.getElementById("usersInviteCancelBtn"),
 
     usersRoleModal: document.getElementById("usersRoleModal"),
     usersRoleForm: document.getElementById("usersRoleForm"),
@@ -365,6 +376,12 @@
     if (!el.usersRoleMessage) return;
     el.usersRoleMessage.textContent = message || "";
     el.usersRoleMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setInviteMessage(message, isError) {
+    if (!el.usersInviteMessage) return;
+    el.usersInviteMessage.textContent = message || "";
+    el.usersInviteMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function setPermissionMessage(message, isError) {
@@ -554,6 +571,7 @@
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
+    if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.classList.toggle("hide", !hasPermission("users_roles_create"));
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.classList.toggle("hide", !hasPermission("users_permissions_create"));
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.classList.toggle("hide", !hasPermission("users_system_permissions_manage"));
@@ -604,6 +622,22 @@
       .join("");
 
     el.usersFormRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
+  }
+
+  function ensureInviteRoleOptions(selectedRoleId) {
+    if (!el.usersInviteRoleId) return;
+
+    if (!state.roles.length) {
+      el.usersInviteRoleId.innerHTML = '<option value="">Nenhuma role disponível</option>';
+      el.usersInviteRoleId.value = "";
+      return;
+    }
+
+    el.usersInviteRoleId.innerHTML = state.roles
+      .map((role) => `<option value="${role.id}">${role.name}</option>`)
+      .join("");
+
+    el.usersInviteRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
   }
 
   function renderRolePermissions(selectedIds = []) {
@@ -830,6 +864,19 @@
     if (el.usersRoleModal) el.usersRoleModal.classList.remove("hide");
   }
 
+  function openInviteModal() {
+    if (!el.usersInviteModal || !el.usersInviteForm) return;
+    el.usersInviteForm.reset();
+    ensureInviteRoleOptions();
+    setInviteMessage("", false);
+    el.usersInviteModal.classList.remove("hide");
+  }
+
+  function closeInviteModal() {
+    if (!el.usersInviteModal) return;
+    el.usersInviteModal.classList.add("hide");
+  }
+
   function openEditRole(roleId) {
     const role = state.roles.find((item) => item.id === roleId);
     if (!role) return;
@@ -975,6 +1022,43 @@
     }
   }
 
+  async function submitInviteForm(event) {
+    event.preventDefault();
+
+    if (!el.usersInviteEmail || !el.usersInviteRoleId || !el.usersInviteIsDefault) return;
+
+    const email = el.usersInviteEmail.value.trim().toLowerCase();
+    const roleId = parseInt(el.usersInviteRoleId.value || "0", 10);
+    const isDefault = Boolean(el.usersInviteIsDefault.checked);
+
+    if (!email || !roleId) {
+      setInviteMessage("Informe email e role para o convite.", true);
+      return;
+    }
+
+    try {
+      setInviteMessage("Vinculando usuário existente a esta igreja...", false);
+      await fetchJson(
+        usersLinkExistingEndpoint,
+        {
+          method: "POST",
+          headers: buildHeaders(true),
+          body: JSON.stringify({
+            email,
+            role_id: roleId,
+            is_default: isDefault,
+          }),
+        },
+        "Erro ao convidar usuário existente."
+      );
+      closeInviteModal();
+      await loadUsers();
+      setMessage(`Usuário ${email} vinculado com sucesso a esta igreja.`, false);
+    } catch (error) {
+      setInviteMessage(error instanceof Error ? error.message : "Falha ao convidar usuário existente.", true);
+    }
+  }
+
   async function confirmDeleteUser() {
     if (!state.deletingUserId) return;
 
@@ -1010,6 +1094,7 @@
     if (hasPermission("users_roles_view") || hasPermission("users_users_view")) {
       await loadRoles();
       ensureRolesOptions();
+      ensureInviteRoleOptions();
     }
     if (hasPermission("users_users_view")) {
       await loadUsers();
@@ -1146,11 +1231,13 @@
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView().catch((error) => setChurchMessage(error.message, true)));
 
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
+    if (el.usersInviteBtn) el.usersInviteBtn.addEventListener("click", openInviteModal);
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.addEventListener("click", openRoleModal);
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.addEventListener("click", openPermissionModal);
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.addEventListener("click", () => generateMissingPermissions().catch((error) => setRolesMessage(error.message, true)));
 
     if (el.usersForm) el.usersForm.addEventListener("submit", submitUserForm);
+    if (el.usersInviteForm) el.usersInviteForm.addEventListener("submit", submitInviteForm);
     if (el.usersRoleForm) el.usersRoleForm.addEventListener("submit", submitRoleForm);
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
@@ -1174,6 +1261,9 @@
     if (el.usersFormCloseBtn) el.usersFormCloseBtn.addEventListener("click", closeUserForm);
     if (el.usersFormCancelBtn) el.usersFormCancelBtn.addEventListener("click", closeUserForm);
 
+    if (el.usersInviteCloseBtn) el.usersInviteCloseBtn.addEventListener("click", closeInviteModal);
+    if (el.usersInviteCancelBtn) el.usersInviteCancelBtn.addEventListener("click", closeInviteModal);
+
     if (el.usersRoleCloseBtn) el.usersRoleCloseBtn.addEventListener("click", closeRoleModal);
     if (el.usersRoleCancelBtn) el.usersRoleCancelBtn.addEventListener("click", closeRoleModal);
 
@@ -1193,6 +1283,12 @@
     if (el.usersRoleModal) {
       el.usersRoleModal.addEventListener("click", (event) => {
         if (event.target === el.usersRoleModal) closeRoleModal();
+      });
+    }
+
+    if (el.usersInviteModal) {
+      el.usersInviteModal.addEventListener("click", (event) => {
+        if (event.target === el.usersInviteModal) closeInviteModal();
       });
     }
 
@@ -1233,6 +1329,9 @@
   }
 
   window.openUsersModule = () => openUsersModule().catch((error) => setMessage(error.message, true));
+  window.openUsersInviteModal = () => openUsersModule()
+    .then(() => openInviteModal())
+    .catch((error) => setMessage(error.message, true));
   window.openChurchSettings = () => openUsersModule()
     .then(() => openChurchView())
     .catch((error) => setChurchMessage(error.message, true));
