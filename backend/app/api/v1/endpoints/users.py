@@ -3,7 +3,8 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, get_current_active_user, require_admin
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
+from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services import user_service
@@ -17,20 +18,22 @@ def list_users(
     limit: int = 20,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[User]:
-    return user_service.get_users(db, skip=skip, limit=limit)
+    return user_service.get_users_for_tenant(db, current_tenant.id, skip=skip, limit=limit)
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(require_admin),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
     existing = user_service.get_user_by_email(db, user_in.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    return user_service.create_user(db, user_in, tenant_id=admin_user.active_tenant_id)
+    return user_service.create_user(db, user_in, tenant_id=current_tenant.id)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -45,8 +48,9 @@ def get_user(
     user_id: int,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
-    user = user_service.get_user(db, user_id)
+    user = user_service.get_user_for_tenant(db, user_id, current_tenant.id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -58,8 +62,9 @@ def update_user(
     user_in: UserUpdate,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
-    user = user_service.update_user(db, user_id, user_in)
+    user = user_service.update_user_for_tenant(db, user_id, current_tenant.id, user_in)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -70,7 +75,8 @@ def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    deleted = user_service.delete_user(db, user_id)
+    deleted = user_service.delete_user_for_tenant(db, user_id, current_tenant.id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

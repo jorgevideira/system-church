@@ -53,6 +53,7 @@ class RoleUpdate(BaseModel):
 
 class RoleResponse(RoleBase):
     id: int
+    tenant_id: Optional[int] = None
     permissions: List[PermissionResponse]
     created_at: datetime
     updated_at: datetime
@@ -62,6 +63,7 @@ class RoleResponse(RoleBase):
 
 class RoleWithoutPermissions(RoleBase):
     id: int
+    tenant_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
