@@ -1,6 +1,6 @@
-from typing import List
+from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
@@ -18,7 +18,7 @@ from app.schemas.event import (
     PublicEventResponse,
     PublicEventRegistrationResponse,
 )
-from app.services import event_service
+from app.services import event_service, mercadopago_service
 
 router = APIRouter()
 
@@ -131,6 +131,17 @@ def confirm_event_payment(
     return updated
 
 
+@router.get("/public/registrations/{public_token}", response_model=EventRegistrationResponse)
+def get_public_registration(
+    public_token: str,
+    db: Session = Depends(get_db),
+) -> EventRegistrationResponse:
+    registration = event_service.get_registration_by_public_token(db, public_token)
+    if registration is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registration not found")
+    return registration
+
+
 @router.get("/public/{tenant_slug}/{event_slug}", response_model=PublicEventDetailResponse)
 def get_public_event(
     tenant_slug: str,
@@ -169,11 +180,35 @@ def create_public_registration(
 
 
 @router.post("/public/payments/webhook", response_model=EventPaymentResponse)
-def event_payment_webhook(
-    payload: EventPaymentWebhookPayload,
+async def event_payment_webhook(
+    request: Request,
     db: Session = Depends(get_db),
 ) -> EventPaymentResponse:
-    payment = event_service.apply_payment_webhook(db, payload)
+    query_params = request.query_params
+    payload_json: dict[str, Any] = {}
+    if request.headers.get("content-type", "").startswith("application/json"):
+        payload_json = await request.json()
+
+    provider_payment_id = (
+        query_params.get("data.id")
+        or query_params.get("id")
+        or (payload_json.get("data") or {}).get("id")
+        or payload_json.get("id")
+    )
+    x_signature = request.headers.get("x-signature")
+    x_request_id = request.headers.get("x-request-id")
+
+    if provider_payment_id and mercadopago_service.is_enabled():
+        if not mercadopago_service.validate_webhook_signature(
+            data_id=str(provider_payment_id),
+            x_signature=x_signature,
+            x_request_id=x_request_id,
+        ):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
+        payment = event_service.apply_mercadopago_webhook(db, str(provider_payment_id))
+    else:
+        payload = EventPaymentWebhookPayload.model_validate(payload_json)
+        payment = event_service.apply_payment_webhook(db, payload)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     return payment

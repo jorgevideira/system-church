@@ -147,6 +147,7 @@ class EventRegistrationResponse(BaseModel):
     tenant_id: Optional[int] = None
     event_id: int
     registration_code: str
+    public_token: str
     attendee_name: str
     attendee_email: EmailStr
     attendee_phone: Optional[str] = None

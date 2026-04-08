@@ -12,9 +12,10 @@ from app.db.models.event import Event
 from app.db.models.event_payment import EventPayment
 from app.db.models.event_registration import EventRegistration
 from app.db.models.tenant import Tenant
+from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
-from app.services import transaction_service
+from app.services import mercadopago_service, transaction_service
 
 
 def _slugify(value: str) -> str:
@@ -111,6 +112,10 @@ def get_payment(db: Session, payment_id: int, tenant_id: int) -> Optional[EventP
     return db.query(EventPayment).filter(EventPayment.id == payment_id, EventPayment.tenant_id == tenant_id).first()
 
 
+def get_registration_by_public_token(db: Session, public_token: str) -> Optional[EventRegistration]:
+    return db.query(EventRegistration).filter(EventRegistration.public_token == public_token).first()
+
+
 def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Optional[Tenant], Optional[Event]]:
     tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug, Tenant.is_active.is_(True)).first()
     if tenant is None:
@@ -161,6 +166,10 @@ def _generate_checkout_reference(event: Event, registration_code: str) -> str:
 
 def _build_pix_copy_paste(checkout_reference: str, amount: Decimal) -> str:
     return f"PIX|ref={checkout_reference}|amount={amount:.2f}|currency=BRL"
+
+
+def _build_internal_checkout_url(checkout_reference: str) -> str:
+    return f"{settings.PUBLIC_APP_URL}/events/registration/{checkout_reference}"
 
 
 def _assert_event_open_for_registration(event: Event) -> None:
@@ -220,23 +229,50 @@ def create_public_registration(
     payment = None
     if payment_required:
         checkout_reference = _generate_checkout_reference(event, registration.registration_code)
+        provider = "mercadopago" if mercadopago_service.is_enabled() else "internal"
+        checkout_url = None
+        pix_copy_paste = None
+        provider_payload: dict | None = None
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+        if provider == "mercadopago":
+            preference = mercadopago_service.create_checkout_preference(
+                tenant_slug=tenant.slug,
+                event_title=event.title,
+                registration_code=registration.registration_code,
+                checkout_reference=checkout_reference,
+                amount=total_amount,
+                quantity=payload.quantity,
+                attendee_name=payload.attendee_name,
+                attendee_email=str(payload.attendee_email),
+                preferred_method=payment_method,
+            )
+            checkout_url = preference.get("init_point") or preference.get("sandbox_init_point")
+            provider_payload = preference
+            pix_copy_paste = None
+            expires_at = None
+        else:
+            checkout_url = _build_internal_checkout_url(checkout_reference)
+            pix_copy_paste = _build_pix_copy_paste(checkout_reference, total_amount) if payment_method == "pix" else None
+            provider_payload = {
+                "mode": "gateway_ready",
+                "message": "Set PAYMENT_PROVIDER=mercadopago and credentials to enable live checkout.",
+            }
+
         payment = EventPayment(
             tenant_id=tenant.id,
             event_id=event.id,
             registration_id=registration.id,
-            provider="internal",
+            provider=provider,
             payment_method=payment_method or "pix",
             status="pending",
             amount=total_amount,
             currency=event.currency,
             checkout_reference=checkout_reference,
-            checkout_url=f"/checkout/{checkout_reference}" if payment_method == "card" else None,
-            pix_copy_paste=_build_pix_copy_paste(checkout_reference, total_amount) if payment_method == "pix" else None,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
-            provider_payload={
-                "mode": "gateway_ready",
-                "message": "Provider integration can confirm this payment through the webhook endpoint.",
-            },
+            checkout_url=checkout_url,
+            pix_copy_paste=pix_copy_paste,
+            expires_at=expires_at,
+            provider_payload=provider_payload,
         )
         db.add(payment)
 
@@ -325,3 +361,19 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
     db.commit()
     db.refresh(payment)
     return payment
+
+
+def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional[EventPayment]:
+    payment_data = mercadopago_service.fetch_payment(provider_payment_id)
+    checkout_reference = payment_data.get("external_reference")
+    if not checkout_reference:
+        return None
+
+    webhook_payload = EventPaymentWebhookPayload(
+        checkout_reference=checkout_reference,
+        status=mercadopago_service.map_payment_status(payment_data.get("status")),
+        provider_reference=str(payment_data.get("id")),
+        paid_at=mercadopago_service.parse_paid_at(payment_data),
+        provider_payload=payment_data,
+    )
+    return apply_payment_webhook(db, webhook_payload)

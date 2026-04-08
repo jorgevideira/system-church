@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     # Project metadata
     PROJECT_NAME: str = "Church Financial Management System"
     API_V1_STR: str = "/api/v1"
+    APP_BASE_URL: str = "http://localhost:8000"
+    PUBLIC_APP_URL: str = "http://localhost:3000"
+
+    # Payments
+    PAYMENT_PROVIDER: str = "internal"
+    MERCADOPAGO_ACCESS_TOKEN: str | None = None
+    MERCADOPAGO_PUBLIC_KEY: str | None = None
+    MERCADOPAGO_WEBHOOK_SECRET: str | None = None
+    MERCADOPAGO_INTEGRATOR_ID: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
