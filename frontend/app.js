@@ -90,6 +90,15 @@ const el = {
   loginHeroPoint3: document.getElementById("loginHeroPoint3"),
   loginBrandSupport: document.getElementById("loginBrandSupport"),
   loginPublicCatalogLink: document.getElementById("loginPublicCatalogLink"),
+  publicTenantLandingScreen: document.getElementById("publicTenantLandingScreen"),
+  tenantLandingLogo: document.getElementById("tenantLandingLogo"),
+  tenantLandingTitle: document.getElementById("tenantLandingTitle"),
+  tenantLandingSummary: document.getElementById("tenantLandingSummary"),
+  tenantLandingLoginLink: document.getElementById("tenantLandingLoginLink"),
+  tenantLandingEventsLink: document.getElementById("tenantLandingEventsLink"),
+  tenantLandingCatalogLink: document.getElementById("tenantLandingCatalogLink"),
+  tenantLandingSupport: document.getElementById("tenantLandingSupport"),
+  tenantLandingEventsGrid: document.getElementById("tenantLandingEventsGrid"),
   publicCatalogScreen: document.getElementById("publicCatalogScreen"),
   publicEventDetailScreen: document.getElementById("publicEventDetailScreen"),
   publicEventScreen: document.getElementById("publicEventScreen"),
@@ -549,6 +558,7 @@ function setMessage(node, text, isError = false) {
 function showApp(isAuthed) {
   el.loginScreen.classList.toggle("hide", isAuthed);
   el.publicCatalogScreen.classList.add("hide");
+  el.publicTenantLandingScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.publicInviteScreen.classList.add("hide");
@@ -562,6 +572,7 @@ function showApp(isAuthed) {
 function showPublicEventApp() {
   el.loginScreen.classList.add("hide");
   el.publicCatalogScreen.classList.add("hide");
+  el.publicTenantLandingScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.add("hide");
@@ -571,6 +582,7 @@ function showPublicEventApp() {
 
 function showPublicCatalogApp() {
   el.loginScreen.classList.add("hide");
+  el.publicTenantLandingScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.publicInviteScreen.classList.add("hide");
@@ -582,6 +594,7 @@ function showPublicCatalogApp() {
 function showPublicEventDetailApp() {
   el.loginScreen.classList.add("hide");
   el.publicCatalogScreen.classList.add("hide");
+  el.publicTenantLandingScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.add("hide");
@@ -592,11 +605,23 @@ function showPublicEventDetailApp() {
 function showPublicInviteApp() {
   el.loginScreen.classList.add("hide");
   el.publicCatalogScreen.classList.add("hide");
+  el.publicTenantLandingScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.add("hide");
   el.tenantSwitcher.classList.add("hide");
   el.publicInviteScreen.classList.remove("hide");
+}
+
+function showPublicTenantLandingApp() {
+  el.loginScreen.classList.add("hide");
+  el.publicCatalogScreen.classList.add("hide");
+  el.publicEventDetailScreen.classList.add("hide");
+  el.publicEventScreen.classList.add("hide");
+  el.publicInviteScreen.classList.add("hide");
+  el.appShell.classList.add("hide");
+  el.tenantSwitcher.classList.add("hide");
+  el.publicTenantLandingScreen.classList.remove("hide");
 }
 
 function isPublicRegistrationRoute() {
@@ -606,6 +631,10 @@ function isPublicRegistrationRoute() {
 
 function isPublicInvitationRoute() {
   return Boolean(window.location.pathname.match(/^\/invite\/([^/]+)\/?$/));
+}
+
+function isPublicTenantLandingRoute() {
+  return Boolean(window.location.pathname.match(/^\/t\/([^/]+)\/?$/));
 }
 
 function isPublicCatalogRoute() {
@@ -624,6 +653,11 @@ function getCheckoutReferenceFromRoute() {
 function getInvitationTokenFromRoute() {
   const match = window.location.pathname.match(/^\/invite\/([^/]+)\/?$/);
   return match ? decodeURIComponent(match[1]) : "";
+}
+
+function getPublicTenantLandingSlug() {
+  const match = window.location.pathname.match(/^\/t\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : "default";
 }
 
 function getPublicCatalogTenantSlug() {
@@ -814,6 +848,7 @@ function applyTenantBranding(branding = {}) {
   }
 
   const logos = [
+    el.tenantLandingLogo,
     el.publicBrandLogoCatalog,
     el.publicBrandLogoDetail,
     el.publicBrandLogoPayment,
@@ -832,6 +867,9 @@ function applyTenantBranding(branding = {}) {
 
   if (el.publicCatalogSupport) {
     el.publicCatalogSupport.textContent = getSupportLabel(branding);
+  }
+  if (el.tenantLandingSupport) {
+    el.tenantLandingSupport.textContent = getSupportLabel(branding);
   }
 }
 
@@ -1113,6 +1151,59 @@ function renderPublicCatalog(events, tenantSlug) {
       </div>
     </a>
   `).join("");
+}
+
+function renderTenantLandingEvents(events, tenantSlug) {
+  if (!el.tenantLandingEventsGrid) return;
+  if (!events.length) {
+    el.tenantLandingEventsGrid.innerHTML = "<article class='public-event-card-link'><h3>Agenda em preparação</h3><p class='tiny'>Os próximos eventos públicos desta igreja aparecerão aqui.</p></article>";
+    return;
+  }
+
+  el.tenantLandingEventsGrid.innerHTML = events.slice(0, 3).map((event) => `
+    <a class="public-event-card-link" href="/events/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(event.slug)}">
+      <div>
+        <p class="eyebrow">Próximo evento</p>
+        <h3>${escapeHtml(event.title)}</h3>
+      </div>
+      <p>${escapeHtml(event.summary || event.description || "Inscricoes abertas online.")}</p>
+      <div class="public-event-card-meta">
+        <span>${escapeHtml(formatDateTime(event.start_at))}</span>
+        <span>${escapeHtml(event.location || "Local a definir")}</span>
+        <span>${escapeHtml(formatCurrency(event.price_per_registration || 0))}</span>
+      </div>
+    </a>
+  `).join("");
+}
+
+async function initializePublicTenantLandingApp() {
+  showPublicTenantLandingApp();
+  const tenantSlug = getPublicTenantLandingSlug();
+  const branding = await loadPublicTenantBranding(tenantSlug);
+  const displayName = branding?.public_display_name || branding?.name || "Sua igreja";
+  document.title = `${displayName} | Plataforma da Igreja`;
+  if (el.tenantLandingTitle) {
+    el.tenantLandingTitle.textContent = displayName;
+  }
+  if (el.tenantLandingSummary) {
+    el.tenantLandingSummary.textContent = branding?.public_description || "Centralize administração, eventos e acesso da equipe em um único ambiente.";
+  }
+  if (el.tenantLandingLoginLink) {
+    el.tenantLandingLoginLink.href = `/?tenant=${encodeURIComponent(tenantSlug)}`;
+  }
+  if (el.tenantLandingEventsLink) {
+    el.tenantLandingEventsLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
+  }
+  if (el.tenantLandingCatalogLink) {
+    el.tenantLandingCatalogLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
+  }
+  const response = await fetch(`${API_PREFIX}/events/public/tenants/${encodeURIComponent(tenantSlug)}/events`);
+  if (!response.ok) {
+    renderTenantLandingEvents([], tenantSlug);
+    return;
+  }
+  const events = await response.json();
+  renderTenantLandingEvents(events, tenantSlug);
 }
 
 async function initializePublicCatalogApp() {
@@ -3680,6 +3771,11 @@ async function loadReports() {
 }
 
 async function initializeApp() {
+  if (isPublicTenantLandingRoute()) {
+    await initializePublicTenantLandingApp();
+    return;
+  }
+
   if (isPublicInvitationRoute()) {
     await initializePublicInvitationApp();
     return;

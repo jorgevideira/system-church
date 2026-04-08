@@ -113,6 +113,74 @@ h1, h2, h3, h4 {
   gap: 1rem;
 }
 
+.tenant-landing-shell {
+  width: min(1180px, 96vw);
+  display: grid;
+  gap: 1rem;
+}
+
+.tenant-landing-hero {
+  border-radius: 30px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.75fr);
+  border: 1px solid #d6e5ff;
+  box-shadow: var(--shadow);
+  background: linear-gradient(148deg, #0e2448 0%, #125e9f 52%, #10a28a 100%);
+  color: #eff7ff;
+}
+
+.tenant-landing-copy {
+  padding: 2.1rem;
+}
+
+.tenant-landing-actions {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.tenant-landing-support {
+  color: rgba(235, 247, 255, 0.86);
+}
+
+.tenant-landing-panel {
+  padding: 2.1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 0.8rem;
+  align-content: center;
+}
+
+.tenant-landing-stat {
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tenant-landing-stat span {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(230, 242, 255, 0.86);
+  margin-bottom: 0.3rem;
+}
+
+.tenant-landing-stat strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.05rem;
+}
+
+.tenant-landing-showcase {
+  border-radius: 24px;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
 .public-catalog-header {
   border-radius: 28px;
   padding: 2rem;
@@ -1636,6 +1704,10 @@ th {
     grid-template-columns: 1fr 1fr;
   }
 
+  .tenant-landing-hero {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     position: static;
   }
@@ -1722,6 +1794,10 @@ th {
 
   .tenant-onboarding-checklist {
     grid-template-columns: 1fr;
+  }
+
+  .tenant-landing-actions {
+    flex-direction: column;
   }
 }
 
