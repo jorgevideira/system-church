@@ -4614,3 +4614,4 @@ syncMinistryField(el.editTxType, el.editTxMinistry);
 clearPayableForm();
 clearReceivableForm();
 initializeApp();
+window.initializeApp = initializeApp;

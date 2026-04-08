@@ -260,6 +260,7 @@
     usersPermissionSubmitBtn: document.getElementById("usersPermissionSubmitBtn"),
 
     usersChurchRefreshBtn: document.getElementById("usersChurchRefreshBtn"),
+    usersChurchCreateBtn: document.getElementById("usersChurchCreateBtn"),
     usersChurchForm: document.getElementById("usersChurchForm"),
     usersChurchName: document.getElementById("usersChurchName"),
     usersChurchSlug: document.getElementById("usersChurchSlug"),
@@ -272,6 +273,18 @@
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
+
+    usersChurchCreateModal: document.getElementById("usersChurchCreateModal"),
+    usersChurchCreateForm: document.getElementById("usersChurchCreateForm"),
+    usersChurchCreateName: document.getElementById("usersChurchCreateName"),
+    usersChurchCreateSlug: document.getElementById("usersChurchCreateSlug"),
+    usersChurchCreatePublicDisplayName: document.getElementById("usersChurchCreatePublicDisplayName"),
+    usersChurchCreateSupportEmail: document.getElementById("usersChurchCreateSupportEmail"),
+    usersChurchCreateSupportWhatsapp: document.getElementById("usersChurchCreateSupportWhatsapp"),
+    usersChurchCreatePublicDescription: document.getElementById("usersChurchCreatePublicDescription"),
+    usersChurchCreateMessage: document.getElementById("usersChurchCreateMessage"),
+    usersChurchCreateCloseBtn: document.getElementById("usersChurchCreateCloseBtn"),
+    usersChurchCreateCancelBtn: document.getElementById("usersChurchCreateCancelBtn"),
   };
 
   const state = {
@@ -364,6 +377,12 @@
     if (!el.usersChurchMessage) return;
     el.usersChurchMessage.textContent = message || "";
     el.usersChurchMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setChurchCreateMessage(message, isError) {
+    if (!el.usersChurchCreateMessage) return;
+    el.usersChurchCreateMessage.textContent = message || "";
+    el.usersChurchCreateMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function escapeHtml(value) {
@@ -1060,6 +1079,52 @@
     }
   }
 
+  function openChurchCreateModal() {
+    if (!el.usersChurchCreateModal) return;
+    el.usersChurchCreateForm.reset();
+    setChurchCreateMessage("", false);
+    el.usersChurchCreateModal.classList.remove("hide");
+  }
+
+  function closeChurchCreateModal() {
+    if (!el.usersChurchCreateModal) return;
+    el.usersChurchCreateModal.classList.add("hide");
+  }
+
+  async function submitChurchCreateForm(event) {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      setChurchCreateMessage("Acesso negado para criar igreja.", true);
+      return;
+    }
+
+    const payload = {
+      name: el.usersChurchCreateName.value.trim(),
+      slug: el.usersChurchCreateSlug.value.trim(),
+      public_display_name: el.usersChurchCreatePublicDisplayName.value.trim() || null,
+      public_description: el.usersChurchCreatePublicDescription.value.trim() || null,
+      support_email: el.usersChurchCreateSupportEmail.value.trim() || null,
+      support_whatsapp: el.usersChurchCreateSupportWhatsapp.value.trim() || null,
+    };
+
+    try {
+      setChurchCreateMessage("Criando igreja...", false);
+      const tenant = await fetchJson(
+        `${apiPrefix}/tenants/`,
+        { method: "POST", headers: buildHeaders(true), body: JSON.stringify(payload) },
+        "Falha ao criar igreja."
+      );
+      closeChurchCreateModal();
+      setChurchMessage(`Igreja criada com sucesso: ${tenant.name}. Use o seletor no topo para trocar.`, false);
+      if (window.initializeApp) {
+        await window.initializeApp();
+      }
+      await loadTenantProfile();
+    } catch (error) {
+      setChurchCreateMessage(error instanceof Error ? error.message : "Falha ao criar igreja.", true);
+    }
+  }
+
   function bindEvents() {
     if (eventsBound) return;
     eventsBound = true;
@@ -1090,10 +1155,19 @@
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
     if (el.usersChurchPreviewBtn) {
       el.usersChurchPreviewBtn.addEventListener("click", () => {
         const slug = (el.usersChurchSlug && el.usersChurchSlug.value.trim()) || localStorage.getItem("activeTenantSlug") || "default";
         window.open(`/events/${encodeURIComponent(slug)}`, "_blank", "noopener,noreferrer");
+      });
+    }
+    if (el.usersChurchCreateForm) el.usersChurchCreateForm.addEventListener("submit", submitChurchCreateForm);
+    if (el.usersChurchCreateCloseBtn) el.usersChurchCreateCloseBtn.addEventListener("click", closeChurchCreateModal);
+    if (el.usersChurchCreateCancelBtn) el.usersChurchCreateCancelBtn.addEventListener("click", closeChurchCreateModal);
+    if (el.usersChurchCreateModal) {
+      el.usersChurchCreateModal.addEventListener("click", (event) => {
+        if (event.target === el.usersChurchCreateModal) closeChurchCreateModal();
       });
     }
 

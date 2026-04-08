@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
-from app.schemas.tenant import TenantBrandingResponse, TenantResponse, TenantUpdate
+from app.schemas.tenant import TenantBrandingResponse, TenantCreate, TenantResponse, TenantUpdate
 from app.services import tenant_service
 
 router = APIRouter()
@@ -16,6 +16,18 @@ def get_current_tenant_profile(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantResponse:
     return current_tenant
+
+
+@router.post("/", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
+def create_tenant(
+    payload: TenantCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> TenantResponse:
+    try:
+        return tenant_service.create_tenant(db, payload, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.put("/current", response_model=TenantResponse)

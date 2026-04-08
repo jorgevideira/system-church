@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="grain"></div>
@@ -2386,6 +2386,7 @@
           <div class="section-title">
             <h3>Perfil da Igreja</h3>
             <div class="module-actions">
+              <button id="usersChurchCreateBtn" class="btn ghost" type="button">Nova igreja</button>
               <button id="usersChurchRefreshBtn" class="btn ghost" type="button">Atualizar</button>
             </div>
           </div>
@@ -2436,13 +2437,47 @@
     </div>
   </section>
 
+  <div id="usersChurchCreateModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Nova igreja</h3>
+        <button id="usersChurchCreateCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="usersChurchCreateForm" class="grid-form modal-edit-form">
+        <label>Nome da igreja
+          <input id="usersChurchCreateName" type="text" maxlength="255" required>
+        </label>
+        <label>Slug
+          <input id="usersChurchCreateSlug" type="text" maxlength="120" required>
+        </label>
+        <label>Nome publico
+          <input id="usersChurchCreatePublicDisplayName" type="text" maxlength="255">
+        </label>
+        <label>Email de suporte
+          <input id="usersChurchCreateSupportEmail" type="email" maxlength="255">
+        </label>
+        <label>WhatsApp de suporte
+          <input id="usersChurchCreateSupportWhatsapp" type="text" maxlength="50">
+        </label>
+        <label>Descricao publica
+          <textarea id="usersChurchCreatePublicDescription" rows="4" maxlength="500"></textarea>
+        </label>
+      </form>
+      <p id="usersChurchCreateMessage" class="message"></p>
+      <div class="modal-actions">
+        <button id="usersChurchCreateCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button class="btn" type="submit" form="usersChurchCreateForm">Criar igreja</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
-  <script src="app.js"></script>
-  <script src="cells-module.js"></script>
-  <script src="school-module.js"></script>
-  <script src="events-module.js?v=20260408-events-admin-1"></script>
-  <script src="users-module.js?v=20260401-users-actions-fix-2"></script>
+  <script src="/app.js"></script>
+  <script src="/cells-module.js"></script>
+  <script src="/school-module.js"></script>
+  <script src="/events-module.js?v=20260408-events-admin-1"></script>
+  <script src="/users-module.js?v=20260401-users-actions-fix-2"></script>
 </body>
 </html>
 

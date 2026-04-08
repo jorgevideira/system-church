@@ -25,6 +25,18 @@ class TenantResponse(TenantBase):
     model_config = {"from_attributes": True}
 
 
+class TenantCreate(BaseModel):
+    name: str = Field(..., max_length=255)
+    slug: str = Field(..., max_length=120)
+    public_display_name: Optional[str] = Field(None, max_length=255)
+    public_description: Optional[str] = Field(None, max_length=500)
+    primary_color: Optional[str] = Field(None, max_length=20)
+    secondary_color: Optional[str] = Field(None, max_length=20)
+    logo_url: Optional[str] = Field(None, max_length=500)
+    support_email: Optional[str] = Field(None, max_length=255)
+    support_whatsapp: Optional[str] = Field(None, max_length=50)
+
+
 class TenantUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     slug: Optional[str] = Field(None, max_length=120)
