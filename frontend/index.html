@@ -166,6 +166,37 @@
     </div>
   </section>
 
+  <section id="publicInviteScreen" class="public-event-screen hide">
+    <div class="public-event-shell">
+      <aside class="public-event-hero">
+        <img id="publicInviteLogo" class="public-brand-logo hide" alt="Logo da igreja">
+        <p class="eyebrow">Convite da Igreja</p>
+        <h1 id="publicInviteTitle">Aceite seu convite</h1>
+        <p id="publicInviteSummary" class="hint">Entre para a equipe da igreja usando este link seguro.</p>
+        <ul class="hero-list">
+          <li id="publicInviteTenantName">Igreja</li>
+          <li id="publicInviteRoleName">Perfil</li>
+          <li id="publicInviteExpiresAt">Validade</li>
+        </ul>
+      </aside>
+
+      <div class="public-event-card">
+        <div id="publicInviteBadge" class="public-event-status-badge">Convite</div>
+        <h2 id="publicInviteEmail">usuario@igreja.com</h2>
+        <p id="publicInviteMessage" class="message">Se você já possui conta, use sua senha atual. Se ainda não possui, defina sua senha abaixo.</p>
+        <form id="publicInviteAcceptForm" class="stack">
+          <label>Nome completo
+            <input id="publicInviteFullName" type="text" placeholder="Obrigatório para novas contas">
+          </label>
+          <label>Senha
+            <input id="publicInvitePassword" type="password" minlength="8" required placeholder="Sua senha atual ou nova senha">
+          </label>
+          <button id="publicInviteAcceptBtn" class="btn" type="submit">Aceitar convite</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <div id="appShell" class="app-shell hide">
     <header class="topbar">
       <h2>Church Finance Console</h2>
@@ -1914,6 +1945,20 @@
             </div>
           </div>
           <p id="usersMessage" class="message"></p>
+          <section class="dashboard-card">
+            <div class="section-title">
+              <h4>Convites da Igreja</h4>
+              <button id="usersOpenLinkInviteModalBtn" class="btn ghost" type="button">Gerar link de convite</button>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>Email</th><th>Perfil</th><th>Status</th><th>Expira</th><th>Ações</th></tr>
+                </thead>
+                <tbody id="usersInvitationsBody"><tr><td colspan="5">Carregando...</td></tr></tbody>
+              </table>
+            </div>
+          </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
@@ -2523,6 +2568,49 @@
       <div class="modal-actions">
         <button id="usersInviteCancelBtn" class="btn ghost" type="button">Cancelar</button>
         <button class="btn" type="submit" form="usersInviteForm">Enviar convite</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="usersLinkInviteModal" class="modal-overlay hide">
+    <div class="modal-card edit-modal-card">
+      <div class="modal-header">
+        <h3>Gerar link de convite</h3>
+        <button id="usersLinkInviteCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <form id="usersLinkInviteForm" class="grid-form modal-edit-form">
+        <label>Email
+          <input id="usersLinkInviteEmail" type="email" required placeholder="usuario@igreja.com">
+        </label>
+        <label>Role
+          <select id="usersLinkInviteRoleId" required>
+            <option value="">Selecione uma role</option>
+          </select>
+        </label>
+        <label>Validade
+          <select id="usersLinkInviteExpiryDays">
+            <option value="7">7 dias</option>
+            <option value="14">14 dias</option>
+            <option value="30">30 dias</option>
+          </select>
+        </label>
+        <label class="inline-check">
+          <input id="usersLinkInviteIsDefault" type="checkbox">
+          Tornar igreja padrão ao aceitar
+        </label>
+      </form>
+      <div class="stack">
+        <p id="usersLinkInviteMessage" class="message"></p>
+        <label>Link gerado
+          <input id="usersLinkInviteResult" type="text" readonly placeholder="O link aparecerá aqui">
+        </label>
+        <div class="modal-actions">
+          <button id="usersLinkInviteCopyBtn" class="btn ghost" type="button">Copiar link</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="usersLinkInviteCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button class="btn" type="submit" form="usersLinkInviteForm">Gerar convite</button>
       </div>
     </div>
   </div>

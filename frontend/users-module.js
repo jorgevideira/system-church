@@ -6,6 +6,7 @@
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
+  const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
   const permissionStorageKey = "currentUserPermissions";
   const isAdminStorageKey = "currentUserIsAdmin";
 
@@ -210,10 +211,12 @@
     rolesMessage: document.getElementById("rolesMessage"),
     usersChurchMessage: document.getElementById("usersChurchMessage"),
     usersTableBody: document.getElementById("usersTableBody"),
+    usersInvitationsBody: document.getElementById("usersInvitationsBody"),
     rolesTableBody: document.getElementById("rolesTableBody"),
 
     usersAddBtn: document.getElementById("usersAddBtn"),
     usersInviteBtn: document.getElementById("usersInviteBtn"),
+    usersOpenLinkInviteModalBtn: document.getElementById("usersOpenLinkInviteModalBtn"),
     usersOpenRoleModalBtn: document.getElementById("usersOpenRoleModalBtn"),
     usersOpenPermissionModalBtn: document.getElementById("usersOpenPermissionModalBtn"),
     usersGeneratePermissionsBtn: document.getElementById("usersGeneratePermissionsBtn"),
@@ -245,6 +248,18 @@
     usersInviteMessage: document.getElementById("usersInviteMessage"),
     usersInviteCloseBtn: document.getElementById("usersInviteCloseBtn"),
     usersInviteCancelBtn: document.getElementById("usersInviteCancelBtn"),
+
+    usersLinkInviteModal: document.getElementById("usersLinkInviteModal"),
+    usersLinkInviteForm: document.getElementById("usersLinkInviteForm"),
+    usersLinkInviteEmail: document.getElementById("usersLinkInviteEmail"),
+    usersLinkInviteRoleId: document.getElementById("usersLinkInviteRoleId"),
+    usersLinkInviteExpiryDays: document.getElementById("usersLinkInviteExpiryDays"),
+    usersLinkInviteIsDefault: document.getElementById("usersLinkInviteIsDefault"),
+    usersLinkInviteMessage: document.getElementById("usersLinkInviteMessage"),
+    usersLinkInviteResult: document.getElementById("usersLinkInviteResult"),
+    usersLinkInviteCopyBtn: document.getElementById("usersLinkInviteCopyBtn"),
+    usersLinkInviteCloseBtn: document.getElementById("usersLinkInviteCloseBtn"),
+    usersLinkInviteCancelBtn: document.getElementById("usersLinkInviteCancelBtn"),
 
     usersRoleModal: document.getElementById("usersRoleModal"),
     usersRoleForm: document.getElementById("usersRoleForm"),
@@ -302,6 +317,7 @@
     users: [],
     roles: [],
     permissions: [],
+    invitations: [],
     tenantProfile: null,
     permissionSet: new Set(),
     isAdmin: false,
@@ -382,6 +398,12 @@
     if (!el.usersInviteMessage) return;
     el.usersInviteMessage.textContent = message || "";
     el.usersInviteMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setLinkInviteMessage(message, isError) {
+    if (!el.usersLinkInviteMessage) return;
+    el.usersLinkInviteMessage.textContent = message || "";
+    el.usersLinkInviteMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function setPermissionMessage(message, isError) {
@@ -572,6 +594,7 @@
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
+    if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.classList.toggle("hide", !hasPermission("users_roles_create"));
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.classList.toggle("hide", !hasPermission("users_permissions_create"));
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.classList.toggle("hide", !hasPermission("users_system_permissions_manage"));
@@ -608,6 +631,11 @@
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
   }
 
+  async function loadInvitations() {
+    state.invitations = await fetchJson(tenantInvitationsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar convites.");
+    renderInvitations();
+  }
+
   function ensureRolesOptions(selectedRoleId) {
     if (!el.usersFormRoleId) return;
 
@@ -638,6 +666,22 @@
       .join("");
 
     el.usersInviteRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
+  }
+
+  function ensureLinkInviteRoleOptions(selectedRoleId) {
+    if (!el.usersLinkInviteRoleId) return;
+
+    if (!state.roles.length) {
+      el.usersLinkInviteRoleId.innerHTML = '<option value="">Nenhuma role disponível</option>';
+      el.usersLinkInviteRoleId.value = "";
+      return;
+    }
+
+    el.usersLinkInviteRoleId.innerHTML = state.roles
+      .map((role) => `<option value="${role.id}">${role.name}</option>`)
+      .join("");
+
+    el.usersLinkInviteRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
   }
 
   function renderRolePermissions(selectedIds = []) {
@@ -794,6 +838,53 @@
     });
   }
 
+  function renderInvitations() {
+    if (!el.usersInvitationsBody) return;
+
+    if (!state.invitations.length) {
+      el.usersInvitationsBody.innerHTML = '<tr><td colspan="5">Nenhum convite gerado.</td></tr>';
+      return;
+    }
+
+    el.usersInvitationsBody.innerHTML = state.invitations
+      .map((invitation) => {
+        const roleName = (invitation.role_obj && invitation.role_obj.name) || invitation.role || "-";
+        const statusLabel = invitation.status || "-";
+        const revokeButton = invitation.status === "pending"
+          ? `<button type="button" class="btn btn-sm btn-danger" data-invitation-revoke="${invitation.id}">Revogar</button>`
+          : "";
+        const copyButton = invitation.status === "pending"
+          ? `<button type="button" class="btn btn-sm btn-warning" data-invitation-copy="${invitation.id}">Copiar link</button>`
+          : "";
+        return `<tr>
+          <td><strong>${escapeHtml(invitation.email)}</strong></td>
+          <td>${escapeHtml(roleName)}</td>
+          <td><span class="badge bg-info">${escapeHtml(statusLabel)}</span></td>
+          <td>${escapeHtml(new Date(invitation.expires_at).toLocaleString("pt-BR"))}</td>
+          <td>${copyButton} ${revokeButton}</td>
+        </tr>`;
+      })
+      .join("");
+
+    el.usersInvitationsBody.querySelectorAll("[data-invitation-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const invitationId = parseInt(button.getAttribute("data-invitation-copy"), 10);
+        const invitation = state.invitations.find((item) => item.id === invitationId);
+        if (!invitation || !invitation.invite_url) return;
+        try {
+          await navigator.clipboard.writeText(invitation.invite_url);
+          setMessage(`Link copiado para ${invitation.email}.`, false);
+        } catch (_error) {
+          setMessage("Nao foi possivel copiar o link automaticamente.", true);
+        }
+      });
+    });
+
+    el.usersInvitationsBody.querySelectorAll("[data-invitation-revoke]").forEach((button) => {
+      button.addEventListener("click", () => revokeInvitation(parseInt(button.getAttribute("data-invitation-revoke"), 10)).catch((error) => setMessage(error.message, true)));
+    });
+  }
+
   function openUserForm(mode, user) {
     if (!el.usersFormModal) return;
 
@@ -875,6 +966,20 @@
   function closeInviteModal() {
     if (!el.usersInviteModal) return;
     el.usersInviteModal.classList.add("hide");
+  }
+
+  function openLinkInviteModal() {
+    if (!el.usersLinkInviteModal || !el.usersLinkInviteForm) return;
+    el.usersLinkInviteForm.reset();
+    ensureLinkInviteRoleOptions();
+    if (el.usersLinkInviteResult) el.usersLinkInviteResult.value = "";
+    setLinkInviteMessage("", false);
+    el.usersLinkInviteModal.classList.remove("hide");
+  }
+
+  function closeLinkInviteModal() {
+    if (!el.usersLinkInviteModal) return;
+    el.usersLinkInviteModal.classList.add("hide");
   }
 
   function openEditRole(roleId) {
@@ -1059,6 +1164,53 @@
     }
   }
 
+  async function submitLinkInviteForm(event) {
+    event.preventDefault();
+
+    if (!el.usersLinkInviteEmail || !el.usersLinkInviteRoleId || !el.usersLinkInviteExpiryDays || !el.usersLinkInviteIsDefault) return;
+
+    const email = el.usersLinkInviteEmail.value.trim().toLowerCase();
+    const roleId = parseInt(el.usersLinkInviteRoleId.value || "0", 10);
+    const expiresInDays = parseInt(el.usersLinkInviteExpiryDays.value || "7", 10);
+    const isDefault = Boolean(el.usersLinkInviteIsDefault.checked);
+
+    if (!email || !roleId) {
+      setLinkInviteMessage("Informe email e role para gerar o convite.", true);
+      return;
+    }
+
+    try {
+      setLinkInviteMessage("Gerando link de convite...", false);
+      const invitation = await fetchJson(
+        tenantInvitationsEndpoint,
+        {
+          method: "POST",
+          headers: buildHeaders(true),
+          body: JSON.stringify({
+            email,
+            role_id: roleId,
+            expires_in_days: expiresInDays,
+            is_default: isDefault,
+          }),
+        },
+        "Erro ao gerar convite."
+      );
+      if (el.usersLinkInviteResult) {
+        el.usersLinkInviteResult.value = invitation.invite_url || "";
+      }
+      setLinkInviteMessage("Convite gerado com sucesso. Compartilhe o link abaixo.", false);
+      await loadInvitations();
+    } catch (error) {
+      setLinkInviteMessage(error instanceof Error ? error.message : "Falha ao gerar convite.", true);
+    }
+  }
+
+  async function revokeInvitation(invitationId) {
+    await fetchJson(`${tenantInvitationsEndpoint}${invitationId}`, { method: "DELETE", headers: buildHeaders(false) }, "Erro ao revogar convite.");
+    await loadInvitations();
+    setMessage("Convite revogado com sucesso.", false);
+  }
+
   async function confirmDeleteUser() {
     if (!state.deletingUserId) return;
 
@@ -1095,9 +1247,11 @@
       await loadRoles();
       ensureRolesOptions();
       ensureInviteRoleOptions();
+      ensureLinkInviteRoleOptions();
     }
     if (hasPermission("users_users_view")) {
       await loadUsers();
+      await loadInvitations();
     }
     if (state.isAdmin) {
       await loadTenantProfile();
@@ -1232,12 +1386,14 @@
 
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
     if (el.usersInviteBtn) el.usersInviteBtn.addEventListener("click", openInviteModal);
+    if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.addEventListener("click", openLinkInviteModal);
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.addEventListener("click", openRoleModal);
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.addEventListener("click", openPermissionModal);
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.addEventListener("click", () => generateMissingPermissions().catch((error) => setRolesMessage(error.message, true)));
 
     if (el.usersForm) el.usersForm.addEventListener("submit", submitUserForm);
     if (el.usersInviteForm) el.usersInviteForm.addEventListener("submit", submitInviteForm);
+    if (el.usersLinkInviteForm) el.usersLinkInviteForm.addEventListener("submit", submitLinkInviteForm);
     if (el.usersRoleForm) el.usersRoleForm.addEventListener("submit", submitRoleForm);
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
@@ -1263,6 +1419,23 @@
 
     if (el.usersInviteCloseBtn) el.usersInviteCloseBtn.addEventListener("click", closeInviteModal);
     if (el.usersInviteCancelBtn) el.usersInviteCancelBtn.addEventListener("click", closeInviteModal);
+    if (el.usersLinkInviteCloseBtn) el.usersLinkInviteCloseBtn.addEventListener("click", closeLinkInviteModal);
+    if (el.usersLinkInviteCancelBtn) el.usersLinkInviteCancelBtn.addEventListener("click", closeLinkInviteModal);
+    if (el.usersLinkInviteCopyBtn) {
+      el.usersLinkInviteCopyBtn.addEventListener("click", async () => {
+        try {
+          const value = (el.usersLinkInviteResult && el.usersLinkInviteResult.value) || "";
+          if (!value) {
+            setLinkInviteMessage("Gere um link antes de copiar.", true);
+            return;
+          }
+          await navigator.clipboard.writeText(value);
+          setLinkInviteMessage("Link copiado com sucesso.", false);
+        } catch (_error) {
+          setLinkInviteMessage("Nao foi possivel copiar o link automaticamente.", true);
+        }
+      });
+    }
 
     if (el.usersRoleCloseBtn) el.usersRoleCloseBtn.addEventListener("click", closeRoleModal);
     if (el.usersRoleCancelBtn) el.usersRoleCancelBtn.addEventListener("click", closeRoleModal);
@@ -1289,6 +1462,12 @@
     if (el.usersInviteModal) {
       el.usersInviteModal.addEventListener("click", (event) => {
         if (event.target === el.usersInviteModal) closeInviteModal();
+      });
+    }
+
+    if (el.usersLinkInviteModal) {
+      el.usersLinkInviteModal.addEventListener("click", (event) => {
+        if (event.target === el.usersLinkInviteModal) closeLinkInviteModal();
       });
     }
 
@@ -1331,6 +1510,9 @@
   window.openUsersModule = () => openUsersModule().catch((error) => setMessage(error.message, true));
   window.openUsersInviteModal = () => openUsersModule()
     .then(() => openInviteModal())
+    .catch((error) => setMessage(error.message, true));
+  window.openUsersLinkInviteModal = () => openUsersModule()
+    .then(() => openLinkInviteModal())
     .catch((error) => setMessage(error.message, true));
   window.openChurchSettings = () => openUsersModule()
     .then(() => openChurchView())

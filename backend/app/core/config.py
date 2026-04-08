@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Church Financial Management System"
     API_V1_STR: str = "/api/v1"
     APP_BASE_URL: str = "http://localhost:8000"
-    PUBLIC_APP_URL: str = "http://localhost:3000"
+    PUBLIC_APP_URL: str = "http://localhost"
 
     # Payments
     PAYMENT_PROVIDER: str = "internal"
@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     WHATSAPP_WEBHOOK_URL: str | None = None
     WHATSAPP_WEBHOOK_TOKEN: str | None = None
+
+    # Tenant invitations
+    TENANT_INVITATION_EXPIRY_DAYS: int = 7
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

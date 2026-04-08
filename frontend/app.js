@@ -93,6 +93,7 @@ const el = {
   publicCatalogScreen: document.getElementById("publicCatalogScreen"),
   publicEventDetailScreen: document.getElementById("publicEventDetailScreen"),
   publicEventScreen: document.getElementById("publicEventScreen"),
+  publicInviteScreen: document.getElementById("publicInviteScreen"),
   appShell: document.getElementById("appShell"),
   publicCatalogTitle: document.getElementById("publicCatalogTitle"),
   publicCatalogSummary: document.getElementById("publicCatalogSummary"),
@@ -117,6 +118,7 @@ const el = {
   publicEventTitle: document.getElementById("publicEventTitle"),
   publicEventSummary: document.getElementById("publicEventSummary"),
   publicBrandLogoPayment: document.getElementById("publicBrandLogoPayment"),
+  publicInviteLogo: document.getElementById("publicInviteLogo"),
   publicEventMetaDate: document.getElementById("publicEventMetaDate"),
   publicEventMetaLocation: document.getElementById("publicEventMetaLocation"),
   publicEventMetaCode: document.getElementById("publicEventMetaCode"),
@@ -134,6 +136,18 @@ const el = {
   publicCheckoutBlock: document.getElementById("publicCheckoutBlock"),
   publicCheckoutLink: document.getElementById("publicCheckoutLink"),
   publicRefreshStatusBtn: document.getElementById("publicRefreshStatusBtn"),
+  publicInviteTitle: document.getElementById("publicInviteTitle"),
+  publicInviteSummary: document.getElementById("publicInviteSummary"),
+  publicInviteTenantName: document.getElementById("publicInviteTenantName"),
+  publicInviteRoleName: document.getElementById("publicInviteRoleName"),
+  publicInviteExpiresAt: document.getElementById("publicInviteExpiresAt"),
+  publicInviteBadge: document.getElementById("publicInviteBadge"),
+  publicInviteEmail: document.getElementById("publicInviteEmail"),
+  publicInviteMessage: document.getElementById("publicInviteMessage"),
+  publicInviteAcceptForm: document.getElementById("publicInviteAcceptForm"),
+  publicInviteFullName: document.getElementById("publicInviteFullName"),
+  publicInvitePassword: document.getElementById("publicInvitePassword"),
+  publicInviteAcceptBtn: document.getElementById("publicInviteAcceptBtn"),
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
   payablesView: document.getElementById("payablesView"),
@@ -537,6 +551,7 @@ function showApp(isAuthed) {
   el.publicCatalogScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
+  el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.toggle("hide", !isAuthed);
   el.tenantSwitcher.classList.toggle("hide", !isAuthed);
   if (!isAuthed && el.tenantOnboardingBanner) {
@@ -548,6 +563,7 @@ function showPublicEventApp() {
   el.loginScreen.classList.add("hide");
   el.publicCatalogScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
+  el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.add("hide");
   el.tenantSwitcher.classList.add("hide");
   el.publicEventScreen.classList.remove("hide");
@@ -557,6 +573,7 @@ function showPublicCatalogApp() {
   el.loginScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
+  el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.add("hide");
   el.tenantSwitcher.classList.add("hide");
   el.publicCatalogScreen.classList.remove("hide");
@@ -566,14 +583,29 @@ function showPublicEventDetailApp() {
   el.loginScreen.classList.add("hide");
   el.publicCatalogScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
+  el.publicInviteScreen.classList.add("hide");
   el.appShell.classList.add("hide");
   el.tenantSwitcher.classList.add("hide");
   el.publicEventDetailScreen.classList.remove("hide");
 }
 
+function showPublicInviteApp() {
+  el.loginScreen.classList.add("hide");
+  el.publicCatalogScreen.classList.add("hide");
+  el.publicEventDetailScreen.classList.add("hide");
+  el.publicEventScreen.classList.add("hide");
+  el.appShell.classList.add("hide");
+  el.tenantSwitcher.classList.add("hide");
+  el.publicInviteScreen.classList.remove("hide");
+}
+
 function isPublicRegistrationRoute() {
   const match = window.location.pathname.match(/\/events\/registration\/([^/?#]+)/);
   return Boolean(match);
+}
+
+function isPublicInvitationRoute() {
+  return Boolean(window.location.pathname.match(/^\/invite\/([^/]+)\/?$/));
 }
 
 function isPublicCatalogRoute() {
@@ -586,6 +618,11 @@ function isPublicEventDetailRoute() {
 
 function getCheckoutReferenceFromRoute() {
   const match = window.location.pathname.match(/\/events\/registration\/([^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function getInvitationTokenFromRoute() {
+  const match = window.location.pathname.match(/^\/invite\/([^/]+)\/?$/);
   return match ? decodeURIComponent(match[1]) : "";
 }
 
@@ -780,6 +817,7 @@ function applyTenantBranding(branding = {}) {
     el.publicBrandLogoCatalog,
     el.publicBrandLogoDetail,
     el.publicBrandLogoPayment,
+    el.publicInviteLogo,
   ];
   logos.forEach((logoNode) => {
     if (!logoNode) return;
@@ -978,6 +1016,53 @@ async function loadPublicPaymentStatus(checkoutReference, options = {}) {
   const payload = await response.json();
   renderPublicPaymentStatus(payload);
   return payload;
+}
+
+async function loadPublicInvitation(token) {
+  const response = await fetch(`${API_PREFIX}/tenant-invitations/public/${encodeURIComponent(token)}`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(errorDetailToText(payload.detail ?? payload, "Convite nao encontrado"));
+  }
+  return payload;
+}
+
+function renderPublicInvitation(invitation) {
+  el.publicInviteBadge.textContent = invitation.status === "pending" ? "Convite ativo" : formatPublicStatusLabel(invitation.status);
+  el.publicInviteBadge.className = `public-event-status-badge ${invitation.status === "pending" ? "paid" : ""}`.trim();
+  el.publicInviteTitle.textContent = `${invitation.tenant?.name || "Igreja"} quer adicionar voce`;
+  el.publicInviteSummary.textContent = invitation.tenant?.public_display_name
+    ? `Voce foi convidado para entrar na equipe de ${invitation.tenant.public_display_name}.`
+    : "Use este convite para acessar a igreja com seguranca.";
+  el.publicInviteTenantName.textContent = `Igreja: ${invitation.tenant?.name || "-"}`;
+  el.publicInviteRoleName.textContent = `Perfil: ${invitation.role_obj?.name || invitation.role || "-"}`;
+  el.publicInviteExpiresAt.textContent = `Validade: ${formatDateTime(invitation.expires_at)}`;
+  el.publicInviteEmail.textContent = invitation.email;
+  el.publicInviteMessage.textContent = "Se voce ja possui conta, use sua senha atual. Se ainda nao possui, informe nome e uma nova senha.";
+  el.publicInviteAcceptForm.dataset.token = invitation.invite_token || "";
+  if (el.publicInviteFullName) {
+    el.publicInviteFullName.value = invitation.full_name || "";
+  }
+}
+
+async function initializePublicInvitationApp() {
+  showPublicInviteApp();
+  const token = getInvitationTokenFromRoute();
+  if (!token) {
+    el.publicInviteMessage.textContent = "Convite invalido.";
+    return;
+  }
+  try {
+    const invitation = await loadPublicInvitation(token);
+    if (invitation.tenant?.slug) {
+      await loadPublicTenantBranding(invitation.tenant.slug);
+    }
+    renderPublicInvitation({ ...invitation, invite_token: token });
+  } catch (error) {
+    el.publicInviteMessage.textContent = error.message;
+    el.publicInviteBadge.textContent = "Indisponivel";
+    el.publicInviteBadge.className = "public-event-status-badge failed";
+  }
 }
 
 async function initializePublicEventApp() {
@@ -3595,6 +3680,11 @@ async function loadReports() {
 }
 
 async function initializeApp() {
+  if (isPublicInvitationRoute()) {
+    await initializePublicInvitationApp();
+    return;
+  }
+
   if (isPublicRegistrationRoute()) {
     await initializePublicEventApp();
     return;
@@ -3740,8 +3830,8 @@ if (el.tenantOnboardingManageBtn) {
 
 if (el.tenantOnboardingInviteBtn) {
   el.tenantOnboardingInviteBtn.addEventListener("click", () => {
-    if (window.openUsersInviteModal) {
-      window.openUsersInviteModal();
+    if (window.openUsersLinkInviteModal) {
+      window.openUsersLinkInviteModal();
       return;
     }
     if (window.openUsersModule) {
@@ -3788,6 +3878,45 @@ el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
     el.publicDetailMessage.textContent = error.message;
   }
 });
+
+if (el.publicInviteAcceptForm) {
+  el.publicInviteAcceptForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const token = String(el.publicInviteAcceptForm.dataset.token || "").trim();
+      if (!token) {
+        throw new Error("Convite invalido.");
+      }
+      el.publicInviteAcceptBtn.disabled = true;
+      el.publicInviteMessage.textContent = "Aceitando convite...";
+      const response = await fetch(`${API_PREFIX}/tenant-invitations/public/${encodeURIComponent(token)}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: el.publicInviteFullName.value.trim() || null,
+          password: el.publicInvitePassword.value,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(errorDetailToText(payload.detail ?? payload, "Falha ao aceitar convite"));
+      }
+      state.accessToken = payload.access_token;
+      state.refreshToken = payload.refresh_token;
+      localStorage.setItem("accessToken", payload.access_token);
+      localStorage.setItem("refreshToken", payload.refresh_token);
+      if (payload.active_tenant_slug) {
+        localStorage.setItem("activeTenantSlug", payload.active_tenant_slug);
+      }
+      window.history.replaceState({}, "", "/");
+      await initializeApp();
+    } catch (error) {
+      el.publicInviteMessage.textContent = error.message;
+    } finally {
+      el.publicInviteAcceptBtn.disabled = false;
+    }
+  });
+}
 
 el.refreshBtn.addEventListener("click", async () => {
   try {

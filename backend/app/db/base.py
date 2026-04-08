@@ -34,3 +34,4 @@ from app.db.models.event import Event  # noqa: F401
 from app.db.models.event_registration import EventRegistration  # noqa: F401
 from app.db.models.event_payment import EventPayment  # noqa: F401
 from app.db.models.event_notification import EventNotification  # noqa: F401
+from app.db.models.tenant_invitation import TenantInvitation  # noqa: F401
