@@ -311,6 +311,7 @@
     usersChurchLogoUrl: document.getElementById("usersChurchLogoUrl"),
     usersChurchLogoFile: document.getElementById("usersChurchLogoFile"),
     usersChurchLogoUploadBtn: document.getElementById("usersChurchLogoUploadBtn"),
+    usersChurchInlineLogoPreview: document.getElementById("usersChurchInlineLogoPreview"),
     usersChurchSupportEmail: document.getElementById("usersChurchSupportEmail"),
     usersChurchWhatsappCountry: document.getElementById("usersChurchWhatsappCountry"),
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
@@ -328,6 +329,7 @@
     usersChurchPreviewSummary: document.getElementById("usersChurchPreviewSummary"),
     usersChurchPreviewSupport: document.getElementById("usersChurchPreviewSupport"),
     usersChurchPreviewSlug: document.getElementById("usersChurchPreviewSlug"),
+    usersChurchPreviewCard: document.getElementById("usersChurchPreviewCard"),
     usersChurchActivationScore: document.getElementById("usersChurchActivationScore"),
     usersChurchActivationChecklist: document.getElementById("usersChurchActivationChecklist"),
 
@@ -358,6 +360,7 @@
     editingUserId: null,
     editingRoleId: null,
     deletingUserId: null,
+    churchDraftLogoPreviewUrl: "",
   };
 
   function getToken() {
@@ -570,6 +573,34 @@
     updateChurchPreview();
   }
 
+  function resolveAssetUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+      return new URL(raw, window.location.origin).toString();
+    } catch (_error) {
+      return raw;
+    }
+  }
+
+  function clearDraftLogoPreview() {
+    if (state.churchDraftLogoPreviewUrl) {
+      URL.revokeObjectURL(state.churchDraftLogoPreviewUrl);
+      state.churchDraftLogoPreviewUrl = "";
+    }
+  }
+
+  function syncSelectedLogoPreview() {
+    if (!el.usersChurchLogoFile || !el.usersChurchLogoFile.files || !el.usersChurchLogoFile.files[0]) {
+      clearDraftLogoPreview();
+      updateChurchPreview();
+      return;
+    }
+    clearDraftLogoPreview();
+    state.churchDraftLogoPreviewUrl = URL.createObjectURL(el.usersChurchLogoFile.files[0]);
+    updateChurchPreview();
+  }
+
   async function resizeLogoFile(file) {
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -633,6 +664,7 @@
       const tenant = await response.json();
       state.tenantProfile = tenant;
       if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
+      clearDraftLogoPreview();
       if (window.applyTenantBranding) {
         window.applyTenantBranding(tenant);
       }
@@ -666,7 +698,10 @@
       || "A descrição pública aparecerá aqui para visitantes e equipe.";
     const supportEmail = (el.usersChurchSupportEmail && el.usersChurchSupportEmail.value.trim()) || "";
     const supportWhatsapp = (el.usersChurchSupportWhatsapp && el.usersChurchSupportWhatsapp.value.trim()) || "";
-    const logoUrl = (el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()) || "";
+    const logoUrl = state.churchDraftLogoPreviewUrl || ((el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()) || "");
+    const resolvedLogoUrl = resolveAssetUrl(logoUrl);
+    const primaryColor = normalizeHexColor(el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value, "#1565C0");
+    const secondaryColor = normalizeHexColor(el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value, "#0A8F72");
     const supportParts = [supportEmail, supportWhatsapp].filter(Boolean);
     const urls = buildChurchPublicUrls();
 
@@ -677,12 +712,23 @@
     if (el.usersChurchPreviewSummary) el.usersChurchPreviewSummary.textContent = description;
     if (el.usersChurchPreviewSupport) el.usersChurchPreviewSupport.textContent = supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "Contato da igreja ainda não configurado";
     if (el.usersChurchPreviewSlug) el.usersChurchPreviewSlug.textContent = `Landing: /t/${getCurrentChurchSlug()}`;
+    if (el.usersChurchPreviewCard) {
+      el.usersChurchPreviewCard.style.background = `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})`;
+    }
     if (el.usersChurchPreviewLogo) {
-      el.usersChurchPreviewLogo.classList.toggle("hide", !logoUrl);
-      if (logoUrl) {
-        el.usersChurchPreviewLogo.src = logoUrl;
+      el.usersChurchPreviewLogo.classList.toggle("hide", !resolvedLogoUrl);
+      if (resolvedLogoUrl) {
+        el.usersChurchPreviewLogo.src = resolvedLogoUrl;
       } else {
         el.usersChurchPreviewLogo.removeAttribute("src");
+      }
+    }
+    if (el.usersChurchInlineLogoPreview) {
+      el.usersChurchInlineLogoPreview.classList.toggle("hide", !resolvedLogoUrl);
+      if (resolvedLogoUrl) {
+        el.usersChurchInlineLogoPreview.src = resolvedLogoUrl;
+      } else {
+        el.usersChurchInlineLogoPreview.removeAttribute("src");
       }
     }
     renderChurchActivationChecklist();
@@ -975,6 +1021,7 @@
     if (el.usersChurchSupportEmail) el.usersChurchSupportEmail.value = tenant.support_email || "";
     if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.value = tenant.support_whatsapp || "";
     if (el.usersChurchWhatsappCountry) el.usersChurchWhatsappCountry.value = detectWhatsappCountry(tenant.support_whatsapp || "");
+    clearDraftLogoPreview();
     syncWhatsappField({ fromCountry: true });
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
     updateChurchPreview();
@@ -1788,6 +1835,7 @@
     if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
     if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
     if (el.usersChurchLogoUploadBtn) el.usersChurchLogoUploadBtn.addEventListener("click", () => uploadChurchLogo().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersChurchLogoFile) el.usersChurchLogoFile.addEventListener("change", syncSelectedLogoPreview);
     if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.addEventListener("input", () => syncChurchColorInputs("primary-picker"));
     if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.addEventListener("input", () => syncChurchColorInputs("secondary-picker"));
     if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.addEventListener("change", () => syncChurchColorInputs("primary-text"));
