@@ -59,7 +59,7 @@ h1, h2, h3, h4 {
 
 .login-hero {
   padding: 2rem;
-  background: linear-gradient(145deg, #0e2b5f, #0f5ea9 56%, #13a68b);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 62%, #0a1630 38%), color-mix(in srgb, var(--primary) 76%, var(--primary-2) 24%) 56%, var(--primary-2));
   color: #eff7ff;
 }
 
@@ -126,7 +126,7 @@ h1, h2, h3, h4 {
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.75fr);
   border: 1px solid #d6e5ff;
   box-shadow: var(--shadow);
-  background: linear-gradient(148deg, #0e2448 0%, #125e9f 52%, #10a28a 100%);
+  background: linear-gradient(148deg, color-mix(in srgb, var(--primary) 56%, #09182c 44%) 0%, color-mix(in srgb, var(--primary) 78%, var(--primary-2) 22%) 52%, var(--primary-2) 100%);
   color: #eff7ff;
 }
 
@@ -186,7 +186,7 @@ h1, h2, h3, h4 {
   padding: 2rem;
   border: 1px solid #d6e5ff;
   box-shadow: var(--shadow);
-  background: linear-gradient(150deg, #0f254d, #1362a6 58%, #11a38d);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--primary) 58%, #0b1730 42%), color-mix(in srgb, var(--primary) 82%, var(--primary-2) 18%) 58%, var(--primary-2));
   color: #eff7ff;
 }
 
@@ -232,7 +232,7 @@ h1, h2, h3, h4 {
 
 .public-event-hero {
   padding: 2.1rem;
-  background: linear-gradient(150deg, #0f254d, #1362a6 58%, #11a38d);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--primary) 58%, #0b1730 42%), color-mix(in srgb, var(--primary) 82%, var(--primary-2) 18%) 58%, var(--primary-2));
   color: #eff7ff;
 }
 
@@ -264,8 +264,8 @@ h1, h2, h3, h4 {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: #e8f1ff;
-  color: #1f4f8a;
+  background: color-mix(in srgb, var(--primary) 14%, white 86%);
+  color: color-mix(in srgb, var(--primary) 78%, #16395d 22%);
 }
 
 .public-event-status-badge.pending {
@@ -2157,8 +2157,8 @@ th {
 }
 
 .event-admin-card.active {
-  border-color: #2b6cb0;
-  box-shadow: 0 18px 38px rgba(43, 108, 176, 0.16);
+  border-color: color-mix(in srgb, var(--primary) 78%, white 22%);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--primary) 24%, transparent 76%);
 }
 
 .event-admin-card-head {
@@ -2190,8 +2190,8 @@ th {
   align-items: center;
   border-radius: 999px;
   padding: 0.22rem 0.6rem;
-  background: #eef5fb;
-  color: #285176;
+  background: color-mix(in srgb, var(--primary) 12%, white 88%);
+  color: color-mix(in srgb, var(--primary) 72%, #244667 28%);
   font-size: 0.75rem;
   font-weight: 700;
 }

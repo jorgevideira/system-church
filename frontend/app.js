@@ -4,6 +4,7 @@ const TX_PAGINATION_STORAGE_KEY = "txPaginationV1";
 const DASH_BUDGETS_STORAGE_KEY = "dashBudgetsV1";
 const CURRENT_USER_PERMISSIONS_STORAGE_KEY = "currentUserPermissions";
 const CURRENT_USER_IS_ADMIN_STORAGE_KEY = "currentUserIsAdmin";
+const LAST_TENANT_SLUG_STORAGE_KEY = "lastTenantSlug";
 
 const state = {
   accessToken: localStorage.getItem("accessToken") || "",
@@ -715,7 +716,33 @@ function getSupportLabel(branding = {}) {
 
 function getLoginTenantSlug() {
   const querySlug = new URLSearchParams(window.location.search).get("tenant");
-  return String(querySlug || localStorage.getItem("activeTenantSlug") || "default").trim() || "default";
+  return String(querySlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
+}
+
+function resolveBrandingAssetUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw, window.location.origin).toString();
+  } catch (_error) {
+    return raw;
+  }
+}
+
+function rememberTenantSlug(tenantSlug) {
+  const normalized = String(tenantSlug || "").trim();
+  if (!normalized) return;
+  localStorage.setItem("activeTenantSlug", normalized);
+  localStorage.setItem(LAST_TENANT_SLUG_STORAGE_KEY, normalized);
+}
+
+function syncTenantLinks(tenantSlug) {
+  const slug = String(tenantSlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
+  if (el.loginPublicCatalogLink) el.loginPublicCatalogLink.href = `/events/${encodeURIComponent(slug)}`;
+  if (el.tenantLandingLoginLink) el.tenantLandingLoginLink.href = `/?tenant=${encodeURIComponent(slug)}`;
+  if (el.tenantLandingEventsLink) el.tenantLandingEventsLink.href = `/events/${encodeURIComponent(slug)}`;
+  if (el.tenantLandingCatalogLink) el.tenantLandingCatalogLink.href = `/events/${encodeURIComponent(slug)}`;
+  if (el.tenantOnboardingPreviewLink) el.tenantOnboardingPreviewLink.href = `/events/${encodeURIComponent(slug)}`;
 }
 
 function setLoginBranding(branding = {}, tenantSlug = "default") {
@@ -753,7 +780,7 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
     el.loginBrandSupport.textContent = getSupportLabel(branding);
   }
   if (el.loginBrandLogo) {
-    const logoUrl = String(branding.logo_url || "").trim();
+    const logoUrl = resolveBrandingAssetUrl(branding.logo_url);
     el.loginBrandLogo.classList.toggle("hide", !logoUrl);
     if (logoUrl) {
       el.loginBrandLogo.src = logoUrl;
@@ -761,10 +788,8 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
       el.loginBrandLogo.removeAttribute("src");
     }
   }
-  if (el.loginPublicCatalogLink) {
-    el.loginPublicCatalogLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
-    el.loginPublicCatalogLink.classList.toggle("hide", !tenantSlug);
-  }
+  syncTenantLinks(tenantSlug);
+  if (el.loginPublicCatalogLink) el.loginPublicCatalogLink.classList.toggle("hide", !tenantSlug);
 }
 
 function buildTenantOnboardingItems(tenant = {}) {
@@ -841,6 +866,10 @@ function applyTenantBranding(branding = {}) {
   const secondary = String(branding.secondary_color || "").trim();
   root.style.setProperty("--primary", primary || "#1565c0");
   root.style.setProperty("--primary-2", secondary || "#0a8f72");
+  if (branding.slug) {
+    rememberTenantSlug(branding.slug);
+    syncTenantLinks(branding.slug);
+  }
 
   const displayName = branding.public_display_name || branding.name;
   if (displayName) {
@@ -856,7 +885,7 @@ function applyTenantBranding(branding = {}) {
   ];
   logos.forEach((logoNode) => {
     if (!logoNode) return;
-    const logoUrl = String(branding.logo_url || "").trim();
+    const logoUrl = resolveBrandingAssetUrl(branding.logo_url);
     logoNode.classList.toggle("hide", !logoUrl);
     if (logoUrl) {
       logoNode.src = logoUrl;
@@ -3361,7 +3390,7 @@ async function login(email, password) {
   localStorage.setItem("accessToken", data.access_token);
   localStorage.setItem("refreshToken", data.refresh_token);
   if (data.active_tenant_slug) {
-    localStorage.setItem("activeTenantSlug", data.active_tenant_slug);
+    rememberTenantSlug(data.active_tenant_slug);
   }
 }
 
@@ -3377,6 +3406,10 @@ function logout() {
   localStorage.removeItem("currentUserRole");
   localStorage.removeItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY);
   localStorage.removeItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY);
+  const preservedTenantSlug = localStorage.getItem("activeTenantSlug");
+  if (preservedTenantSlug) {
+    localStorage.setItem(LAST_TENANT_SLUG_STORAGE_KEY, preservedTenantSlug);
+  }
   localStorage.removeItem("activeTenantSlug");
   document.body.dataset.userRole = "";
   el.sessionUser.textContent = "Nao autenticado";
@@ -3404,7 +3437,7 @@ async function loadMe() {
   localStorage.setItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY, JSON.stringify(permissionNames));
   localStorage.setItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY, String(state.currentUserIsAdmin));
   if (me.active_tenant && me.active_tenant.slug) {
-    localStorage.setItem("activeTenantSlug", me.active_tenant.slug);
+    rememberTenantSlug(me.active_tenant.slug);
   }
   document.body.dataset.userRole = state.currentUserRole;
   el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
@@ -3798,6 +3831,7 @@ async function initializeApp() {
 
   if (!state.accessToken) {
     showApp(false);
+    syncTenantLinks(getLoginTenantSlug());
     await initializeLoginExperience();
     return;
   }

@@ -28,6 +28,13 @@ class TenantSummaryResponse(BaseModel):
     id: int
     name: str
     slug: str
+    public_display_name: Optional[str] = None
+    public_description: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    support_email: Optional[str] = None
+    support_whatsapp: Optional[str] = None
     is_active: bool
 
     model_config = {"from_attributes": True}
