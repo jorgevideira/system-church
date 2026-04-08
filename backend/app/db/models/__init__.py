@@ -28,6 +28,9 @@ from app.db.models.bible_school_professor import BibleSchoolProfessor
 from app.db.models.bible_school_lesson import BibleSchoolLesson
 from app.db.models.bible_school_student import BibleSchoolStudent
 from app.db.models.bible_school_attendance import BibleSchoolAttendance
+from app.db.models.event import Event
+from app.db.models.event_registration import EventRegistration
+from app.db.models.event_payment import EventPayment
 
 __all__ = [
     "User",
@@ -61,4 +64,7 @@ __all__ = [
     "BibleSchoolLesson",
     "BibleSchoolStudent",
     "BibleSchoolAttendance",
+    "Event",
+    "EventRegistration",
+    "EventPayment",
 ]

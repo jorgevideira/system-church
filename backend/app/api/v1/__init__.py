@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
 	budgets,
 	categories,
 	cells,
+	events,
 	lost_sheep,
 	ministries,
 	payables,
@@ -25,6 +26,7 @@ api_router.include_router(categories.router, prefix="/categories", tags=["catego
 api_router.include_router(ministries.router, prefix="/ministries", tags=["ministries"])
 api_router.include_router(cells.router, prefix="/cells", tags=["cells"])
 api_router.include_router(bible_school.router, prefix="/bible-school", tags=["bible_school"])
+api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(lost_sheep.router, prefix="/lost-sheep", tags=["lost_sheep"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(transaction_attachments.router, prefix="/transactions", tags=["transactions"])

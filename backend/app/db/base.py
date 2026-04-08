@@ -30,3 +30,6 @@ from app.db.models.bible_school_professor import BibleSchoolProfessor  # noqa: F
 from app.db.models.bible_school_lesson import BibleSchoolLesson  # noqa: F401
 from app.db.models.bible_school_student import BibleSchoolStudent  # noqa: F401
 from app.db.models.bible_school_attendance import BibleSchoolAttendance  # noqa: F401
+from app.db.models.event import Event  # noqa: F401
+from app.db.models.event_registration import EventRegistration  # noqa: F401
+from app.db.models.event_payment import EventPayment  # noqa: F401
