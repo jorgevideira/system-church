@@ -1233,6 +1233,9 @@
   }
 
   window.openUsersModule = () => openUsersModule().catch((error) => setMessage(error.message, true));
+  window.openChurchSettings = () => openUsersModule()
+    .then(() => openChurchView())
+    .catch((error) => setChurchMessage(error.message, true));
   window.setTopModule = setActiveModule;
   window.usersOpenCreateUserModal = () => openUserForm("create", null);
   window.usersEditUser = (userId) => openEditUser(Number(userId));

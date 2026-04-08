@@ -146,6 +146,17 @@ h1, h2, h3, h4 {
   color: #eff7ff;
 }
 
+.public-brand-logo {
+  display: block;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.18);
+  margin-bottom: 0.9rem;
+}
+
 .public-event-card {
   padding: 2rem 1.5rem;
   background: linear-gradient(170deg, #ffffff, #f7fbff);

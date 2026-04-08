@@ -45,9 +45,11 @@
   <section id="publicCatalogScreen" class="public-event-screen hide">
     <div class="public-catalog-shell">
       <div class="public-catalog-header">
+        <img id="publicBrandLogoCatalog" class="public-brand-logo hide" alt="Logo da igreja">
         <p class="eyebrow">Agenda da Igreja</p>
         <h1 id="publicCatalogTitle">Eventos disponíveis</h1>
         <p id="publicCatalogSummary" class="hint">Inscreva-se online e acompanhe seu pagamento sem precisar fazer login.</p>
+        <p id="publicCatalogSupport" class="tiny"></p>
       </div>
       <div id="publicCatalogGrid" class="public-catalog-grid"></div>
     </div>
@@ -56,6 +58,7 @@
   <section id="publicEventDetailScreen" class="public-event-screen hide">
     <div class="public-event-shell">
       <aside class="public-event-hero">
+        <img id="publicBrandLogoDetail" class="public-brand-logo hide" alt="Logo da igreja">
         <p class="eyebrow">Evento Público</p>
         <h1 id="publicDetailTitle">Carregando evento</h1>
         <p id="publicDetailSummary" class="hint">Estamos preparando os detalhes do evento.</p>
@@ -100,6 +103,7 @@
   <section id="publicEventScreen" class="public-event-screen hide">
     <div class="public-event-shell">
       <aside class="public-event-hero">
+        <img id="publicBrandLogoPayment" class="public-brand-logo hide" alt="Logo da igreja">
         <p class="eyebrow">Inscrição Online</p>
         <h1 id="publicEventTitle">Acompanhando sua inscrição</h1>
         <p id="publicEventSummary" class="hint">Estamos preparando o status da sua inscrição e do pagamento.</p>
@@ -169,6 +173,7 @@
       </div>
       <div class="session-box">
         <select id="tenantSwitcher" class="tenant-switcher hide" aria-label="Trocar igreja"></select>
+        <button id="manageChurchBtn" class="btn ghost hide" type="button">Gerir igreja</button>
         <span id="sessionUser">Não autenticado</span>
         <button id="logoutBtn" class="btn ghost">Sair</button>
       </div>

@@ -87,9 +87,12 @@ const el = {
   appShell: document.getElementById("appShell"),
   publicCatalogTitle: document.getElementById("publicCatalogTitle"),
   publicCatalogSummary: document.getElementById("publicCatalogSummary"),
+  publicCatalogSupport: document.getElementById("publicCatalogSupport"),
+  publicBrandLogoCatalog: document.getElementById("publicBrandLogoCatalog"),
   publicCatalogGrid: document.getElementById("publicCatalogGrid"),
   publicDetailTitle: document.getElementById("publicDetailTitle"),
   publicDetailSummary: document.getElementById("publicDetailSummary"),
+  publicBrandLogoDetail: document.getElementById("publicBrandLogoDetail"),
   publicDetailMetaDate: document.getElementById("publicDetailMetaDate"),
   publicDetailMetaLocation: document.getElementById("publicDetailMetaLocation"),
   publicDetailMetaSlots: document.getElementById("publicDetailMetaSlots"),
@@ -104,6 +107,7 @@ const el = {
   publicDetailSubmitBtn: document.getElementById("publicDetailSubmitBtn"),
   publicEventTitle: document.getElementById("publicEventTitle"),
   publicEventSummary: document.getElementById("publicEventSummary"),
+  publicBrandLogoPayment: document.getElementById("publicBrandLogoPayment"),
   publicEventMetaDate: document.getElementById("publicEventMetaDate"),
   publicEventMetaLocation: document.getElementById("publicEventMetaLocation"),
   publicEventMetaCode: document.getElementById("publicEventMetaCode"),
@@ -146,6 +150,7 @@ const el = {
   moduleEventsBtn: document.getElementById("moduleEventsBtn"),
   moduleUsersBtn: document.getElementById("moduleUsersBtn"),
   tenantSwitcher: document.getElementById("tenantSwitcher"),
+  manageChurchBtn: document.getElementById("manageChurchBtn"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -623,6 +628,27 @@ function applyTenantBranding(branding = {}) {
   if (displayName) {
     document.body.dataset.tenantName = displayName;
   }
+
+  const logos = [
+    el.publicBrandLogoCatalog,
+    el.publicBrandLogoDetail,
+    el.publicBrandLogoPayment,
+  ];
+  logos.forEach((logoNode) => {
+    if (!logoNode) return;
+    const logoUrl = String(branding.logo_url || "").trim();
+    logoNode.classList.toggle("hide", !logoUrl);
+    if (logoUrl) {
+      logoNode.src = logoUrl;
+    } else {
+      logoNode.removeAttribute("src");
+    }
+  });
+
+  if (el.publicCatalogSupport) {
+    const supportParts = [branding.support_email, branding.support_whatsapp].filter(Boolean);
+    el.publicCatalogSupport.textContent = supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "";
+  }
 }
 
 window.applyTenantBranding = applyTenantBranding;
@@ -664,6 +690,9 @@ function populateTenantSwitcher(me) {
   });
 
   el.tenantSwitcher.classList.toggle("hide", memberships.length <= 1);
+  if (el.manageChurchBtn) {
+    el.manageChurchBtn.classList.toggle("hide", !(state.currentUserIsAdmin || state.currentUserRole === "admin"));
+  }
 }
 
 async function switchTenant(tenantId) {
@@ -3526,6 +3555,18 @@ if (el.tenantSwitcher) {
       await switchTenant(el.tenantSwitcher.value);
     } catch (error) {
       setMessage(el.authMessage, error.message, true);
+    }
+  });
+}
+
+if (el.manageChurchBtn) {
+  el.manageChurchBtn.addEventListener("click", () => {
+    if (window.openChurchSettings) {
+      window.openChurchSettings();
+      return;
+    }
+    if (window.openUsersModule) {
+      window.openUsersModule();
     }
   });
 }
