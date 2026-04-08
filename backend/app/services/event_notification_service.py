@@ -93,18 +93,11 @@ def enqueue_registration_notifications(
     phase: str,
 ) -> list[EventNotification]:
     notifications: list[EventNotification] = []
-    email_subject = f"{event.title} | {'Pagamento confirmado' if phase == 'payment_confirmed' else 'Inscricao recebida'}"
-    email_body = (
-        f"Ola {registration.attendee_name},\n\n"
-        f"Evento: {event.title}\n"
-        f"Codigo da inscricao: {registration.registration_code}\n"
-        f"Status: {registration.status}\n"
-        f"Pagamento: {registration.payment_status}\n"
+    email_subject, email_body, whatsapp_message = _build_notification_content(
+        event=event,
+        registration=registration,
+        phase=phase,
     )
-    if phase == "registration_created":
-        email_body += "\nSua inscricao foi recebida. Conclua o pagamento para confirmar a vaga.\n"
-    else:
-        email_body += "\nSeu pagamento foi confirmado e sua vaga esta garantida.\n"
 
     notifications.append(
         EventNotification(
@@ -129,15 +122,58 @@ def enqueue_registration_notifications(
                 template_key=phase,
                 recipient=registration.attendee_phone,
                 status="queued",
-                payload={
-                    "message": f"{event.title}: inscricao {registration.registration_code} com status {registration.status}.",
-                },
+                payload={"message": whatsapp_message},
             )
         )
 
     for notification in notifications:
         db.add(notification)
-    db.commit()
+        db.commit()
+
+
+def _build_notification_content(*, event: Event, registration: EventRegistration, phase: str) -> tuple[str, str, str]:
+    event_line = f"Evento: {event.title}"
+    code_line = f"Codigo da inscricao: {registration.registration_code}"
+    attendee_line = f"Participante: {registration.attendee_name}"
+    amount_line = f"Valor total: {registration.total_amount} {registration.currency}"
+    support_line = "Se precisar de ajuda, responda este contato da igreja."
+
+    if phase == "payment_confirmed":
+        subject = f"{event.title} | Pagamento confirmado"
+        body = (
+            f"Ola {registration.attendee_name},\n\n"
+            f"Seu pagamento foi confirmado e sua vaga esta garantida.\n\n"
+            f"{event_line}\n"
+            f"{code_line}\n"
+            f"{attendee_line}\n"
+            f"{amount_line}\n"
+            f"Status da inscricao: confirmada\n\n"
+            f"Apresente este codigo na entrada do evento.\n"
+            f"{support_line}\n"
+        )
+        whatsapp = (
+            f"{event.title}: pagamento confirmado para a inscricao {registration.registration_code}. "
+            f"Sua vaga esta garantida."
+        )
+        return subject, body, whatsapp
+
+    subject = f"{event.title} | Inscricao recebida"
+    body = (
+        f"Ola {registration.attendee_name},\n\n"
+        f"Recebemos sua inscricao e reservamos sua vaga temporariamente.\n\n"
+        f"{event_line}\n"
+        f"{code_line}\n"
+        f"{attendee_line}\n"
+        f"{amount_line}\n"
+        f"Status da inscricao: aguardando pagamento\n\n"
+        f"Conclua o pagamento para confirmar sua participacao.\n"
+        f"{support_line}\n"
+    )
+    whatsapp = (
+        f"{event.title}: recebemos sua inscricao {registration.registration_code}. "
+        f"Conclua o pagamento para confirmar sua vaga."
+    )
+    return subject, body, whatsapp
     for notification in notifications:
         db.refresh(notification)
         _dispatch_notification(db, notification)

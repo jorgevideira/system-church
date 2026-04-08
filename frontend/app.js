@@ -114,6 +114,7 @@ const el = {
   publicPaymentMethod: document.getElementById("publicPaymentMethod"),
   publicRegistrationStatus: document.getElementById("publicRegistrationStatus"),
   publicPixBlock: document.getElementById("publicPixBlock"),
+  publicPixQr: document.getElementById("publicPixQr"),
   publicPixCode: document.getElementById("publicPixCode"),
   publicCopyPixBtn: document.getElementById("publicCopyPixBtn"),
   publicCheckoutBlock: document.getElementById("publicCheckoutBlock"),
@@ -628,6 +629,29 @@ function schedulePublicPaymentPolling(checkoutReference) {
   }, 10000);
 }
 
+function renderPixQrCode(pixCode) {
+  if (!el.publicPixQr) return;
+  el.publicPixQr.innerHTML = "";
+  const value = String(pixCode || "").trim();
+  if (!value || !window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  el.publicPixQr.appendChild(canvas);
+  window.QRCode.toCanvas(canvas, value, {
+    width: 156,
+    margin: 1,
+    color: {
+      dark: "#15324c",
+      light: "#ffffff",
+    },
+  }, (error) => {
+    if (error) {
+      el.publicPixQr.innerHTML = "";
+    }
+  });
+}
+
 function renderPublicPaymentStatus(payload) {
   const { event, registration, payment } = payload;
   document.title = `${event.title} | Inscricao`;
@@ -659,6 +683,7 @@ function renderPublicPaymentStatus(payload) {
   const hasPix = Boolean(payment.pix_copy_paste);
   el.publicPixBlock.classList.toggle("hide", !hasPix);
   el.publicPixCode.value = hasPix ? payment.pix_copy_paste : "";
+  renderPixQrCode(hasPix ? payment.pix_copy_paste : "");
 
   const hasCheckoutUrl = Boolean(payment.checkout_url);
   el.publicCheckoutBlock.classList.toggle("hide", !hasCheckoutUrl);

@@ -29,6 +29,15 @@
     eventsAnalyticsView: document.getElementById("eventsAnalyticsView"),
     eventsNotificationsView: document.getElementById("eventsNotificationsView"),
     eventsRefreshBtn: document.getElementById("eventsRefreshBtn"),
+    eventsSearchInput: document.getElementById("eventsSearchInput"),
+    eventsStatusFilter: document.getElementById("eventsStatusFilter"),
+    eventsVisibilityFilter: document.getElementById("eventsVisibilityFilter"),
+    eventsResultCount: document.getElementById("eventsResultCount"),
+    eventsClearFiltersBtn: document.getElementById("eventsClearFiltersBtn"),
+    eventsTotalCount: document.getElementById("eventsTotalCount"),
+    eventsPublishedCount: document.getElementById("eventsPublishedCount"),
+    eventsPublicCount: document.getElementById("eventsPublicCount"),
+    eventsPaidCount: document.getElementById("eventsPaidCount"),
     eventsForm: document.getElementById("eventsForm"),
     eventsFormTitle: document.getElementById("eventsFormTitle"),
     eventsFormId: document.getElementById("eventsFormId"),
@@ -56,9 +65,15 @@
     eventsSelectedBadge: document.getElementById("eventsSelectedBadge"),
     eventsRegistrationsRefreshBtn: document.getElementById("eventsRegistrationsRefreshBtn"),
     eventsRegistrationsHint: document.getElementById("eventsRegistrationsHint"),
+    eventsRegistrationsSearchInput: document.getElementById("eventsRegistrationsSearchInput"),
+    eventsRegistrationsStatusFilter: document.getElementById("eventsRegistrationsStatusFilter"),
+    eventsRegistrationsPaymentFilter: document.getElementById("eventsRegistrationsPaymentFilter"),
     eventsRegistrationsBody: document.getElementById("eventsRegistrationsBody"),
     eventsPaymentsRefreshBtn: document.getElementById("eventsPaymentsRefreshBtn"),
     eventsPaymentsHint: document.getElementById("eventsPaymentsHint"),
+    eventsPaymentsSearchInput: document.getElementById("eventsPaymentsSearchInput"),
+    eventsPaymentsStatusFilter: document.getElementById("eventsPaymentsStatusFilter"),
+    eventsPaymentsMethodFilter: document.getElementById("eventsPaymentsMethodFilter"),
     eventsPaymentsBody: document.getElementById("eventsPaymentsBody"),
     eventsAnalyticsRefreshBtn: document.getElementById("eventsAnalyticsRefreshBtn"),
     eventsAnalyticsHint: document.getElementById("eventsAnalyticsHint"),
@@ -73,6 +88,9 @@
     eventsRegistrationsTimelineChart: document.getElementById("eventsRegistrationsTimelineChart"),
     eventsNotificationsRefreshBtn: document.getElementById("eventsNotificationsRefreshBtn"),
     eventsNotificationsHint: document.getElementById("eventsNotificationsHint"),
+    eventsNotificationsSearchInput: document.getElementById("eventsNotificationsSearchInput"),
+    eventsNotificationsChannelFilter: document.getElementById("eventsNotificationsChannelFilter"),
+    eventsNotificationsStatusFilter: document.getElementById("eventsNotificationsStatusFilter"),
     eventsNotificationsBody: document.getElementById("eventsNotificationsBody"),
   };
 
@@ -90,6 +108,20 @@
       paymentStatus: null,
       paymentMethod: null,
       registrationsTimeline: null,
+    },
+    filters: {
+      eventsSearch: "",
+      eventsStatus: "",
+      eventsVisibility: "",
+      registrationsSearch: "",
+      registrationsStatus: "",
+      registrationsPayment: "",
+      paymentsSearch: "",
+      paymentsStatus: "",
+      paymentsMethod: "",
+      notificationsSearch: "",
+      notificationsChannel: "",
+      notificationsStatus: "",
     },
   };
 
@@ -188,6 +220,10 @@
   function formatMoney(value, currency = "BRL") {
     const amount = Number(value || 0);
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
+  }
+
+  function includesText(value, query) {
+    return String(value || "").toLowerCase().includes(String(query || "").toLowerCase().trim());
   }
 
   function statusLabel(value) {
@@ -324,14 +360,32 @@
   function renderEvents() {
     if (!el.eventsCards) return;
 
-    if (!state.events.length) {
+    const filteredEvents = state.events.filter((event) => {
+      if (state.filters.eventsSearch) {
+        const haystack = `${event.title || ""} ${event.location || ""} ${event.slug || ""}`;
+        if (!includesText(haystack, state.filters.eventsSearch)) return false;
+      }
+      if (state.filters.eventsStatus && event.status !== state.filters.eventsStatus) return false;
+      if (state.filters.eventsVisibility && event.visibility !== state.filters.eventsVisibility) return false;
+      return true;
+    });
+
+    if (el.eventsResultCount) {
+      el.eventsResultCount.textContent = `${filteredEvents.length} de ${state.events.length} evento(s)`;
+    }
+    if (el.eventsTotalCount) el.eventsTotalCount.textContent = String(state.events.length);
+    if (el.eventsPublishedCount) el.eventsPublishedCount.textContent = String(state.events.filter((item) => item.status === "published").length);
+    if (el.eventsPublicCount) el.eventsPublicCount.textContent = String(state.events.filter((item) => item.visibility === "public").length);
+    if (el.eventsPaidCount) el.eventsPaidCount.textContent = String(state.events.filter((item) => Number(item.price_per_registration || 0) > 0 || item.require_payment).length);
+
+    if (!filteredEvents.length) {
       el.eventsCards.innerHTML = "<article class='event-admin-card'><h4>Sem eventos</h4><p class='tiny'>Crie seu primeiro evento para comecar a vender inscricoes.</p></article>";
       updateSelectedBadge();
       return;
     }
 
     const tenantSlug = localStorage.getItem("activeTenantSlug") || "default";
-    el.eventsCards.innerHTML = state.events.map((event) => {
+    el.eventsCards.innerHTML = filteredEvents.map((event) => {
       const isSelected = event.id === state.selectedEventId;
       const publicUrl = `/events/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(event.slug)}`;
       const showPublicLink = event.visibility === "public";
@@ -377,11 +431,21 @@
       return;
     }
     state.registrations = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/registrations`, { headers: buildHeaders(false) }, "Falha ao carregar inscricoes.");
-    if (!state.registrations.length) {
+    const filteredRegistrations = state.registrations.filter((registration) => {
+      if (state.filters.registrationsSearch) {
+        const haystack = `${registration.registration_code || ""} ${registration.attendee_name || ""} ${registration.attendee_email || ""}`;
+        if (!includesText(haystack, state.filters.registrationsSearch)) return false;
+      }
+      if (state.filters.registrationsStatus && registration.status !== state.filters.registrationsStatus) return false;
+      if (state.filters.registrationsPayment && registration.payment_status !== state.filters.registrationsPayment) return false;
+      return true;
+    });
+
+    if (!filteredRegistrations.length) {
       el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Nenhuma inscricao ate o momento.</td></tr>";
       return;
     }
-    el.eventsRegistrationsBody.innerHTML = state.registrations.map((registration) => `
+    el.eventsRegistrationsBody.innerHTML = filteredRegistrations.map((registration) => `
       <tr>
         <td>${escapeHtml(registration.registration_code)}</td>
         <td>${escapeHtml(registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
@@ -400,11 +464,21 @@
       return;
     }
     state.payments = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/payments`, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos.");
-    if (!state.payments.length) {
+    const filteredPayments = state.payments.filter((payment) => {
+      if (state.filters.paymentsSearch) {
+        const haystack = `${payment.checkout_reference || ""} ${payment.provider_reference || ""} ${payment.amount || ""}`;
+        if (!includesText(haystack, state.filters.paymentsSearch)) return false;
+      }
+      if (state.filters.paymentsStatus && payment.status !== state.filters.paymentsStatus) return false;
+      if (state.filters.paymentsMethod && payment.payment_method !== state.filters.paymentsMethod) return false;
+      return true;
+    });
+
+    if (!filteredPayments.length) {
       el.eventsPaymentsBody.innerHTML = "<tr><td colspan='6'>Nenhum pagamento registrado.</td></tr>";
       return;
     }
-    el.eventsPaymentsBody.innerHTML = state.payments.map((payment) => `
+    el.eventsPaymentsBody.innerHTML = filteredPayments.map((payment) => `
       <tr>
         <td>${escapeHtml(payment.checkout_reference)}</td>
         <td>${escapeHtml(String(payment.payment_method || "-").toUpperCase())}</td>
@@ -503,7 +577,7 @@
       el.eventsRegistrationsTimelineChart,
       state.charts.registrationsTimeline,
       "line",
-      timelineRows.map((row) => row.date || "-"),
+      timelineRows.map((row) => row.day || row.date || "-"),
       timelineRows.map((row) => Number(row.count || 0)),
       "Inscricoes",
       "#c05621",
@@ -516,11 +590,18 @@
       return;
     }
     state.notifications = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/notifications`, { headers: buildHeaders(false) }, "Falha ao carregar notificacoes.");
-    if (!state.notifications.length) {
+    const filteredNotifications = state.notifications.filter((notification) => {
+      if (state.filters.notificationsSearch && !includesText(notification.recipient, state.filters.notificationsSearch)) return false;
+      if (state.filters.notificationsChannel && notification.channel !== state.filters.notificationsChannel) return false;
+      if (state.filters.notificationsStatus && notification.status !== state.filters.notificationsStatus) return false;
+      return true;
+    });
+
+    if (!filteredNotifications.length) {
       el.eventsNotificationsBody.innerHTML = "<tr><td colspan='6'>Nenhuma notificacao registrada.</td></tr>";
       return;
     }
-    el.eventsNotificationsBody.innerHTML = state.notifications.map((notification) => `
+    el.eventsNotificationsBody.innerHTML = filteredNotifications.map((notification) => `
       <tr>
         <td>${escapeHtml(String(notification.channel || "-").toUpperCase())}</td>
         <td>${escapeHtml(notification.recipient || "-")}</td>
@@ -684,6 +765,15 @@
     }
   }
 
+  function bindFilterInput(node, stateKey, onChange) {
+    if (!node) return;
+    const eventName = node.tagName === "SELECT" ? "change" : "input";
+    node.addEventListener(eventName, () => {
+      state.filters[stateKey] = node.value || "";
+      onChange().catch((error) => setMessage(error.message, true));
+    });
+  }
+
   function bindEvents() {
     if (eventsBound) return;
     eventsBound = true;
@@ -722,6 +812,17 @@
       });
     }
     if (el.eventsRefreshBtn) el.eventsRefreshBtn.addEventListener("click", () => loadEvents().catch((error) => setMessage(error.message, true)));
+    if (el.eventsClearFiltersBtn) {
+      el.eventsClearFiltersBtn.addEventListener("click", () => {
+        state.filters.eventsSearch = "";
+        state.filters.eventsStatus = "";
+        state.filters.eventsVisibility = "";
+        if (el.eventsSearchInput) el.eventsSearchInput.value = "";
+        if (el.eventsStatusFilter) el.eventsStatusFilter.value = "";
+        if (el.eventsVisibilityFilter) el.eventsVisibilityFilter.value = "";
+        renderEvents();
+      });
+    }
     if (el.eventsRegistrationsRefreshBtn) el.eventsRegistrationsRefreshBtn.addEventListener("click", () => loadRegistrations().catch((error) => setMessage(error.message, true)));
     if (el.eventsPaymentsRefreshBtn) el.eventsPaymentsRefreshBtn.addEventListener("click", () => loadPayments().catch((error) => setMessage(error.message, true)));
     if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
@@ -729,6 +830,19 @@
     if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
     if (el.eventsFormResetBtn) el.eventsFormResetBtn.addEventListener("click", resetEventForm);
     if (el.eventsDeleteBtn) el.eventsDeleteBtn.addEventListener("click", () => deleteSelectedEvent().catch((error) => setMessage(error.message, true)));
+
+    bindFilterInput(el.eventsSearchInput, "eventsSearch", async () => renderEvents());
+    bindFilterInput(el.eventsStatusFilter, "eventsStatus", async () => renderEvents());
+    bindFilterInput(el.eventsVisibilityFilter, "eventsVisibility", async () => renderEvents());
+    bindFilterInput(el.eventsRegistrationsSearchInput, "registrationsSearch", loadRegistrations);
+    bindFilterInput(el.eventsRegistrationsStatusFilter, "registrationsStatus", loadRegistrations);
+    bindFilterInput(el.eventsRegistrationsPaymentFilter, "registrationsPayment", loadRegistrations);
+    bindFilterInput(el.eventsPaymentsSearchInput, "paymentsSearch", loadPayments);
+    bindFilterInput(el.eventsPaymentsStatusFilter, "paymentsStatus", loadPayments);
+    bindFilterInput(el.eventsPaymentsMethodFilter, "paymentsMethod", loadPayments);
+    bindFilterInput(el.eventsNotificationsSearchInput, "notificationsSearch", loadNotifications);
+    bindFilterInput(el.eventsNotificationsChannelFilter, "notificationsChannel", loadNotifications);
+    bindFilterInput(el.eventsNotificationsStatusFilter, "notificationsStatus", loadNotifications);
 
     document.addEventListener("click", (event) => {
       const selectButton = event.target.closest && event.target.closest("[data-event-select]");

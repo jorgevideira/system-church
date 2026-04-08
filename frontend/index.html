@@ -136,6 +136,7 @@
 
         <div id="publicPixBlock" class="public-payment-block hide">
           <p class="public-payment-label">PIX copia e cola</p>
+          <div id="publicPixQr" class="public-pix-qr"></div>
           <textarea id="publicPixCode" rows="4" readonly></textarea>
           <div class="public-payment-actions">
             <button id="publicCopyPixBtn" class="btn" type="button">Copiar PIX</button>
@@ -2078,6 +2079,39 @@
               <button id="eventsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
             </div>
           </div>
+          <section class="dash-filters">
+            <div class="dash-filters-grid">
+              <label>Buscar
+                <input type="text" id="eventsSearchInput" placeholder="Titulo, local ou slug">
+              </label>
+              <label>Status
+                <select id="eventsStatusFilter">
+                  <option value="">Todos</option>
+                  <option value="draft">Rascunho</option>
+                  <option value="published">Publicado</option>
+                  <option value="cancelled">Cancelado</option>
+                  <option value="completed">Concluido</option>
+                </select>
+              </label>
+              <label>Visibilidade
+                <select id="eventsVisibilityFilter">
+                  <option value="">Todas</option>
+                  <option value="public">Publico</option>
+                  <option value="private">Privado</option>
+                </select>
+              </label>
+            </div>
+            <div class="dash-filters-actions">
+              <span id="eventsResultCount" class="tx-result-count"></span>
+              <button id="eventsClearFiltersBtn" class="btn ghost btn-mini" type="button">Limpar filtros</button>
+            </div>
+          </section>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-label">Total de eventos</div><div class="stat-value" id="eventsTotalCount">0</div></div>
+            <div class="stat-card"><div class="stat-label">Publicados</div><div class="stat-value approved" id="eventsPublishedCount">0</div></div>
+            <div class="stat-card"><div class="stat-label">Publicos</div><div class="stat-value" id="eventsPublicCount">0</div></div>
+            <div class="stat-card"><div class="stat-label">Pagos</div><div class="stat-value" id="eventsPaidCount">0</div></div>
+          </div>
 
           <div class="events-admin-grid">
             <div class="panel events-form-panel">
@@ -2194,6 +2228,34 @@
             </div>
           </div>
           <p class="tiny" id="eventsRegistrationsHint">Selecione um evento na agenda para ver as inscrições.</p>
+          <section class="dash-filters">
+            <div class="dash-filters-grid">
+              <label>Buscar participante
+                <input type="text" id="eventsRegistrationsSearchInput" placeholder="Nome, email ou codigo">
+              </label>
+              <label>Status da inscrição
+                <select id="eventsRegistrationsStatusFilter">
+                  <option value="">Todos</option>
+                  <option value="pending_payment">Pendente</option>
+                  <option value="confirmed">Confirmada</option>
+                  <option value="cancelled">Cancelada</option>
+                  <option value="expired">Expirada</option>
+                  <option value="refunded">Reembolsada</option>
+                </select>
+              </label>
+              <label>Status do pagamento
+                <select id="eventsRegistrationsPaymentFilter">
+                  <option value="">Todos</option>
+                  <option value="pending">Pendente</option>
+                  <option value="paid">Pago</option>
+                  <option value="failed">Falhou</option>
+                  <option value="expired">Expirou</option>
+                  <option value="cancelled">Cancelado</option>
+                  <option value="refunded">Reembolsado</option>
+                </select>
+              </label>
+            </div>
+          </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
@@ -2212,6 +2274,31 @@
             </div>
           </div>
           <p class="tiny" id="eventsPaymentsHint">Selecione um evento na agenda para acompanhar pagamentos PIX e cartão.</p>
+          <section class="dash-filters">
+            <div class="dash-filters-grid">
+              <label>Buscar referencia
+                <input type="text" id="eventsPaymentsSearchInput" placeholder="Checkout, provider ou valor">
+              </label>
+              <label>Status
+                <select id="eventsPaymentsStatusFilter">
+                  <option value="">Todos</option>
+                  <option value="pending">Pendente</option>
+                  <option value="paid">Pago</option>
+                  <option value="failed">Falhou</option>
+                  <option value="expired">Expirou</option>
+                  <option value="cancelled">Cancelado</option>
+                  <option value="refunded">Reembolsado</option>
+                </select>
+              </label>
+              <label>Metodo
+                <select id="eventsPaymentsMethodFilter">
+                  <option value="">Todos</option>
+                  <option value="pix">PIX</option>
+                  <option value="card">Cartao</option>
+                </select>
+              </label>
+            </div>
+          </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
@@ -2262,6 +2349,27 @@
             </div>
           </div>
           <p class="tiny" id="eventsNotificationsHint">Selecione um evento na agenda para auditar e-mail e WhatsApp.</p>
+          <section class="dash-filters">
+            <div class="dash-filters-grid">
+              <label>Buscar destinatario
+                <input type="text" id="eventsNotificationsSearchInput" placeholder="Email ou telefone">
+              </label>
+              <label>Canal
+                <select id="eventsNotificationsChannelFilter">
+                  <option value="">Todos</option>
+                  <option value="email">Email</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+              </label>
+              <label>Status
+                <select id="eventsNotificationsStatusFilter">
+                  <option value="">Todos</option>
+                  <option value="queued">Na fila</option>
+                  <option value="sent">Enviado</option>
+                </select>
+              </label>
+            </div>
+          </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
@@ -2276,6 +2384,7 @@
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script src="app.js"></script>
   <script src="cells-module.js"></script>
   <script src="school-module.js"></script>
