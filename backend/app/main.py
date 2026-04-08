@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import logging
 
 from app.core.config import settings
@@ -26,6 +29,9 @@ app.add_middleware(
 add_exception_handlers(app)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+Path(settings.TENANT_LOGO_DIR).mkdir(parents=True, exist_ok=True)
+app.mount("/media/tenant-logos", StaticFiles(directory=settings.TENANT_LOGO_DIR), name="tenant-logos")
 
 
 @app.on_event("startup")

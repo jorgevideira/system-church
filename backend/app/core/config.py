@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # File uploads
     UPLOAD_DIR: str = "uploads"
     ATTACHMENT_DIR: str = "uploads/transaction_attachments"
+    TENANT_LOGO_DIR: str = "uploads/tenant_logos"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB
 
     # CORS

@@ -2027,6 +2027,141 @@
             </table>
           </div>
         </section>
+
+        <section class="panel view hide" id="usersChurchView">
+          <div class="section-title">
+            <h3>Perfil da Igreja</h3>
+            <div class="module-actions">
+              <button id="usersChurchCreateBtn" class="btn ghost" type="button">Nova igreja</button>
+              <button id="usersChurchRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p id="usersChurchMessage" class="message"></p>
+          <form id="usersChurchForm" class="stack">
+            <label>Nome interno
+              <input id="usersChurchName" type="text" maxlength="255" required>
+            </label>
+            <label>Slug da igreja
+              <input id="usersChurchSlug" type="text" maxlength="120" required>
+            </label>
+            <label>Nome público
+              <input id="usersChurchPublicDisplayName" type="text" maxlength="255" placeholder="Nome exibido na área pública">
+            </label>
+            <label>Descrição pública
+              <textarea id="usersChurchPublicDescription" rows="4" maxlength="500" placeholder="Mensagem curta para a vitrine pública"></textarea>
+            </label>
+            <div class="events-form-row">
+              <label>Cor principal
+                <div class="color-input-group">
+                  <input id="usersChurchPrimaryColorPicker" type="color" value="#1565c0" aria-label="Selecionar cor principal">
+                  <input id="usersChurchPrimaryColor" type="text" maxlength="20" placeholder="#1565C0">
+                  <button id="usersChurchPrimaryEyedropperBtn" class="btn ghost btn-inline" type="button">Conta-gotas</button>
+                </div>
+              </label>
+              <label>Cor secundária
+                <div class="color-input-group">
+                  <input id="usersChurchSecondaryColorPicker" type="color" value="#0a8f72" aria-label="Selecionar cor secundária">
+                  <input id="usersChurchSecondaryColor" type="text" maxlength="20" placeholder="#0A8F72">
+                  <button id="usersChurchSecondaryEyedropperBtn" class="btn ghost btn-inline" type="button">Conta-gotas</button>
+                </div>
+              </label>
+            </div>
+            <label>Logo URL
+              <input id="usersChurchLogoUrl" type="url" maxlength="500" placeholder="https://...">
+            </label>
+            <section class="attachment-block">
+              <p class="attachment-title">Logo da igreja</p>
+              <p class="tiny">Você pode informar uma URL ou fazer upload. No upload, a imagem será ajustada para o tamanho padrão.</p>
+              <div class="stack">
+                <label>Upload da logo
+                  <input id="usersChurchLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/*">
+                </label>
+                <div class="modal-actions">
+                  <button id="usersChurchLogoUploadBtn" class="btn ghost" type="button">Enviar logo</button>
+                </div>
+              </div>
+            </section>
+            <div class="events-form-row">
+              <label>Email de suporte
+                <input id="usersChurchSupportEmail" type="email" maxlength="255" placeholder="contato@igreja.com">
+              </label>
+              <label>WhatsApp de suporte
+                <div class="stack">
+                  <select id="usersChurchWhatsappCountry" aria-label="País do WhatsApp">
+                    <option value="BR">🇧🇷 Brasil (+55)</option>
+                    <option value="PT">🇵🇹 Portugal (+351)</option>
+                    <option value="US">🇺🇸 Estados Unidos (+1)</option>
+                    <option value="AR">🇦🇷 Argentina (+54)</option>
+                    <option value="PY">🇵🇾 Paraguai (+595)</option>
+                  </select>
+                  <input id="usersChurchSupportWhatsapp" type="text" maxlength="50" placeholder="+55 11 99999-9999" inputmode="tel">
+                </div>
+              </label>
+            </div>
+            <label class="inline-check">
+              <input id="usersChurchIsActive" type="checkbox" checked>
+              Igreja ativa
+            </label>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Ativação da igreja</h4>
+                <span id="usersChurchActivationScore" class="tiny">0/6 concluído</span>
+              </div>
+              <div id="usersChurchActivationChecklist" class="tenant-onboarding-checklist"></div>
+            </section>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Links públicos da igreja</h4>
+                <span class="tiny">Compartilhe ou valide antes de publicar</span>
+              </div>
+              <div class="stack">
+                <label>Landing pública
+                  <div class="inline-field-group">
+                    <input id="usersChurchLandingUrl" type="text" readonly>
+                    <button id="usersChurchCopyLandingBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+                <label>Agenda pública
+                  <div class="inline-field-group">
+                    <input id="usersChurchCatalogUrl" type="text" readonly>
+                    <button id="usersChurchCopyCatalogBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+                <label>Login branded
+                  <div class="inline-field-group">
+                    <input id="usersChurchLoginUrl" type="text" readonly>
+                    <button id="usersChurchCopyLoginBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+              </div>
+            </section>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Preview rápido</h4>
+                <span class="tiny">Como a igreja está aparecendo para o público</span>
+              </div>
+              <div class="tenant-preview-card">
+                <div class="tenant-preview-shell">
+                  <img id="usersChurchPreviewLogo" class="public-brand-logo hide" alt="Logo preview da igreja">
+                  <p class="eyebrow tenant-preview-eyebrow">Preview da landing</p>
+                  <h4 id="usersChurchPreviewTitle">Sua igreja</h4>
+                  <p id="usersChurchPreviewSummary" class="tenant-preview-summary">A descrição pública aparecerá aqui para visitantes e equipe.</p>
+                  <div class="tenant-preview-meta">
+                    <span id="usersChurchPreviewSupport">Contato da igreja</span>
+                    <span id="usersChurchPreviewSlug">Slug público</span>
+                  </div>
+                  <div class="tenant-preview-actions">
+                    <button id="usersChurchOpenLandingBtn" class="btn ghost" type="button">Abrir landing</button>
+                    <button id="usersChurchPreviewBtn" class="btn ghost" type="button">Abrir vitrine pública</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="modal-actions">
+              <button class="btn" type="submit">Salvar perfil da igreja</button>
+            </div>
+          </form>
+        </section>
       </section>
     </div>
   </section>
@@ -2494,111 +2629,6 @@
           </div>
         </section>
 
-        <section class="panel view hide" id="usersChurchView">
-          <div class="section-title">
-            <h3>Perfil da Igreja</h3>
-            <div class="module-actions">
-              <button id="usersChurchCreateBtn" class="btn ghost" type="button">Nova igreja</button>
-              <button id="usersChurchRefreshBtn" class="btn ghost" type="button">Atualizar</button>
-            </div>
-          </div>
-          <p id="usersChurchMessage" class="message"></p>
-          <form id="usersChurchForm" class="stack">
-            <label>Nome interno
-              <input id="usersChurchName" type="text" maxlength="255" required>
-            </label>
-            <label>Slug da igreja
-              <input id="usersChurchSlug" type="text" maxlength="120" required>
-            </label>
-            <label>Nome público
-              <input id="usersChurchPublicDisplayName" type="text" maxlength="255" placeholder="Nome exibido na área pública">
-            </label>
-            <label>Descrição pública
-              <textarea id="usersChurchPublicDescription" rows="4" maxlength="500" placeholder="Mensagem curta para a vitrine pública"></textarea>
-            </label>
-            <div class="events-form-row">
-              <label>Cor principal
-                <input id="usersChurchPrimaryColor" type="text" maxlength="20" placeholder="#1565C0">
-              </label>
-              <label>Cor secundária
-                <input id="usersChurchSecondaryColor" type="text" maxlength="20" placeholder="#0A8F72">
-              </label>
-            </div>
-            <label>Logo URL
-              <input id="usersChurchLogoUrl" type="url" maxlength="500" placeholder="https://...">
-            </label>
-            <div class="events-form-row">
-              <label>Email de suporte
-                <input id="usersChurchSupportEmail" type="email" maxlength="255" placeholder="contato@igreja.com">
-              </label>
-              <label>WhatsApp de suporte
-                <input id="usersChurchSupportWhatsapp" type="text" maxlength="50" placeholder="+55 11 99999-9999">
-              </label>
-            </div>
-            <label class="inline-check">
-              <input id="usersChurchIsActive" type="checkbox" checked>
-              Igreja ativa
-            </label>
-            <section class="dashboard-card">
-              <div class="section-title">
-                <h4>Ativação da igreja</h4>
-                <span id="usersChurchActivationScore" class="tiny">0/6 concluído</span>
-              </div>
-              <div id="usersChurchActivationChecklist" class="tenant-onboarding-checklist"></div>
-            </section>
-            <section class="dashboard-card">
-              <div class="section-title">
-                <h4>Links públicos da igreja</h4>
-                <span class="tiny">Compartilhe ou valide antes de publicar</span>
-              </div>
-              <div class="stack">
-                <label>Landing pública
-                  <div class="inline-field-group">
-                    <input id="usersChurchLandingUrl" type="text" readonly>
-                    <button id="usersChurchCopyLandingBtn" class="btn ghost btn-inline" type="button">Copiar</button>
-                  </div>
-                </label>
-                <label>Agenda pública
-                  <div class="inline-field-group">
-                    <input id="usersChurchCatalogUrl" type="text" readonly>
-                    <button id="usersChurchCopyCatalogBtn" class="btn ghost btn-inline" type="button">Copiar</button>
-                  </div>
-                </label>
-                <label>Login branded
-                  <div class="inline-field-group">
-                    <input id="usersChurchLoginUrl" type="text" readonly>
-                    <button id="usersChurchCopyLoginBtn" class="btn ghost btn-inline" type="button">Copiar</button>
-                  </div>
-                </label>
-              </div>
-            </section>
-            <section class="dashboard-card">
-              <div class="section-title">
-                <h4>Preview rápido</h4>
-                <span class="tiny">Como a igreja está aparecendo para o público</span>
-              </div>
-              <div class="tenant-preview-card">
-                <div class="tenant-preview-shell">
-                  <img id="usersChurchPreviewLogo" class="public-brand-logo hide" alt="Logo preview da igreja">
-                  <p class="eyebrow tenant-preview-eyebrow">Preview da landing</p>
-                  <h4 id="usersChurchPreviewTitle">Sua igreja</h4>
-                  <p id="usersChurchPreviewSummary" class="tenant-preview-summary">A descrição pública aparecerá aqui para visitantes e equipe.</p>
-                  <div class="tenant-preview-meta">
-                    <span id="usersChurchPreviewSupport">Contato da igreja</span>
-                    <span id="usersChurchPreviewSlug">Slug público</span>
-                  </div>
-                  <div class="tenant-preview-actions">
-                    <button id="usersChurchOpenLandingBtn" class="btn ghost" type="button">Abrir landing</button>
-                    <button id="usersChurchPreviewBtn" class="btn ghost" type="button">Abrir vitrine pública</button>
-                  </div>
-                </div>
-              </div>
-            </section>
-            <div class="modal-actions">
-              <button class="btn" type="submit">Salvar perfil da igreja</button>
-            </div>
-          </form>
-        </section>
       </section>
     </div>
   </section>

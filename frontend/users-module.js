@@ -5,6 +5,7 @@
   const permissionsEndpoint = `${apiPrefix}/roles/permissions?skip=0&limit=200`;
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
+  const tenantLogoUploadEndpoint = `${apiPrefix}/tenants/current/logo`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
   const publicEventsEndpoint = `${apiPrefix}/events/public/tenants/`;
@@ -188,6 +189,14 @@
 
   let eventsBound = false;
 
+  const WHATSAPP_COUNTRIES = {
+    BR: { dialCode: "+55", placeholder: "+55 11 99999-9999" },
+    PT: { dialCode: "+351", placeholder: "+351 912 345 678" },
+    US: { dialCode: "+1", placeholder: "+1 (415) 555-2671" },
+    AR: { dialCode: "+54", placeholder: "+54 11 1234-5678" },
+    PY: { dialCode: "+595", placeholder: "+595 981 234 567" },
+  };
+
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
@@ -294,9 +303,16 @@
     usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
     usersChurchPublicDescription: document.getElementById("usersChurchPublicDescription"),
     usersChurchPrimaryColor: document.getElementById("usersChurchPrimaryColor"),
+    usersChurchPrimaryColorPicker: document.getElementById("usersChurchPrimaryColorPicker"),
+    usersChurchPrimaryEyedropperBtn: document.getElementById("usersChurchPrimaryEyedropperBtn"),
     usersChurchSecondaryColor: document.getElementById("usersChurchSecondaryColor"),
+    usersChurchSecondaryColorPicker: document.getElementById("usersChurchSecondaryColorPicker"),
+    usersChurchSecondaryEyedropperBtn: document.getElementById("usersChurchSecondaryEyedropperBtn"),
     usersChurchLogoUrl: document.getElementById("usersChurchLogoUrl"),
+    usersChurchLogoFile: document.getElementById("usersChurchLogoFile"),
+    usersChurchLogoUploadBtn: document.getElementById("usersChurchLogoUploadBtn"),
     usersChurchSupportEmail: document.getElementById("usersChurchSupportEmail"),
+    usersChurchWhatsappCountry: document.getElementById("usersChurchWhatsappCountry"),
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
@@ -438,6 +454,194 @@
     if (!el.usersChurchCreateMessage) return;
     el.usersChurchCreateMessage.textContent = message || "";
     el.usersChurchCreateMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function normalizeHexColor(value, fallback) {
+    const raw = String(value || "").trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
+    return fallback;
+  }
+
+  function syncChurchColorInputs(source) {
+    if (source === "primary-picker") {
+      if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = normalizeHexColor(el.usersChurchPrimaryColorPicker.value, "#1565C0");
+    } else if (source === "primary-text") {
+      const normalized = normalizeHexColor(el.usersChurchPrimaryColor.value, "#1565C0");
+      el.usersChurchPrimaryColor.value = normalized;
+      if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalized;
+    } else if (source === "secondary-picker") {
+      if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = normalizeHexColor(el.usersChurchSecondaryColorPicker.value, "#0A8F72");
+    } else if (source === "secondary-text") {
+      const normalized = normalizeHexColor(el.usersChurchSecondaryColor.value, "#0A8F72");
+      el.usersChurchSecondaryColor.value = normalized;
+      if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalized;
+    }
+    updateChurchPreview();
+  }
+
+  async function pickColorWithEyedropper(target) {
+    if (!window.EyeDropper) {
+      setChurchMessage("Seu navegador não suporta conta-gotas nativo. Use o seletor de cor.", true);
+      return;
+    }
+    try {
+      const eyeDropper = new window.EyeDropper();
+      const result = await eyeDropper.open();
+      if (target === "primary") {
+        if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = normalizeHexColor(result.sRGBHex, "#1565C0");
+        if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalizeHexColor(result.sRGBHex, "#1565C0");
+      } else {
+        if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = normalizeHexColor(result.sRGBHex, "#0A8F72");
+        if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalizeHexColor(result.sRGBHex, "#0A8F72");
+      }
+      updateChurchPreview();
+    } catch (_error) {
+    }
+  }
+
+  function detectWhatsappCountry(value) {
+    const normalized = String(value || "").replace(/\s+/g, "");
+    const entries = Object.entries(WHATSAPP_COUNTRIES).sort((a, b) => b[1].dialCode.length - a[1].dialCode.length);
+    for (const [countryCode, config] of entries) {
+      if (normalized.startsWith(config.dialCode)) return countryCode;
+    }
+    return "BR";
+  }
+
+  function formatWhatsappByCountry(countryCode, rawDigits) {
+    const config = WHATSAPP_COUNTRIES[countryCode] || WHATSAPP_COUNTRIES.BR;
+    const allDigits = String(rawDigits || "").replace(/\D/g, "");
+    const dialDigits = config.dialCode.replace(/\D/g, "");
+    let localDigits = allDigits;
+    if (localDigits.startsWith(dialDigits)) {
+      localDigits = localDigits.slice(dialDigits.length);
+    }
+
+    const take = (start, end) => localDigits.slice(start, end);
+
+    if (countryCode === "BR") {
+      const area = take(0, 2);
+      const first = localDigits.length > 10 ? take(2, 7) : take(2, 6);
+      const second = localDigits.length > 10 ? take(7, 11) : take(6, 10);
+      return `${config.dialCode}${area ? ` ${area}` : ""}${first ? ` ${first}` : ""}${second ? `-${second}` : ""}`.trim();
+    }
+
+    if (countryCode === "US") {
+      const area = take(0, 3);
+      const first = take(3, 6);
+      const second = take(6, 10);
+      return `${config.dialCode}${area ? ` (${area}` : ""}${area && area.length === 3 ? ")" : ""}${first ? ` ${first}` : ""}${second ? `-${second}` : ""}`.trim();
+    }
+
+    if (countryCode === "AR") {
+      const area = take(0, 2);
+      const first = take(2, 6);
+      const second = take(6, 10);
+      return `${config.dialCode}${area ? ` ${area}` : ""}${first ? ` ${first}` : ""}${second ? `-${second}` : ""}`.trim();
+    }
+
+    if (countryCode === "PT") {
+      const first = take(0, 3);
+      const second = take(3, 6);
+      const third = take(6, 9);
+      return `${config.dialCode}${first ? ` ${first}` : ""}${second ? ` ${second}` : ""}${third ? ` ${third}` : ""}`.trim();
+    }
+
+    if (countryCode === "PY") {
+      const first = take(0, 3);
+      const second = take(3, 6);
+      const third = take(6, 9);
+      return `${config.dialCode}${first ? ` ${first}` : ""}${second ? ` ${second}` : ""}${third ? ` ${third}` : ""}`.trim();
+    }
+
+    return `${config.dialCode}${localDigits ? ` ${localDigits}` : ""}`.trim();
+  }
+
+  function syncWhatsappField({ fromCountry = false } = {}) {
+    if (!el.usersChurchSupportWhatsapp || !el.usersChurchWhatsappCountry) return;
+    const selectedCountry = el.usersChurchWhatsappCountry.value || "BR";
+    const digits = el.usersChurchSupportWhatsapp.value;
+    if (!fromCountry && digits.trim().startsWith("+")) {
+      el.usersChurchWhatsappCountry.value = detectWhatsappCountry(digits);
+    }
+    const countryCode = el.usersChurchWhatsappCountry.value || selectedCountry;
+    el.usersChurchSupportWhatsapp.value = formatWhatsappByCountry(countryCode, digits);
+    el.usersChurchSupportWhatsapp.placeholder = (WHATSAPP_COUNTRIES[countryCode] || WHATSAPP_COUNTRIES.BR).placeholder;
+    updateChurchPreview();
+  }
+
+  async function resizeLogoFile(file) {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Falha ao ler a imagem selecionada."));
+      reader.readAsDataURL(file);
+    });
+
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Falha ao processar a imagem selecionada."));
+      img.src = dataUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, 512, 512);
+
+    const ratio = Math.min(512 / image.width, 512 / image.height);
+    const width = Math.round(image.width * ratio);
+    const height = Math.round(image.height * ratio);
+    const x = Math.round((512 - width) / 2);
+    const y = Math.round((512 - height) / 2);
+    context.drawImage(image, x, y, width, height);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Falha ao gerar a imagem ajustada."));
+          return;
+        }
+        resolve(blob);
+      }, "image/png", 0.92);
+    });
+  }
+
+  async function uploadChurchLogo() {
+    if (!el.usersChurchLogoFile || !el.usersChurchLogoFile.files || !el.usersChurchLogoFile.files[0]) {
+      setChurchMessage("Selecione uma imagem antes de enviar a logo.", true);
+      return;
+    }
+
+    try {
+      setChurchMessage("Enviando logo da igreja...", false);
+      const file = el.usersChurchLogoFile.files[0];
+      const resizedBlob = await resizeLogoFile(file);
+      const formData = new FormData();
+      formData.append("file", resizedBlob, `${file.name.replace(/\.[^.]+$/, "") || "logo"}.png`);
+
+      const response = await fetch(tenantLogoUploadEndpoint, {
+        method: "POST",
+        headers: buildHeaders(false),
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error(await parseError(response, "Falha ao enviar logo da igreja."));
+      }
+      const tenant = await response.json();
+      state.tenantProfile = tenant;
+      if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
+      if (window.applyTenantBranding) {
+        window.applyTenantBranding(tenant);
+      }
+      updateChurchPreview();
+      setChurchMessage("Logo enviada com sucesso.", false);
+      el.usersChurchLogoFile.value = "";
+    } catch (error) {
+      setChurchMessage(error instanceof Error ? error.message : "Falha ao enviar logo da igreja.", true);
+    }
   }
 
   function getCurrentChurchSlug() {
@@ -765,9 +969,13 @@
     if (el.usersChurchPublicDescription) el.usersChurchPublicDescription.value = tenant.public_description || "";
     if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = tenant.primary_color || "";
     if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = tenant.secondary_color || "";
+    if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalizeHexColor(tenant.primary_color, "#1565C0");
+    if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalizeHexColor(tenant.secondary_color, "#0A8F72");
     if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
     if (el.usersChurchSupportEmail) el.usersChurchSupportEmail.value = tenant.support_email || "";
     if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.value = tenant.support_whatsapp || "";
+    if (el.usersChurchWhatsappCountry) el.usersChurchWhatsappCountry.value = detectWhatsappCountry(tenant.support_whatsapp || "");
+    syncWhatsappField({ fromCountry: true });
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
     updateChurchPreview();
   }
@@ -1461,6 +1669,10 @@
       return;
     }
 
+    syncChurchColorInputs("primary-text");
+    syncChurchColorInputs("secondary-text");
+    syncWhatsappField({ fromCountry: true });
+
     const payload = {
       name: el.usersChurchName.value.trim(),
       slug: el.usersChurchSlug.value.trim(),
@@ -1575,6 +1787,15 @@
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
     if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
+    if (el.usersChurchLogoUploadBtn) el.usersChurchLogoUploadBtn.addEventListener("click", () => uploadChurchLogo().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.addEventListener("input", () => syncChurchColorInputs("primary-picker"));
+    if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.addEventListener("input", () => syncChurchColorInputs("secondary-picker"));
+    if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.addEventListener("change", () => syncChurchColorInputs("primary-text"));
+    if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.addEventListener("change", () => syncChurchColorInputs("secondary-text"));
+    if (el.usersChurchPrimaryEyedropperBtn) el.usersChurchPrimaryEyedropperBtn.addEventListener("click", () => pickColorWithEyedropper("primary"));
+    if (el.usersChurchSecondaryEyedropperBtn) el.usersChurchSecondaryEyedropperBtn.addEventListener("click", () => pickColorWithEyedropper("secondary"));
+    if (el.usersChurchWhatsappCountry) el.usersChurchWhatsappCountry.addEventListener("change", () => syncWhatsappField({ fromCountry: true }));
+    if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.addEventListener("input", () => syncWhatsappField());
     if (el.usersChurchOpenLandingBtn) {
       el.usersChurchOpenLandingBtn.addEventListener("click", () => {
         window.open(buildChurchPublicUrls().landing, "_blank", "noopener,noreferrer");
@@ -1593,9 +1814,10 @@
       el.usersChurchSlug,
       el.usersChurchPublicDisplayName,
       el.usersChurchPublicDescription,
+      el.usersChurchPrimaryColor,
+      el.usersChurchSecondaryColor,
       el.usersChurchLogoUrl,
       el.usersChurchSupportEmail,
-      el.usersChurchSupportWhatsapp,
     ].forEach((field) => {
       if (field) {
         field.addEventListener("input", updateChurchPreview);

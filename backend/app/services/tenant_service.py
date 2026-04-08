@@ -1,10 +1,12 @@
 import re
 import unicodedata
+from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.core.constants import ROLE_ADMIN
+from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
@@ -19,6 +21,20 @@ def _slugify(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", normalized.lower()).strip("-")
     return slug or "tenant"
+
+
+def _remove_local_logo_if_managed(logo_url: str | None) -> None:
+    if not logo_url or not logo_url.startswith("/media/tenant-logos/"):
+        return
+    filename = logo_url.rsplit("/", 1)[-1].strip()
+    if not filename:
+        return
+    target = Path(settings.TENANT_LOGO_DIR) / filename
+    try:
+        if target.exists():
+            target.unlink()
+    except OSError:
+        return
 
 
 def get_tenant(db: Session, tenant_id: int) -> Optional[Tenant]:
@@ -77,6 +93,7 @@ def create_tenant(db: Session, payload: TenantCreate, current_user: User) -> Ten
 
 def update_tenant(db: Session, tenant: Tenant, payload: TenantUpdate) -> Tenant:
     changes = payload.model_dump(exclude_unset=True)
+    previous_logo_url = tenant.logo_url
 
     if "slug" in changes and changes["slug"]:
         changes["slug"] = _slugify(changes["slug"])
@@ -104,4 +121,6 @@ def update_tenant(db: Session, tenant: Tenant, payload: TenantUpdate) -> Tenant:
 
     db.commit()
     db.refresh(tenant)
+    if "logo_url" in changes and changes["logo_url"] != previous_logo_url:
+        _remove_local_logo_if_managed(previous_logo_url)
     return tenant
