@@ -203,6 +203,7 @@ class PublicEventRegistrationResponse(BaseModel):
 
 
 class PublicEventPaymentStatusResponse(BaseModel):
+    tenant_slug: Optional[str] = None
     event: PublicEventResponse
     registration: EventRegistrationResponse
     payment: EventPaymentResponse

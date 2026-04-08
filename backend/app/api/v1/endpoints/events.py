@@ -186,10 +186,11 @@ def get_public_payment_status(
     checkout_reference: str,
     db: Session = Depends(get_db),
 ) -> PublicEventPaymentStatusResponse:
-    event, registration, payment = event_service.get_public_payment_status(db, checkout_reference)
-    if event is None or registration is None or payment is None:
+    tenant, event, registration, payment = event_service.get_public_payment_status(db, checkout_reference)
+    if tenant is None or event is None or registration is None or payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment status not found")
     return PublicEventPaymentStatusResponse(
+        tenant_slug=tenant.slug,
         event=PublicEventResponse.model_validate(event),
         registration=registration,
         payment=payment,

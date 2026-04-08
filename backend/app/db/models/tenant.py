@@ -17,6 +17,13 @@ class Tenant(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     slug: Mapped[str] = mapped_column(String(120), nullable=False, unique=True, index=True)
+    public_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    public_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    primary_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    secondary_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    support_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    support_whatsapp: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

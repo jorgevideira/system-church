@@ -168,6 +168,7 @@
         <button id="moduleUsersBtn" class="module-btn" type="button" onclick="window.openUsersModule && window.openUsersModule()">Configurações</button>
       </div>
       <div class="session-box">
+        <select id="tenantSwitcher" class="tenant-switcher hide" aria-label="Trocar igreja"></select>
         <span id="sessionUser">Não autenticado</span>
         <button id="logoutBtn" class="btn ghost">Sair</button>
       </div>
@@ -1874,6 +1875,7 @@
         <p class="sidebar-title">Configurações</p>
         <button id="usersNavUsersBtn" class="nav-btn active" type="button">Usuários</button>
         <button id="usersNavRolesBtn" class="nav-btn" type="button">Roles</button>
+        <button id="usersNavChurchBtn" class="nav-btn" type="button">Igreja</button>
       </aside>
       <section class="users-content-stack">
         <section class="panel view show" id="usersUsersView">
@@ -2378,6 +2380,57 @@
               <tbody id="eventsNotificationsBody"><tr><td colspan="6">Selecione um evento.</td></tr></tbody>
             </table>
           </div>
+        </section>
+
+        <section class="panel view hide" id="usersChurchView">
+          <div class="section-title">
+            <h3>Perfil da Igreja</h3>
+            <div class="module-actions">
+              <button id="usersChurchRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p id="usersChurchMessage" class="message"></p>
+          <form id="usersChurchForm" class="stack">
+            <label>Nome interno
+              <input id="usersChurchName" type="text" maxlength="255" required>
+            </label>
+            <label>Slug da igreja
+              <input id="usersChurchSlug" type="text" maxlength="120" required>
+            </label>
+            <label>Nome público
+              <input id="usersChurchPublicDisplayName" type="text" maxlength="255" placeholder="Nome exibido na área pública">
+            </label>
+            <label>Descrição pública
+              <textarea id="usersChurchPublicDescription" rows="4" maxlength="500" placeholder="Mensagem curta para a vitrine pública"></textarea>
+            </label>
+            <div class="events-form-row">
+              <label>Cor principal
+                <input id="usersChurchPrimaryColor" type="text" maxlength="20" placeholder="#1565C0">
+              </label>
+              <label>Cor secundária
+                <input id="usersChurchSecondaryColor" type="text" maxlength="20" placeholder="#0A8F72">
+              </label>
+            </div>
+            <label>Logo URL
+              <input id="usersChurchLogoUrl" type="url" maxlength="500" placeholder="https://...">
+            </label>
+            <div class="events-form-row">
+              <label>Email de suporte
+                <input id="usersChurchSupportEmail" type="email" maxlength="255" placeholder="contato@igreja.com">
+              </label>
+              <label>WhatsApp de suporte
+                <input id="usersChurchSupportWhatsapp" type="text" maxlength="50" placeholder="+55 11 99999-9999">
+              </label>
+            </div>
+            <label class="inline-check">
+              <input id="usersChurchIsActive" type="checkbox" checked>
+              Igreja ativa
+            </label>
+            <div class="modal-actions">
+              <button id="usersChurchPreviewBtn" class="btn ghost" type="button">Abrir vitrine pública</button>
+              <button class="btn" type="submit">Salvar perfil da igreja</button>
+            </div>
+          </form>
         </section>
       </section>
     </div>

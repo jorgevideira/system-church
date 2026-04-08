@@ -314,10 +314,10 @@ def get_payment_by_reference(db: Session, checkout_reference: str) -> Optional[E
 def get_public_payment_status(
     db: Session,
     checkout_reference: str,
-) -> tuple[Optional[Event], Optional[EventRegistration], Optional[EventPayment]]:
+) -> tuple[Optional[Tenant], Optional[Event], Optional[EventRegistration], Optional[EventPayment]]:
     payment = get_payment_by_reference(db, checkout_reference)
     if payment is None:
-        return None, None, None
+        return None, None, None, None
     registration = (
         db.query(EventRegistration)
         .filter(
@@ -336,7 +336,8 @@ def get_public_payment_status(
         )
         .first()
     )
-    return event, registration, payment
+    tenant = db.query(Tenant).filter(Tenant.id == payment.tenant_id, Tenant.is_active.is_(True)).first()
+    return tenant, event, registration, payment
 
 
 def _find_events_income_category(db: Session, tenant_id: int) -> Optional[Category]:

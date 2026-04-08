@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
 	reports,
 	transaction_attachments,
 	roles,
+	tenants,
 	transactions,
 	upload,
 	users,
@@ -36,3 +37,4 @@ api_router.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
+api_router.include_router(tenants.router, prefix="/tenants", tags=["tenants"])

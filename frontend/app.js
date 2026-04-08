@@ -75,6 +75,7 @@ const state = {
   currentUserPermissions: [],
   currentUserPermissionSet: new Set(),
   currentUserIsAdmin: false,
+  currentTenantMemberships: [],
   previewAttachmentUrl: "",
 };
 
@@ -144,6 +145,7 @@ const el = {
   moduleBibleSchoolBtn: document.getElementById("moduleBibleSchoolBtn"),
   moduleEventsBtn: document.getElementById("moduleEventsBtn"),
   moduleUsersBtn: document.getElementById("moduleUsersBtn"),
+  tenantSwitcher: document.getElementById("tenantSwitcher"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -514,6 +516,7 @@ function showApp(isAuthed) {
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.toggle("hide", !isAuthed);
+  el.tenantSwitcher.classList.toggle("hide", !isAuthed);
 }
 
 function showPublicEventApp() {
@@ -521,6 +524,7 @@ function showPublicEventApp() {
   el.publicCatalogScreen.classList.add("hide");
   el.publicEventDetailScreen.classList.add("hide");
   el.appShell.classList.add("hide");
+  el.tenantSwitcher.classList.add("hide");
   el.publicEventScreen.classList.remove("hide");
 }
 
@@ -529,6 +533,7 @@ function showPublicCatalogApp() {
   el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.add("hide");
+  el.tenantSwitcher.classList.add("hide");
   el.publicCatalogScreen.classList.remove("hide");
 }
 
@@ -537,6 +542,7 @@ function showPublicEventDetailApp() {
   el.publicCatalogScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.add("hide");
+  el.tenantSwitcher.classList.add("hide");
   el.publicEventDetailScreen.classList.remove("hide");
 }
 
@@ -604,6 +610,86 @@ function formatPublicStatusLabel(value) {
     pix: "PIX",
   };
   return map[value] || String(value || "-");
+}
+
+function applyTenantBranding(branding = {}) {
+  const root = document.documentElement;
+  const primary = String(branding.primary_color || "").trim();
+  const secondary = String(branding.secondary_color || "").trim();
+  root.style.setProperty("--primary", primary || "#1565c0");
+  root.style.setProperty("--primary-2", secondary || "#0a8f72");
+
+  const displayName = branding.public_display_name || branding.name;
+  if (displayName) {
+    document.body.dataset.tenantName = displayName;
+  }
+}
+
+window.applyTenantBranding = applyTenantBranding;
+
+async function loadPublicTenantBranding(tenantSlug) {
+  if (!tenantSlug) return null;
+  try {
+    const response = await fetch(`${API_PREFIX}/tenants/public/${encodeURIComponent(tenantSlug)}/branding`);
+    if (!response.ok) {
+      return null;
+    }
+    const branding = await response.json();
+    applyTenantBranding(branding);
+    return branding;
+  } catch {
+    return null;
+  }
+}
+
+function populateTenantSwitcher(me) {
+  if (!el.tenantSwitcher) return;
+  const memberships = Array.isArray(me && me.tenant_memberships) ? me.tenant_memberships.filter((item) => item && item.is_active) : [];
+  state.currentTenantMemberships = memberships;
+  el.tenantSwitcher.innerHTML = "";
+
+  if (!memberships.length) {
+    el.tenantSwitcher.classList.add("hide");
+    return;
+  }
+
+  memberships.forEach((membership) => {
+    const option = document.createElement("option");
+    option.value = String(membership.tenant_id);
+    option.textContent = membership.tenant?.name || `Igreja ${membership.tenant_id}`;
+    if (me.active_tenant_id === membership.tenant_id) {
+      option.selected = true;
+    }
+    el.tenantSwitcher.appendChild(option);
+  });
+
+  el.tenantSwitcher.classList.toggle("hide", memberships.length <= 1);
+}
+
+async function switchTenant(tenantId) {
+  const response = await fetch(`${API_PREFIX}/auth/switch-tenant`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${state.accessToken}`,
+    },
+    body: JSON.stringify({ tenant_id: Number(tenantId) }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(errorDetailToText(body.detail ?? body, "Falha ao trocar de igreja"));
+  }
+
+  const data = await response.json();
+  state.accessToken = data.access_token;
+  state.refreshToken = data.refresh_token;
+  localStorage.setItem("accessToken", data.access_token);
+  localStorage.setItem("refreshToken", data.refresh_token);
+  if (data.active_tenant_slug) {
+    localStorage.setItem("activeTenantSlug", data.active_tenant_slug);
+  }
+  await initializeApp();
 }
 
 function escapeHtml(value) {
@@ -728,7 +814,10 @@ async function initializePublicEventApp() {
   }
 
   try {
-    await loadPublicPaymentStatus(checkoutReference);
+    const payload = await loadPublicPaymentStatus(checkoutReference);
+    if (payload && payload.tenant_slug) {
+      await loadPublicTenantBranding(payload.tenant_slug);
+    }
   } catch (error) {
     el.publicPaymentMessage.textContent = error.message;
   }
@@ -763,6 +852,13 @@ function renderPublicCatalog(events, tenantSlug) {
 async function initializePublicCatalogApp() {
   showPublicCatalogApp();
   const tenantSlug = getPublicCatalogTenantSlug();
+  const branding = await loadPublicTenantBranding(tenantSlug);
+  if (branding && el.publicCatalogTitle) {
+    el.publicCatalogTitle.textContent = branding.public_display_name || branding.name || "Eventos disponiveis";
+    if (branding.public_description) {
+      el.publicCatalogSummary.textContent = branding.public_description;
+    }
+  }
   const response = await fetch(`${API_PREFIX}/events/public/tenants/${encodeURIComponent(tenantSlug)}/events`);
   if (!response.ok) {
     el.publicCatalogGrid.innerHTML = "<article class='public-event-card-link'><h3>Falha ao carregar eventos</h3><p class='tiny'>Tente novamente em instantes.</p></article>";
@@ -789,6 +885,7 @@ function renderPublicEventDetail(payload) {
 async function initializePublicEventDetailApp() {
   showPublicEventDetailApp();
   const { tenantSlug, eventSlug } = getPublicEventRouteParams();
+  await loadPublicTenantBranding(tenantSlug);
   if (!eventSlug) {
     el.publicDetailMessage.textContent = "Evento não encontrado.";
     return;
@@ -2948,10 +3045,15 @@ async function loadMe() {
   localStorage.setItem("currentUserRole", state.currentUserRole);
   localStorage.setItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY, JSON.stringify(permissionNames));
   localStorage.setItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY, String(state.currentUserIsAdmin));
+  if (me.active_tenant && me.active_tenant.slug) {
+    localStorage.setItem("activeTenantSlug", me.active_tenant.slug);
+  }
   document.body.dataset.userRole = state.currentUserRole;
   el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
 
   applyTopModulePermissions();
+  populateTenantSwitcher(me);
+  applyTenantBranding(me.active_tenant || {});
   return me;
 }
 
@@ -3417,6 +3519,16 @@ el.publicCopyPixBtn.addEventListener("click", async () => {
     el.publicPaymentMessage.textContent = error.message;
   }
 });
+
+if (el.tenantSwitcher) {
+  el.tenantSwitcher.addEventListener("change", async () => {
+    try {
+      await switchTenant(el.tenantSwitcher.value);
+    } catch (error) {
+      setMessage(el.authMessage, error.message, true);
+    }
+  });
+}
 
 el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
   event.preventDefault();

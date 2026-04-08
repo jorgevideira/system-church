@@ -1484,6 +1484,15 @@ th {
   font-size: 0.9rem;
 }
 
+.tenant-switcher {
+  min-width: 180px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+  color: var(--ink);
+  padding: 0.55rem 0.9rem;
+}
+
 .hide {
   display: none;
 }

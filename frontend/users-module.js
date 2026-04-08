@@ -4,6 +4,7 @@
   const rolesEndpoint = `${apiPrefix}/roles/roles`;
   const permissionsEndpoint = `${apiPrefix}/roles/permissions?skip=0&limit=200`;
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
+  const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const permissionStorageKey = "currentUserPermissions";
   const isAdminStorageKey = "currentUserIsAdmin";
 
@@ -199,11 +200,14 @@
 
     usersNavUsersBtn: document.getElementById("usersNavUsersBtn"),
     usersNavRolesBtn: document.getElementById("usersNavRolesBtn"),
+    usersNavChurchBtn: document.getElementById("usersNavChurchBtn"),
     usersUsersView: document.getElementById("usersUsersView"),
     usersRolesView: document.getElementById("usersRolesView"),
+    usersChurchView: document.getElementById("usersChurchView"),
 
     usersMessage: document.getElementById("usersMessage"),
     rolesMessage: document.getElementById("rolesMessage"),
+    usersChurchMessage: document.getElementById("usersChurchMessage"),
     usersTableBody: document.getElementById("usersTableBody"),
     rolesTableBody: document.getElementById("rolesTableBody"),
 
@@ -254,12 +258,27 @@
     usersPermissionCloseBtn: document.getElementById("usersPermissionCloseBtn"),
     usersPermissionCancelBtn: document.getElementById("usersPermissionCancelBtn"),
     usersPermissionSubmitBtn: document.getElementById("usersPermissionSubmitBtn"),
+
+    usersChurchRefreshBtn: document.getElementById("usersChurchRefreshBtn"),
+    usersChurchForm: document.getElementById("usersChurchForm"),
+    usersChurchName: document.getElementById("usersChurchName"),
+    usersChurchSlug: document.getElementById("usersChurchSlug"),
+    usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
+    usersChurchPublicDescription: document.getElementById("usersChurchPublicDescription"),
+    usersChurchPrimaryColor: document.getElementById("usersChurchPrimaryColor"),
+    usersChurchSecondaryColor: document.getElementById("usersChurchSecondaryColor"),
+    usersChurchLogoUrl: document.getElementById("usersChurchLogoUrl"),
+    usersChurchSupportEmail: document.getElementById("usersChurchSupportEmail"),
+    usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
+    usersChurchIsActive: document.getElementById("usersChurchIsActive"),
+    usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
   };
 
   const state = {
     users: [],
     roles: [],
     permissions: [],
+    tenantProfile: null,
     permissionSet: new Set(),
     isAdmin: false,
     mode: "create",
@@ -339,6 +358,12 @@
     if (!el.usersPermissionMessage) return;
     el.usersPermissionMessage.textContent = message || "";
     el.usersPermissionMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setChurchMessage(message, isError) {
+    if (!el.usersChurchMessage) return;
+    el.usersChurchMessage.textContent = message || "";
+    el.usersChurchMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function escapeHtml(value) {
@@ -440,6 +465,7 @@
     const viewPermissions = {
       users: "users_users_view",
       roles: "users_roles_view",
+      church: "users_roles_view",
     };
 
     const requiredPermission = viewPermissions[viewName];
@@ -455,11 +481,14 @@
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
+    const isChurchView = viewName === "church";
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("active", isUsersView);
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("active", isChurchView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
+    if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
   }
 
   function loadPermissionState() {
@@ -491,6 +520,7 @@
   function getFirstAllowedUsersView() {
     if (hasPermission("users_users_view")) return "users";
     if (hasPermission("users_roles_view")) return "roles";
+    if (state.isAdmin) return "church";
     return null;
   }
 
@@ -503,6 +533,7 @@
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("hide", !hasPermission("users_users_view"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.classList.toggle("hide", !hasPermission("users_roles_create"));
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.classList.toggle("hide", !hasPermission("users_permissions_create"));
@@ -523,6 +554,21 @@
 
   async function loadPermissions() {
     state.permissions = await fetchJson(permissionsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar permissões.");
+  }
+
+  async function loadTenantProfile() {
+    state.tenantProfile = await fetchJson(tenantEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar perfil da igreja.");
+    const tenant = state.tenantProfile || {};
+    if (el.usersChurchName) el.usersChurchName.value = tenant.name || "";
+    if (el.usersChurchSlug) el.usersChurchSlug.value = tenant.slug || "";
+    if (el.usersChurchPublicDisplayName) el.usersChurchPublicDisplayName.value = tenant.public_display_name || "";
+    if (el.usersChurchPublicDescription) el.usersChurchPublicDescription.value = tenant.public_description || "";
+    if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = tenant.primary_color || "";
+    if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = tenant.secondary_color || "";
+    if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
+    if (el.usersChurchSupportEmail) el.usersChurchSupportEmail.value = tenant.support_email || "";
+    if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.value = tenant.support_whatsapp || "";
+    if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
   }
 
   function ensureRolesOptions(selectedRoleId) {
@@ -949,6 +995,9 @@
     if (hasPermission("users_users_view")) {
       await loadUsers();
     }
+    if (state.isAdmin) {
+      await loadTenantProfile();
+    }
   }
 
   async function openRolesView() {
@@ -960,6 +1009,55 @@
     setUsersView("roles");
     await loadPermissions();
     await loadRoles();
+  }
+
+  async function openChurchView() {
+    if (!state.isAdmin) {
+      setChurchMessage("Acesso negado: somente administradores podem editar a igreja.", true);
+      return;
+    }
+
+    setUsersView("church");
+    await loadTenantProfile();
+    setChurchMessage("", false);
+  }
+
+  async function submitChurchForm(event) {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      setChurchMessage("Acesso negado para editar a igreja.", true);
+      return;
+    }
+
+    const payload = {
+      name: el.usersChurchName.value.trim(),
+      slug: el.usersChurchSlug.value.trim(),
+      public_display_name: el.usersChurchPublicDisplayName.value.trim() || null,
+      public_description: el.usersChurchPublicDescription.value.trim() || null,
+      primary_color: el.usersChurchPrimaryColor.value.trim() || null,
+      secondary_color: el.usersChurchSecondaryColor.value.trim() || null,
+      logo_url: el.usersChurchLogoUrl.value.trim() || null,
+      support_email: el.usersChurchSupportEmail.value.trim() || null,
+      support_whatsapp: el.usersChurchSupportWhatsapp.value.trim() || null,
+      is_active: el.usersChurchIsActive.checked,
+    };
+
+    try {
+      setChurchMessage("Salvando perfil da igreja...", false);
+      const tenant = await fetchJson(
+        tenantEndpoint,
+        { method: "PUT", headers: buildHeaders(true), body: JSON.stringify(payload) },
+        "Falha ao salvar perfil da igreja."
+      );
+      state.tenantProfile = tenant;
+      localStorage.setItem("activeTenantSlug", tenant.slug || "");
+      if (window.applyTenantBranding) {
+        window.applyTenantBranding(tenant);
+      }
+      setChurchMessage("Perfil da igreja atualizado com sucesso.", false);
+    } catch (error) {
+      setChurchMessage(error instanceof Error ? error.message : "Falha ao salvar perfil da igreja.", true);
+    }
   }
 
   function bindEvents() {
@@ -980,6 +1078,7 @@
     if (el.schoolBtn) el.schoolBtn.addEventListener("click", () => setActiveModule("school"));
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.addEventListener("click", () => setUsersView("users"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.addEventListener("click", () => openRolesView().catch((error) => setRolesMessage(error.message, true)));
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView().catch((error) => setChurchMessage(error.message, true)));
 
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.addEventListener("click", openRoleModal);
@@ -989,6 +1088,14 @@
     if (el.usersForm) el.usersForm.addEventListener("submit", submitUserForm);
     if (el.usersRoleForm) el.usersRoleForm.addEventListener("submit", submitRoleForm);
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
+    if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
+    if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersChurchPreviewBtn) {
+      el.usersChurchPreviewBtn.addEventListener("click", () => {
+        const slug = (el.usersChurchSlug && el.usersChurchSlug.value.trim()) || localStorage.getItem("activeTenantSlug") || "default";
+        window.open(`/events/${encodeURIComponent(slug)}`, "_blank", "noopener,noreferrer");
+      });
+    }
 
     if (el.usersFormCloseBtn) el.usersFormCloseBtn.addEventListener("click", closeUserForm);
     if (el.usersFormCancelBtn) el.usersFormCancelBtn.addEventListener("click", closeUserForm);
