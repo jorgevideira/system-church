@@ -568,12 +568,17 @@ h1, h2, h3, h4 {
   margin-bottom: 0.45rem;
   cursor: pointer;
   font-weight: 600;
+  box-shadow: none;
+  outline: none;
+  overflow: hidden;
+  position: relative;
 }
 
 .nav-btn.active {
   background: linear-gradient(120deg, var(--primary), var(--primary-2));
   border-color: transparent;
   color: #fff;
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--primary) 20%, transparent 80%);
 }
 
 .topbar {
@@ -2148,6 +2153,104 @@ th {
   gap: 0.75rem;
 }
 
+.events-calendar-card {
+  margin-bottom: 1rem;
+}
+
+.events-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.events-calendar-weekday,
+.events-calendar-day {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.events-calendar-weekday {
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6d8199;
+  text-align: center;
+}
+
+.events-calendar-day {
+  min-height: 138px;
+  padding: 0.65rem;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.events-calendar-day.is-other-month {
+  opacity: 0.46;
+}
+
+.events-calendar-day.is-today {
+  border-color: color-mix(in srgb, var(--primary) 45%, white 55%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent 82%);
+}
+
+.events-calendar-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.events-calendar-day-number {
+  font-weight: 700;
+  color: #17324d;
+}
+
+.events-calendar-day-count {
+  font-size: 0.74rem;
+  color: #5d748d;
+}
+
+.events-calendar-items {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.events-calendar-item {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--primary) 12%, white 88%);
+  color: #17324d;
+  cursor: pointer;
+  font: inherit;
+}
+
+.events-calendar-item:hover {
+  background: color-mix(in srgb, var(--primary) 18%, white 82%);
+}
+
+.events-calendar-item.active {
+  background: linear-gradient(120deg, var(--primary), var(--primary-2));
+  color: #fff;
+}
+
+.events-calendar-item-time {
+  display: block;
+  font-size: 0.73rem;
+  opacity: 0.78;
+  margin-bottom: 0.15rem;
+}
+
+.events-calendar-empty {
+  font-size: 0.8rem;
+  color: #73879f;
+}
+
 .event-admin-card {
   border: 1px solid #d9e4ef;
   border-radius: 16px;
@@ -2239,6 +2342,10 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .events-calendar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .cells-sidebar .nav-btn {
     display: inline-block;
     width: auto;
@@ -2271,6 +2378,10 @@ th {
 
   .event-admin-card-head {
     flex-direction: column;
+  }
+
+  .events-calendar-grid {
+    grid-template-columns: 1fr;
   }
 }
 

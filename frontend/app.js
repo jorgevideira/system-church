@@ -158,6 +158,7 @@ const el = {
   publicInviteFullName: document.getElementById("publicInviteFullName"),
   publicInvitePassword: document.getElementById("publicInvitePassword"),
   publicInviteAcceptBtn: document.getElementById("publicInviteAcceptBtn"),
+  appShellTitle: document.getElementById("appShellTitle"),
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
   payablesView: document.getElementById("payablesView"),
@@ -763,6 +764,9 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
       ? `${displayName} em um portal unico`
       : "Controle financeiro com visao total";
   }
+  if (el.appShellTitle) {
+    el.appShellTitle.textContent = displayName || "Church Finance Console";
+  }
   if (el.loginBrandSummary) {
     el.loginBrandSummary.textContent = branding.public_description
       || "Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.";
@@ -874,6 +878,9 @@ function applyTenantBranding(branding = {}) {
   const displayName = branding.public_display_name || branding.name;
   if (displayName) {
     document.body.dataset.tenantName = displayName;
+    if (el.appShellTitle) {
+      el.appShellTitle.textContent = displayName;
+    }
   }
 
   const logos = [
@@ -3412,6 +3419,9 @@ function logout() {
   }
   localStorage.removeItem("activeTenantSlug");
   document.body.dataset.userRole = "";
+  if (el.appShellTitle) {
+    el.appShellTitle.textContent = "Church Finance Console";
+  }
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");
   showApp(false);

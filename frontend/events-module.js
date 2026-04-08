@@ -38,6 +38,10 @@
     eventsPublishedCount: document.getElementById("eventsPublishedCount"),
     eventsPublicCount: document.getElementById("eventsPublicCount"),
     eventsPaidCount: document.getElementById("eventsPaidCount"),
+    eventsCalendarPrevBtn: document.getElementById("eventsCalendarPrevBtn"),
+    eventsCalendarNextBtn: document.getElementById("eventsCalendarNextBtn"),
+    eventsCalendarMonthLabel: document.getElementById("eventsCalendarMonthLabel"),
+    eventsCalendarGrid: document.getElementById("eventsCalendarGrid"),
     eventsForm: document.getElementById("eventsForm"),
     eventsFormTitle: document.getElementById("eventsFormTitle"),
     eventsFormId: document.getElementById("eventsFormId"),
@@ -123,6 +127,7 @@
       notificationsChannel: "",
       notificationsStatus: "",
     },
+    calendarCursor: new Date(),
   };
 
   function getToken() {
@@ -220,6 +225,10 @@
   function formatMoney(value, currency = "BRL") {
     const amount = Number(value || 0);
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
+  }
+
+  function formatMonthLabel(date) {
+    return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }
 
   function includesText(value, query) {
@@ -330,7 +339,104 @@
     if (el.eventsSelectedBadge) {
       el.eventsSelectedBadge.textContent = event ? `Selecionado: ${event.title}` : "Nenhum evento selecionado";
     }
+    if (el.eventsRegistrationsHint) {
+      el.eventsRegistrationsHint.textContent = event
+        ? `Inscrições de ${event.title}.`
+        : "Selecione um evento na agenda para ver as inscrições.";
+    }
+    if (el.eventsPaymentsHint) {
+      el.eventsPaymentsHint.textContent = event
+        ? `Pagamentos de ${event.title}.`
+        : "Selecione um evento na agenda para acompanhar pagamentos PIX e cartão.";
+    }
+    if (el.eventsAnalyticsHint && state.currentView !== "analytics") {
+      el.eventsAnalyticsHint.textContent = event
+        ? `Analytics prontos para ${event.title}.`
+        : "Selecione um evento na agenda para ver ocupacao, receita e conversao.";
+    }
+    renderCalendar();
     applyModuleVisibility();
+  }
+
+  function pickDefaultEventId() {
+    if (!state.events.length) return null;
+    const now = Date.now();
+    const sorted = [...state.events].sort((a, b) => {
+      const aTime = new Date(a.start_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.start_at || b.created_at || 0).getTime();
+      const aFuture = aTime >= now ? 0 : 1;
+      const bFuture = bTime >= now ? 0 : 1;
+      if (aFuture !== bFuture) return aFuture - bFuture;
+      return aTime - bTime;
+    });
+    return sorted[0] ? sorted[0].id : null;
+  }
+
+  function ensureSelectedEvent() {
+    if (state.selectedEventId && state.events.some((item) => item.id === state.selectedEventId)) {
+      return;
+    }
+    const fallbackId = pickDefaultEventId();
+    state.selectedEventId = fallbackId ? Number(fallbackId) : null;
+    const event = selectedEvent();
+    if (event) {
+      const eventDate = new Date(event.start_at || event.created_at || Date.now());
+      if (!Number.isNaN(eventDate.getTime())) {
+        state.calendarCursor = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
+      }
+    }
+  }
+
+  function renderCalendar() {
+    if (!el.eventsCalendarGrid || !el.eventsCalendarMonthLabel) return;
+    const cursor = new Date(state.calendarCursor);
+    cursor.setDate(1);
+    cursor.setHours(0, 0, 0, 0);
+    el.eventsCalendarMonthLabel.textContent = formatMonthLabel(cursor);
+
+    const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+    const monthStart = new Date(cursor);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const chunks = weekdays.map((label) => `<div class="events-calendar-weekday">${escapeHtml(label)}</div>`);
+    for (let index = 0; index < 42; index += 1) {
+      const day = new Date(gridStart);
+      day.setDate(gridStart.getDate() + index);
+      const dayKey = day.toISOString().slice(0, 10);
+      const dayEvents = state.events
+        .filter((event) => {
+          const eventDate = new Date(event.start_at || event.created_at || 0);
+          return !Number.isNaN(eventDate.getTime()) && eventDate.toISOString().slice(0, 10) === dayKey;
+        })
+        .sort((a, b) => new Date(a.start_at || 0).getTime() - new Date(b.start_at || 0).getTime());
+      const classes = [
+        "events-calendar-day",
+        day.getMonth() !== cursor.getMonth() ? "is-other-month" : "",
+        day.getTime() === today.getTime() ? "is-today" : "",
+      ].filter(Boolean).join(" ");
+      const items = dayEvents.length
+        ? `<div class="events-calendar-items">${dayEvents.map((event) => `
+            <button class="events-calendar-item${event.id === state.selectedEventId ? " active" : ""}" type="button" data-event-select="${event.id}">
+              <span class="events-calendar-item-time">${escapeHtml(formatDateTime(event.start_at).split(" ")[1] || "")}</span>
+              <span>${escapeHtml(event.title)}</span>
+            </button>
+          `).join("")}</div>`
+        : `<div class="events-calendar-empty">Sem eventos</div>`;
+      chunks.push(`
+        <div class="${classes}">
+          <div class="events-calendar-day-head">
+            <span class="events-calendar-day-number">${day.getDate()}</span>
+            <span class="events-calendar-day-count">${dayEvents.length ? `${dayEvents.length} evento(s)` : ""}</span>
+          </div>
+          ${items}
+        </div>
+      `);
+    }
+    el.eventsCalendarGrid.innerHTML = chunks.join("");
   }
 
   function fillEventForm(event) {
@@ -421,7 +527,9 @@
       state.selectedEventId = null;
       resetEventForm();
     }
+    ensureSelectedEvent();
     renderEvents();
+    renderCalendar();
     setMessage("");
   }
 
@@ -638,6 +746,12 @@
   async function selectEvent(eventId, openForm = false) {
     state.selectedEventId = Number(eventId);
     const event = selectedEvent();
+    if (event) {
+      const eventDate = new Date(event.start_at || event.created_at || Date.now());
+      if (!Number.isNaN(eventDate.getTime())) {
+        state.calendarCursor = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
+      }
+    }
     if (event && openForm) {
       fillEventForm(event);
     }
@@ -760,7 +874,8 @@
     setActiveModule("events");
     setView(fallbackView);
     await loadEvents();
-    if (state.selectedEventId) {
+    ensureSelectedEvent();
+    if (state.selectedEventId || state.currentView !== "agenda") {
       await refreshCurrentView();
     }
   }
@@ -789,29 +904,45 @@
     if (el.eventsNavEventsBtn) el.eventsNavEventsBtn.addEventListener("click", () => setView("agenda"));
     if (el.eventsNavRegistrationsBtn) {
       el.eventsNavRegistrationsBtn.addEventListener("click", () => {
+        ensureSelectedEvent();
         setView("registrations");
         loadRegistrations().catch((error) => setMessage(error.message, true));
       });
     }
     if (el.eventsNavPaymentsBtn) {
       el.eventsNavPaymentsBtn.addEventListener("click", () => {
+        ensureSelectedEvent();
         setView("payments");
         loadPayments().catch((error) => setMessage(error.message, true));
       });
     }
     if (el.eventsNavAnalyticsBtn) {
       el.eventsNavAnalyticsBtn.addEventListener("click", () => {
+        ensureSelectedEvent();
         setView("analytics");
         loadAnalytics().catch((error) => setMessage(error.message, true));
       });
     }
     if (el.eventsNavNotificationsBtn) {
       el.eventsNavNotificationsBtn.addEventListener("click", () => {
+        ensureSelectedEvent();
         setView("notifications");
         loadNotifications().catch((error) => setMessage(error.message, true));
       });
     }
     if (el.eventsRefreshBtn) el.eventsRefreshBtn.addEventListener("click", () => loadEvents().catch((error) => setMessage(error.message, true)));
+    if (el.eventsCalendarPrevBtn) {
+      el.eventsCalendarPrevBtn.addEventListener("click", () => {
+        state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() - 1, 1);
+        renderCalendar();
+      });
+    }
+    if (el.eventsCalendarNextBtn) {
+      el.eventsCalendarNextBtn.addEventListener("click", () => {
+        state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() + 1, 1);
+        renderCalendar();
+      });
+    }
     if (el.eventsClearFiltersBtn) {
       el.eventsClearFiltersBtn.addEventListener("click", () => {
         state.filters.eventsSearch = "";
