@@ -7,6 +7,7 @@
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
+  const publicEventsEndpoint = `${apiPrefix}/events/public/tenants/`;
   const permissionStorageKey = "currentUserPermissions";
   const isAdminStorageKey = "currentUserIsAdmin";
 
@@ -311,6 +312,8 @@
     usersChurchPreviewSummary: document.getElementById("usersChurchPreviewSummary"),
     usersChurchPreviewSupport: document.getElementById("usersChurchPreviewSupport"),
     usersChurchPreviewSlug: document.getElementById("usersChurchPreviewSlug"),
+    usersChurchActivationScore: document.getElementById("usersChurchActivationScore"),
+    usersChurchActivationChecklist: document.getElementById("usersChurchActivationChecklist"),
 
     usersChurchCreateModal: document.getElementById("usersChurchCreateModal"),
     usersChurchCreateForm: document.getElementById("usersChurchCreateForm"),
@@ -330,6 +333,7 @@
     roles: [],
     permissions: [],
     invitations: [],
+    publicEvents: [],
     tenantProfile: null,
     permissionSet: new Set(),
     isAdmin: false,
@@ -477,6 +481,55 @@
         el.usersChurchPreviewLogo.removeAttribute("src");
       }
     }
+    renderChurchActivationChecklist();
+  }
+
+  function renderChurchActivationChecklist() {
+    if (!el.usersChurchActivationChecklist || !el.usersChurchActivationScore) return;
+
+    const items = [
+      {
+        done: Boolean(el.usersChurchPublicDisplayName && el.usersChurchPublicDisplayName.value.trim()),
+        title: "Nome público",
+        description: "Defina o nome exibido no login branded e na landing.",
+      },
+      {
+        done: Boolean(el.usersChurchPublicDescription && el.usersChurchPublicDescription.value.trim()),
+        title: "Descrição pública",
+        description: "Apresente a proposta da igreja para visitantes.",
+      },
+      {
+        done: Boolean(el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value.trim()) && Boolean(el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value.trim()),
+        title: "Identidade visual",
+        description: "Configure cores para a igreja ter presença própria.",
+      },
+      {
+        done: Boolean(el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()),
+        title: "Logo",
+        description: "Exiba a marca nas páginas públicas e no acesso.",
+      },
+      {
+        done: Boolean((el.usersChurchSupportEmail && el.usersChurchSupportEmail.value.trim()) || (el.usersChurchSupportWhatsapp && el.usersChurchSupportWhatsapp.value.trim())),
+        title: "Contato",
+        description: "Mostre um canal para inscrições e suporte.",
+      },
+      {
+        done: Array.isArray(state.publicEvents) && state.publicEvents.length > 0,
+        title: "Evento público",
+        description: "Publique ao menos um evento para ativar a vitrine.",
+      },
+      {
+        done: Array.isArray(state.invitations) && state.invitations.some((item) => item.status === "pending" || item.status === "accepted"),
+        title: "Equipe convidada",
+        description: "Convide pelo menos uma pessoa para começar a operação.",
+      },
+    ];
+
+    const completed = items.filter((item) => item.done).length;
+    el.usersChurchActivationScore.textContent = `${completed}/${items.length} concluído`;
+    el.usersChurchActivationChecklist.innerHTML = items
+      .map((item) => `<div class="tenant-onboarding-item ${item.done ? "done" : ""}"><strong>${item.done ? "Concluído" : "Pendente"} · ${escapeHtml(item.title)}</strong>${escapeHtml(item.description)}</div>`)
+      .join("");
   }
 
   async function copyChurchUrl(kind) {
@@ -722,6 +775,22 @@
   async function loadInvitations() {
     state.invitations = await fetchJson(tenantInvitationsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar convites.");
     renderInvitations();
+    renderChurchActivationChecklist();
+  }
+
+  async function loadPublicEventsForChurch() {
+    const slug = getCurrentChurchSlug();
+    if (!slug) {
+      state.publicEvents = [];
+      renderChurchActivationChecklist();
+      return;
+    }
+    try {
+      state.publicEvents = await fetchJson(`${publicEventsEndpoint}${encodeURIComponent(slug)}/events`, {}, "Falha ao carregar eventos públicos.");
+    } catch (_error) {
+      state.publicEvents = [];
+    }
+    renderChurchActivationChecklist();
   }
 
   function ensureRolesOptions(selectedRoleId) {
@@ -1358,6 +1427,7 @@
     }
     if (state.isAdmin) {
       await loadTenantProfile();
+      await loadPublicEventsForChurch();
     }
   }
 
@@ -1380,6 +1450,7 @@
 
     setUsersView("church");
     await loadTenantProfile();
+    await loadPublicEventsForChurch();
     setChurchMessage("", false);
   }
 
@@ -1415,6 +1486,7 @@
       if (window.applyTenantBranding) {
         window.applyTenantBranding(tenant);
       }
+      await loadPublicEventsForChurch();
       updateChurchPreview();
       setChurchMessage("Perfil da igreja atualizado com sucesso.", false);
     } catch (error) {
