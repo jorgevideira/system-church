@@ -433,6 +433,23 @@
       .replace(/'/g, "&#39;");
   }
 
+  function formatInvitationDelivery(invitation) {
+    const status = String(invitation && invitation.delivery_status ? invitation.delivery_status : "manual_share");
+    const labels = {
+      sent: "E-mail enviado",
+      manual_share: "Compartilhar manualmente",
+      failed: "Falhou",
+    };
+    const base = labels[status] || status;
+    if (status === "sent" && invitation.last_sent_at) {
+      return `${base} em ${new Date(invitation.last_sent_at).toLocaleString("pt-BR")}`;
+    }
+    if (status === "failed" && invitation.delivery_error) {
+      return `${base}: ${invitation.delivery_error}`;
+    }
+    return base;
+  }
+
   function buildSystemPermissionBlueprint() {
     const permissions = [];
 
@@ -842,7 +859,7 @@
     if (!el.usersInvitationsBody) return;
 
     if (!state.invitations.length) {
-      el.usersInvitationsBody.innerHTML = '<tr><td colspan="5">Nenhum convite gerado.</td></tr>';
+      el.usersInvitationsBody.innerHTML = '<tr><td colspan="6">Nenhum convite gerado.</td></tr>';
       return;
     }
 
@@ -850,8 +867,12 @@
       .map((invitation) => {
         const roleName = (invitation.role_obj && invitation.role_obj.name) || invitation.role || "-";
         const statusLabel = invitation.status || "-";
+        const deliveryLabel = formatInvitationDelivery(invitation);
         const revokeButton = invitation.status === "pending"
           ? `<button type="button" class="btn btn-sm btn-danger" data-invitation-revoke="${invitation.id}">Revogar</button>`
+          : "";
+        const resendButton = invitation.status === "pending"
+          ? `<button type="button" class="btn btn-sm btn-warning" data-invitation-resend="${invitation.id}">Reenviar</button>`
           : "";
         const copyButton = invitation.status === "pending"
           ? `<button type="button" class="btn btn-sm btn-warning" data-invitation-copy="${invitation.id}">Copiar link</button>`
@@ -860,8 +881,9 @@
           <td><strong>${escapeHtml(invitation.email)}</strong></td>
           <td>${escapeHtml(roleName)}</td>
           <td><span class="badge bg-info">${escapeHtml(statusLabel)}</span></td>
+          <td>${escapeHtml(deliveryLabel)}</td>
           <td>${escapeHtml(new Date(invitation.expires_at).toLocaleString("pt-BR"))}</td>
-          <td>${copyButton} ${revokeButton}</td>
+          <td>${copyButton} ${resendButton} ${revokeButton}</td>
         </tr>`;
       })
       .join("");
@@ -882,6 +904,10 @@
 
     el.usersInvitationsBody.querySelectorAll("[data-invitation-revoke]").forEach((button) => {
       button.addEventListener("click", () => revokeInvitation(parseInt(button.getAttribute("data-invitation-revoke"), 10)).catch((error) => setMessage(error.message, true)));
+    });
+
+    el.usersInvitationsBody.querySelectorAll("[data-invitation-resend]").forEach((button) => {
+      button.addEventListener("click", () => resendInvitation(parseInt(button.getAttribute("data-invitation-resend"), 10)).catch((error) => setMessage(error.message, true)));
     });
   }
 
@@ -1209,6 +1235,12 @@
     await fetchJson(`${tenantInvitationsEndpoint}${invitationId}`, { method: "DELETE", headers: buildHeaders(false) }, "Erro ao revogar convite.");
     await loadInvitations();
     setMessage("Convite revogado com sucesso.", false);
+  }
+
+  async function resendInvitation(invitationId) {
+    await fetchJson(`${tenantInvitationsEndpoint}${invitationId}/resend`, { method: "POST", headers: buildHeaders(false) }, "Erro ao reenviar convite.");
+    await loadInvitations();
+    setMessage("Convite reenviado com sucesso.", false);
   }
 
   async function confirmDeleteUser() {

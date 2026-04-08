@@ -77,6 +77,23 @@ def revoke_tenant_invitation(
     return tenant_invitation_service.serialize_invitation(invitation)
 
 
+@router.post("/{invitation_id}/resend", response_model=TenantInvitationResponse)
+def resend_tenant_invitation(
+    invitation_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> dict:
+    invitation = tenant_invitation_service.get_invitation_by_id(db, invitation_id, current_tenant.id)
+    if invitation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+    try:
+        invitation = tenant_invitation_service.dispatch_invitation_email(db, invitation)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return tenant_invitation_service.serialize_invitation(invitation)
+
+
 @router.get("/public/{invite_token}", response_model=TenantInvitationPublicResponse)
 def get_public_invitation(invite_token: str, db: Session = Depends(get_db)):
     invitation = tenant_invitation_service.get_invitation_by_token(db, invite_token)

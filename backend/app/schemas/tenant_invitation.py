@@ -40,6 +40,9 @@ class TenantInvitationResponse(BaseModel):
     expires_at: datetime
     accepted_at: Optional[datetime] = None
     revoked_at: Optional[datetime] = None
+    delivery_status: Optional[str] = None
+    delivery_error: Optional[str] = None
+    last_sent_at: Optional[datetime] = None
     tenant: TenantSummaryResponse
     role_obj: Optional[UserRoleResponse] = None
     invited_by_user: Optional[UserResponse] = None

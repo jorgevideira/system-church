@@ -1,5 +1,7 @@
 import secrets
+import smtplib
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -22,6 +24,10 @@ def _generate_invite_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def _load_invitation_query(db: Session):
     return db.query(TenantInvitation).options(
         joinedload(TenantInvitation.tenant),
@@ -32,7 +38,7 @@ def _load_invitation_query(db: Session):
 
 
 def _is_expired(invitation: TenantInvitation) -> bool:
-    return invitation.expires_at <= datetime.now(timezone.utc)
+    return invitation.expires_at <= _utc_now()
 
 
 def _mark_expired_if_needed(db: Session, invitation: TenantInvitation) -> TenantInvitation:
@@ -40,6 +46,79 @@ def _mark_expired_if_needed(db: Session, invitation: TenantInvitation) -> Tenant
         invitation.status = "expired"
         db.commit()
         db.refresh(invitation)
+    return invitation
+
+
+def _get_invitation_delivery(invitation: TenantInvitation) -> tuple[Optional[str], Optional[str], Optional[datetime]]:
+    metadata = invitation.invite_metadata or {}
+    return metadata.get("delivery_status"), metadata.get("delivery_error"), metadata.get("last_sent_at")
+
+
+def _build_invitation_email(invitation: TenantInvitation) -> tuple[str, str]:
+    tenant_name = (
+        getattr(invitation.tenant, "public_display_name", None)
+        or getattr(invitation.tenant, "name", None)
+        or "sua igreja"
+    )
+    role_name = getattr(invitation.role_obj, "name", None) or invitation.role
+    invite_url = _build_invitation_url(invitation.invite_token)
+    subject = f"{tenant_name} | Convite para acessar a plataforma"
+    body = (
+        f"Ola,\n\n"
+        f"Voce recebeu um convite para acessar a plataforma de {tenant_name}.\n\n"
+        f"Perfil sugerido: {role_name}\n"
+        f"Validade do convite: {invitation.expires_at.astimezone(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}\n\n"
+        f"Aceite seu convite aqui:\n{invite_url}\n\n"
+        f"Se voce ja possui conta, use sua senha atual para aceitar.\n"
+        f"Se ainda nao possui, sera possivel criar a conta ao abrir o link.\n"
+    )
+    return subject, body
+
+
+def _set_delivery_metadata(
+    invitation: TenantInvitation,
+    *,
+    status: str,
+    error: str | None = None,
+    mark_sent: bool = False,
+) -> None:
+    metadata = dict(invitation.invite_metadata or {})
+    metadata["delivery_status"] = status
+    metadata["delivery_error"] = error[:500] if error else None
+    if mark_sent:
+        metadata["last_sent_at"] = _utc_now().isoformat()
+    invitation.invite_metadata = metadata
+
+
+def dispatch_invitation_email(db: Session, invitation: TenantInvitation) -> TenantInvitation:
+    invitation = _mark_expired_if_needed(db, invitation)
+    if invitation.status != "pending":
+        raise ValueError("Only pending invitations can be sent")
+
+    if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
+        _set_delivery_metadata(invitation, status="manual_share", error=None, mark_sent=False)
+        db.commit()
+        db.refresh(invitation)
+        return invitation
+
+    subject, body = _build_invitation_email(invitation)
+    try:
+        message = EmailMessage()
+        message["Subject"] = subject
+        message["From"] = settings.SMTP_FROM_EMAIL
+        message["To"] = invitation.email
+        message.set_content(body)
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(message)
+        _set_delivery_metadata(invitation, status="sent", error=None, mark_sent=True)
+    except Exception as exc:
+        _set_delivery_metadata(invitation, status="failed", error=str(exc), mark_sent=False)
+    db.commit()
+    db.refresh(invitation)
     return invitation
 
 
@@ -97,13 +176,16 @@ def create_invitation(db: Session, tenant: Tenant, payload: TenantInvitationCrea
         invite_token=_generate_invite_token(),
         status="pending",
         is_default=payload.is_default,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=payload.expires_in_days or settings.TENANT_INVITATION_EXPIRY_DAYS),
+        expires_at=_utc_now() + timedelta(days=payload.expires_in_days or settings.TENANT_INVITATION_EXPIRY_DAYS),
         invited_by_user_id=invited_by_user.id,
         invite_metadata={"expires_in_days": payload.expires_in_days},
     )
     db.add(invitation)
     db.commit()
-    return get_invitation_by_id(db, invitation.id, tenant.id)
+    invitation = get_invitation_by_id(db, invitation.id, tenant.id)
+    if invitation is None:
+        raise ValueError("Failed to create invitation")
+    return dispatch_invitation_email(db, invitation)
 
 
 def get_invitation_by_id(db: Session, invitation_id: int, tenant_id: int) -> Optional[TenantInvitation]:
@@ -128,7 +210,7 @@ def revoke_invitation(db: Session, invitation: TenantInvitation) -> TenantInvita
     if invitation.status == "accepted":
         raise ValueError("Accepted invitation cannot be revoked")
     invitation.status = "revoked"
-    invitation.revoked_at = datetime.now(timezone.utc)
+    invitation.revoked_at = _utc_now()
     db.commit()
     db.refresh(invitation)
     return invitation
@@ -209,7 +291,7 @@ def accept_invitation(db: Session, invitation: TenantInvitation, payload: Tenant
     user.role_id = role_id
 
     invitation.status = "accepted"
-    invitation.accepted_at = datetime.now(timezone.utc)
+    invitation.accepted_at = _utc_now()
     invitation.accepted_user_id = user.id
 
     db.commit()
@@ -232,6 +314,9 @@ def serialize_invitation(invitation: TenantInvitation) -> dict:
         "expires_at": invitation.expires_at,
         "accepted_at": invitation.accepted_at,
         "revoked_at": invitation.revoked_at,
+        "delivery_status": _get_invitation_delivery(invitation)[0],
+        "delivery_error": _get_invitation_delivery(invitation)[1],
+        "last_sent_at": _get_invitation_delivery(invitation)[2],
         "tenant": invitation.tenant,
         "role_obj": invitation.role_obj,
         "invited_by_user": invitation.invited_by_user,
