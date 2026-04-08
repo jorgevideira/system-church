@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
+    from app.db.models.tenant_membership import TenantMembership
     from app.db.models.user import User
 
 
@@ -73,5 +74,9 @@ class Role(Base):
     )
     users: Mapped[list["User"]] = relationship(
         "User",
+        back_populates="role_obj",
+    )
+    tenant_memberships: Mapped[list["TenantMembership"]] = relationship(
+        "TenantMembership",
         back_populates="role_obj",
     )

@@ -2,6 +2,8 @@ from app.db.base_class import Base  # noqa: F401
 
 # Import all models so Alembic's autogenerate can detect them.
 from app.db.models.user import User  # noqa: F401
+from app.db.models.tenant import Tenant  # noqa: F401
+from app.db.models.tenant_membership import TenantMembership  # noqa: F401
 from app.db.models.role import Role, Permission  # noqa: F401
 from app.db.models.category import Category  # noqa: F401
 from app.db.models.ministry import Ministry  # noqa: F401

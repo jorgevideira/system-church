@@ -25,12 +25,12 @@ def list_users(
 def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin),
 ) -> User:
     existing = user_service.get_user_by_email(db, user_in.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    return user_service.create_user(db, user_in)
+    return user_service.create_user(db, user_in, tenant_id=admin_user.active_tenant_id)
 
 
 @router.get("/me", response_model=UserResponse)

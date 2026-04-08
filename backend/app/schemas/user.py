@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserPermissionResponse(BaseModel):
@@ -20,6 +20,28 @@ class UserRoleResponse(BaseModel):
     is_admin: bool
     active: bool
     permissions: list[UserPermissionResponse]
+
+    model_config = {"from_attributes": True}
+
+
+class TenantSummaryResponse(BaseModel):
+    id: int
+    name: str
+    slug: str
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class TenantMembershipResponse(BaseModel):
+    id: int
+    tenant_id: int
+    role: str
+    role_id: Optional[int] = None
+    is_active: bool
+    is_default: bool
+    tenant: TenantSummaryResponse
+    role_obj: Optional[UserRoleResponse] = None
 
     model_config = {"from_attributes": True}
 
@@ -53,10 +75,13 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    active_tenant_id: Optional[int] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    active_tenant: Optional[TenantSummaryResponse] = None
     role_obj: Optional[UserRoleResponse] = None
+    tenant_memberships: list[TenantMembershipResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -69,8 +94,15 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    active_tenant_id: Optional[int] = None
+    active_tenant_slug: Optional[str] = None
 
 
 class TokenData(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
+    tenant_id: Optional[int] = None
+
+
+class SwitchTenantRequest(BaseModel):
+    tenant_id: int

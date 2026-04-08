@@ -1,4 +1,6 @@
 from app.db.models.user import User
+from app.db.models.tenant import Tenant
+from app.db.models.tenant_membership import TenantMembership
 from app.db.models.role import Role, Permission
 from app.db.models.category import Category
 from app.db.models.ministry import Ministry
@@ -29,6 +31,8 @@ from app.db.models.bible_school_attendance import BibleSchoolAttendance
 
 __all__ = [
     "User",
+    "Tenant",
+    "TenantMembership",
     "Role",
     "Permission",
     "Category",

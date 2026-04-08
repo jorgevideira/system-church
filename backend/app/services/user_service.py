@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash, verify_password
 from app.db.models.role import Role
+from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
@@ -20,7 +21,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 20) -> list[User]:
     return db.query(User).offset(skip).limit(limit).all()
 
 
-def create_user(db: Session, user_create: UserCreate) -> User:
+def create_user(db: Session, user_create: UserCreate, tenant_id: int | None = None) -> User:
     hashed = get_password_hash(user_create.password)
     role_name = user_create.role
     if user_create.role_id:
@@ -37,6 +38,19 @@ def create_user(db: Session, user_create: UserCreate) -> User:
     db.add(user)
     db.commit()
     db.refresh(user)
+    if tenant_id is not None:
+        membership = TenantMembership(
+            user_id=user.id,
+            tenant_id=tenant_id,
+            role=role_name,
+            role_id=user_create.role_id,
+            is_active=True,
+            is_default=True,
+        )
+        db.add(membership)
+        user.active_tenant_id = tenant_id
+        db.commit()
+        db.refresh(user)
     return user
 
 

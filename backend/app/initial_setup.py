@@ -7,6 +7,8 @@ from app.core.constants import DEFAULT_CATEGORIES
 from app.core.security import get_password_hash
 from app.db.base import Base
 from app.db.models.category import Category
+from app.db.models.tenant import Tenant
+from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.db.session import engine
 from app.utils.logger import logger
@@ -16,6 +18,17 @@ def ensure_runtime_schema_updates() -> None:
     """Apply small forward-compatible schema updates for existing databases."""
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
+
+    Tenant.__table__.create(bind=engine, checkfirst=True)
+    TenantMembership.__table__.create(bind=engine, checkfirst=True)
+
+    if "users" in tables:
+        user_columns = {col["name"] for col in inspector.get_columns("users")}
+        if "active_tenant_id" not in user_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN active_tenant_id INTEGER"))
+            logger.info("Schema update applied: users.active_tenant_id added.")
+
     if "transactions" not in tables:
         return
 
@@ -82,6 +95,53 @@ def create_default_admin(db: Session) -> None:
     logger.info("Default admin user created: %s", email)
 
 
+def create_default_tenant(db: Session) -> Tenant:
+    tenant = db.query(Tenant).filter(Tenant.slug == "default").first()
+    if tenant:
+        return tenant
+    tenant = Tenant(
+        name="Default Church",
+        slug="default",
+        is_active=True,
+    )
+    db.add(tenant)
+    db.commit()
+    db.refresh(tenant)
+    logger.info("Default tenant created: %s", tenant.slug)
+    return tenant
+
+
+def ensure_default_tenant_memberships(db: Session, default_tenant: Tenant) -> None:
+    users = db.query(User).all()
+    updated = False
+    for user in users:
+        membership = (
+            db.query(TenantMembership)
+            .filter(
+                TenantMembership.user_id == user.id,
+                TenantMembership.tenant_id == default_tenant.id,
+            )
+            .first()
+        )
+        if membership is None:
+            membership = TenantMembership(
+                user_id=user.id,
+                tenant_id=default_tenant.id,
+                role=user.role or "viewer",
+                role_id=user.role_id,
+                is_active=user.is_active,
+                is_default=True,
+            )
+            db.add(membership)
+            updated = True
+        if user.active_tenant_id is None:
+            user.active_tenant_id = default_tenant.id
+            updated = True
+    if updated:
+        db.commit()
+        logger.info("Default tenant memberships ensured for existing users.")
+
+
 def create_default_categories(db: Session) -> None:
     """Create system categories defined in constants if they do not already exist."""
     for cat_data in DEFAULT_CATEGORIES:
@@ -110,6 +170,8 @@ def setup(db: Session) -> None:
     
     # Create default data
     create_default_admin(db)
+    default_tenant = create_default_tenant(db)
+    ensure_default_tenant_memberships(db, default_tenant)
     create_default_categories(db)
 
 
