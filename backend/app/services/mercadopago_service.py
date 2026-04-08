@@ -7,28 +7,31 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import settings
+from app.db.models.tenant import Tenant
+from app.services import tenant_service
 
 
 MERCADOPAGO_API_BASE_URL = "https://api.mercadopago.com"
 
 
-def is_enabled() -> bool:
-    return settings.PAYMENT_PROVIDER == "mercadopago" and bool(settings.MERCADOPAGO_ACCESS_TOKEN)
+def is_enabled(tenant: Tenant | None = None) -> bool:
+    return tenant_service.get_payment_provider(tenant) == "mercadopago" and bool(tenant_service.get_mercadopago_access_token(tenant))
 
 
-def _build_headers() -> dict[str, str]:
+def _build_headers(tenant: Tenant | None = None) -> dict[str, str]:
     headers = {
-        "Authorization": f"Bearer {settings.MERCADOPAGO_ACCESS_TOKEN}",
+        "Authorization": f"Bearer {tenant_service.get_mercadopago_access_token(tenant)}",
         "Content-Type": "application/json",
     }
-    if settings.MERCADOPAGO_INTEGRATOR_ID:
-        headers["x-integrator-id"] = settings.MERCADOPAGO_INTEGRATOR_ID
+    integrator_id = tenant_service.get_mercadopago_integrator_id(tenant)
+    if integrator_id:
+        headers["x-integrator-id"] = integrator_id
     return headers
 
 
 def create_checkout_preference(
+    tenant: Tenant,
     *,
-    tenant_slug: str,
     event_title: str,
     registration_code: str,
     checkout_reference: str,
@@ -38,7 +41,7 @@ def create_checkout_preference(
     attendee_email: str,
     preferred_method: Optional[str],
 ) -> dict[str, Any]:
-    if not is_enabled():
+    if not is_enabled(tenant):
         raise ValueError("Mercado Pago is not configured")
 
     notification_url = f"{settings.APP_BASE_URL}{settings.API_V1_STR}/events/public/payments/webhook"
@@ -75,7 +78,7 @@ def create_checkout_preference(
             "email": attendee_email,
         },
         "metadata": {
-            "tenant_slug": tenant_slug,
+            "tenant_slug": tenant.slug,
             "checkout_reference": checkout_reference,
             "preferred_method": preferred_method,
         },
@@ -88,20 +91,20 @@ def create_checkout_preference(
     with httpx.Client(timeout=20.0) as client:
         response = client.post(
             f"{MERCADOPAGO_API_BASE_URL}/checkout/preferences",
-            headers=_build_headers(),
+            headers=_build_headers(tenant),
             json=payload,
         )
         response.raise_for_status()
         return response.json()
 
 
-def fetch_payment(payment_id: str) -> dict[str, Any]:
-    if not is_enabled():
+def fetch_payment(payment_id: str, tenant: Tenant | None = None) -> dict[str, Any]:
+    if not is_enabled(tenant):
         raise ValueError("Mercado Pago is not configured")
     with httpx.Client(timeout=20.0) as client:
         response = client.get(
             f"{MERCADOPAGO_API_BASE_URL}/v1/payments/{payment_id}",
-            headers=_build_headers(),
+            headers=_build_headers(tenant),
         )
         response.raise_for_status()
         return response.json()
@@ -135,12 +138,14 @@ def parse_paid_at(payment_data: dict[str, Any]) -> Optional[datetime]:
 
 
 def validate_webhook_signature(
+    tenant: Tenant | None = None,
     *,
     data_id: Optional[str],
     x_signature: Optional[str],
     x_request_id: Optional[str],
 ) -> bool:
-    if not settings.MERCADOPAGO_WEBHOOK_SECRET:
+    webhook_secret = tenant_service.get_mercadopago_webhook_secret(tenant)
+    if not webhook_secret:
         return True
     if not data_id or not x_signature or not x_request_id:
         return False
@@ -159,7 +164,7 @@ def validate_webhook_signature(
 
     manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
     digest = hmac.new(
-        settings.MERCADOPAGO_WEBHOOK_SECRET.encode("utf-8"),
+        webhook_secret.encode("utf-8"),
         manifest.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()

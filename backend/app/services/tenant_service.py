@@ -11,6 +11,7 @@ from app.db.models.tenant import Tenant
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.schemas.tenant import TenantCreate
+from app.schemas.tenant import TenantPaymentSettingsResponse, TenantPaymentSettingsUpdate
 from app.schemas.tenant import TenantUpdate
 
 
@@ -43,6 +44,59 @@ def get_tenant(db: Session, tenant_id: int) -> Optional[Tenant]:
 
 def get_tenant_by_slug(db: Session, slug: str) -> Optional[Tenant]:
     return db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active.is_(True)).first()
+
+
+def get_payment_provider(tenant: Tenant | None) -> str:
+    provider = ""
+    if tenant is not None:
+        provider = str(tenant.payment_provider or "").strip().lower()
+    if not provider:
+        provider = str(settings.PAYMENT_PROVIDER or "internal").strip().lower()
+    return provider or "internal"
+
+
+def get_mercadopago_access_token(tenant: Tenant | None) -> str | None:
+    if tenant is not None and tenant.mercadopago_access_token:
+        return tenant.mercadopago_access_token.strip()
+    return settings.MERCADOPAGO_ACCESS_TOKEN
+
+
+def get_mercadopago_public_key(tenant: Tenant | None) -> str | None:
+    if tenant is not None and tenant.mercadopago_public_key:
+        return tenant.mercadopago_public_key.strip()
+    return settings.MERCADOPAGO_PUBLIC_KEY
+
+
+def get_mercadopago_webhook_secret(tenant: Tenant | None) -> str | None:
+    if tenant is not None and tenant.mercadopago_webhook_secret:
+        return tenant.mercadopago_webhook_secret.strip()
+    return settings.MERCADOPAGO_WEBHOOK_SECRET
+
+
+def get_mercadopago_integrator_id(tenant: Tenant | None) -> str | None:
+    if tenant is not None and tenant.mercadopago_integrator_id:
+        return tenant.mercadopago_integrator_id.strip()
+    return settings.MERCADOPAGO_INTEGRATOR_ID
+
+
+def build_payment_settings_response(tenant: Tenant) -> TenantPaymentSettingsResponse:
+    provider = get_payment_provider(tenant)
+    access_token = get_mercadopago_access_token(tenant)
+    public_key = get_mercadopago_public_key(tenant)
+    webhook_secret = get_mercadopago_webhook_secret(tenant)
+    integrator_id = get_mercadopago_integrator_id(tenant)
+    live_ready = provider == "mercadopago" and bool(access_token) and bool(public_key)
+    return TenantPaymentSettingsResponse(
+        payment_provider=provider,
+        payment_pix_enabled=bool(tenant.payment_pix_enabled),
+        payment_card_enabled=bool(tenant.payment_card_enabled),
+        mercadopago_public_key=public_key,
+        mercadopago_integrator_id=integrator_id,
+        mercadopago_access_token_configured=bool(access_token),
+        mercadopago_webhook_secret_configured=bool(webhook_secret),
+        mercadopago_live_ready=live_ready,
+        checkout_mode="live" if live_ready else "internal",
+    )
 
 
 def create_tenant(db: Session, payload: TenantCreate, current_user: User) -> Tenant:
@@ -123,4 +177,34 @@ def update_tenant(db: Session, tenant: Tenant, payload: TenantUpdate) -> Tenant:
     db.refresh(tenant)
     if "logo_url" in changes and changes["logo_url"] != previous_logo_url:
         _remove_local_logo_if_managed(previous_logo_url)
+    return tenant
+
+
+def update_tenant_payment_settings(db: Session, tenant: Tenant, payload: TenantPaymentSettingsUpdate) -> Tenant:
+    provider = payload.payment_provider if payload.payment_provider is not None else tenant.payment_provider
+    normalized_provider = str(provider or "internal").strip().lower()
+    if normalized_provider not in {"internal", "mercadopago"}:
+        raise ValueError("payment_provider must be internal or mercadopago")
+
+    tenant.payment_provider = normalized_provider
+    if payload.payment_pix_enabled is not None:
+        tenant.payment_pix_enabled = bool(payload.payment_pix_enabled)
+    if payload.payment_card_enabled is not None:
+        tenant.payment_card_enabled = bool(payload.payment_card_enabled)
+
+    if payload.mercadopago_public_key is not None:
+        tenant.mercadopago_public_key = payload.mercadopago_public_key.strip() or None
+    if payload.mercadopago_integrator_id is not None:
+        tenant.mercadopago_integrator_id = payload.mercadopago_integrator_id.strip() or None
+    if payload.clear_mercadopago_access_token:
+        tenant.mercadopago_access_token = None
+    elif payload.mercadopago_access_token is not None:
+        tenant.mercadopago_access_token = payload.mercadopago_access_token.strip() or None
+    if payload.clear_mercadopago_webhook_secret:
+        tenant.mercadopago_webhook_secret = None
+    elif payload.mercadopago_webhook_secret is not None:
+        tenant.mercadopago_webhook_secret = payload.mercadopago_webhook_secret.strip() or None
+
+    db.commit()
+    db.refresh(tenant)
     return tenant

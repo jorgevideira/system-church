@@ -6,6 +6,7 @@
   const createPermissionEndpoint = `${apiPrefix}/roles/permissions`;
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const tenantLogoUploadEndpoint = `${apiPrefix}/tenants/current/logo`;
+  const tenantPaymentsEndpoint = `${apiPrefix}/tenants/current/payments`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
   const publicEventsEndpoint = `${apiPrefix}/events/public/tenants/`;
@@ -316,6 +317,21 @@
     usersChurchWhatsappCountry: document.getElementById("usersChurchWhatsappCountry"),
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
+    usersChurchPaymentsMessage: document.getElementById("usersChurchPaymentsMessage"),
+    usersChurchPaymentsForm: document.getElementById("usersChurchPaymentsForm"),
+    usersChurchPaymentProvider: document.getElementById("usersChurchPaymentProvider"),
+    usersChurchPaymentModeStatus: document.getElementById("usersChurchPaymentModeStatus"),
+    usersChurchPaymentPixEnabled: document.getElementById("usersChurchPaymentPixEnabled"),
+    usersChurchPaymentCardEnabled: document.getElementById("usersChurchPaymentCardEnabled"),
+    usersChurchMercadoPagoPublicKey: document.getElementById("usersChurchMercadoPagoPublicKey"),
+    usersChurchMercadoPagoAccessToken: document.getElementById("usersChurchMercadoPagoAccessToken"),
+    usersChurchMercadoPagoClearAccessToken: document.getElementById("usersChurchMercadoPagoClearAccessToken"),
+    usersChurchMercadoPagoWebhookSecret: document.getElementById("usersChurchMercadoPagoWebhookSecret"),
+    usersChurchMercadoPagoClearWebhookSecret: document.getElementById("usersChurchMercadoPagoClearWebhookSecret"),
+    usersChurchMercadoPagoIntegratorId: document.getElementById("usersChurchMercadoPagoIntegratorId"),
+    usersChurchPaymentTokenStatus: document.getElementById("usersChurchPaymentTokenStatus"),
+    usersChurchPaymentWebhookStatus: document.getElementById("usersChurchPaymentWebhookStatus"),
+    usersChurchPaymentLiveStatus: document.getElementById("usersChurchPaymentLiveStatus"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
     usersChurchOpenLandingBtn: document.getElementById("usersChurchOpenLandingBtn"),
     usersChurchLandingUrl: document.getElementById("usersChurchLandingUrl"),
@@ -353,6 +369,7 @@
     invitations: [],
     publicEvents: [],
     tenantProfile: null,
+    tenantPaymentSettings: null,
     permissionSet: new Set(),
     isAdmin: false,
     mode: "create",
@@ -457,6 +474,12 @@
     if (!el.usersChurchCreateMessage) return;
     el.usersChurchCreateMessage.textContent = message || "";
     el.usersChurchCreateMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setChurchPaymentsMessage(message, isError) {
+    if (!el.usersChurchPaymentsMessage) return;
+    el.usersChurchPaymentsMessage.textContent = message || "";
+    el.usersChurchPaymentsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function normalizeHexColor(value, fallback) {
@@ -1025,6 +1048,30 @@
     syncWhatsappField({ fromCountry: true });
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
     updateChurchPreview();
+  }
+
+  function renderTenantPaymentSettings() {
+    const paymentSettings = state.tenantPaymentSettings || {};
+    if (el.usersChurchPaymentProvider) el.usersChurchPaymentProvider.value = paymentSettings.payment_provider || "internal";
+    if (el.usersChurchPaymentPixEnabled) el.usersChurchPaymentPixEnabled.checked = paymentSettings.payment_pix_enabled !== false;
+    if (el.usersChurchPaymentCardEnabled) el.usersChurchPaymentCardEnabled.checked = paymentSettings.payment_card_enabled !== false;
+    if (el.usersChurchMercadoPagoPublicKey) el.usersChurchMercadoPagoPublicKey.value = paymentSettings.mercadopago_public_key || "";
+    if (el.usersChurchMercadoPagoAccessToken) el.usersChurchMercadoPagoAccessToken.value = "";
+    if (el.usersChurchMercadoPagoClearAccessToken) el.usersChurchMercadoPagoClearAccessToken.checked = false;
+    if (el.usersChurchMercadoPagoWebhookSecret) el.usersChurchMercadoPagoWebhookSecret.value = "";
+    if (el.usersChurchMercadoPagoClearWebhookSecret) el.usersChurchMercadoPagoClearWebhookSecret.checked = false;
+    if (el.usersChurchMercadoPagoIntegratorId) el.usersChurchMercadoPagoIntegratorId.value = paymentSettings.mercadopago_integrator_id || "";
+    if (el.usersChurchPaymentTokenStatus) el.usersChurchPaymentTokenStatus.textContent = paymentSettings.mercadopago_access_token_configured ? "Sim" : "Não";
+    if (el.usersChurchPaymentWebhookStatus) el.usersChurchPaymentWebhookStatus.textContent = paymentSettings.mercadopago_webhook_secret_configured ? "Sim" : "Não";
+    if (el.usersChurchPaymentLiveStatus) el.usersChurchPaymentLiveStatus.textContent = paymentSettings.mercadopago_live_ready ? "Ativo" : "Desligado";
+    if (el.usersChurchPaymentModeStatus) {
+      el.usersChurchPaymentModeStatus.value = paymentSettings.checkout_mode === "live" ? "Checkout real ativo" : "Checkout interno";
+    }
+  }
+
+  async function loadTenantPaymentSettings() {
+    state.tenantPaymentSettings = await fetchJson(tenantPaymentsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos da igreja.");
+    renderTenantPaymentSettings();
   }
 
   async function loadInvitations() {
@@ -1682,6 +1729,7 @@
     }
     if (state.isAdmin) {
       await loadTenantProfile();
+      await loadTenantPaymentSettings();
       await loadPublicEventsForChurch();
     }
   }
@@ -1705,8 +1753,10 @@
 
     setUsersView("church");
     await loadTenantProfile();
+    await loadTenantPaymentSettings();
     await loadPublicEventsForChurch();
     setChurchMessage("", false);
+    setChurchPaymentsMessage("", false);
   }
 
   async function submitChurchForm(event) {
@@ -1750,6 +1800,39 @@
       setChurchMessage("Perfil da igreja atualizado com sucesso.", false);
     } catch (error) {
       setChurchMessage(error instanceof Error ? error.message : "Falha ao salvar perfil da igreja.", true);
+    }
+  }
+
+  async function submitChurchPaymentsForm(event) {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      setChurchPaymentsMessage("Acesso negado para editar pagamentos da igreja.", true);
+      return;
+    }
+
+    const payload = {
+      payment_provider: el.usersChurchPaymentProvider.value,
+      payment_pix_enabled: Boolean(el.usersChurchPaymentPixEnabled.checked),
+      payment_card_enabled: Boolean(el.usersChurchPaymentCardEnabled.checked),
+      mercadopago_public_key: el.usersChurchMercadoPagoPublicKey.value.trim() || null,
+      mercadopago_access_token: el.usersChurchMercadoPagoAccessToken.value.trim() || null,
+      mercadopago_webhook_secret: el.usersChurchMercadoPagoWebhookSecret.value.trim() || null,
+      mercadopago_integrator_id: el.usersChurchMercadoPagoIntegratorId.value.trim() || null,
+      clear_mercadopago_access_token: Boolean(el.usersChurchMercadoPagoClearAccessToken.checked),
+      clear_mercadopago_webhook_secret: Boolean(el.usersChurchMercadoPagoClearWebhookSecret.checked),
+    };
+
+    try {
+      setChurchPaymentsMessage("Salvando pagamentos da igreja...", false);
+      state.tenantPaymentSettings = await fetchJson(
+        tenantPaymentsEndpoint,
+        { method: "PUT", headers: buildHeaders(true), body: JSON.stringify(payload) },
+        "Falha ao salvar pagamentos da igreja."
+      );
+      renderTenantPaymentSettings();
+      setChurchPaymentsMessage("Configurações de pagamento atualizadas com sucesso.", false);
+    } catch (error) {
+      setChurchPaymentsMessage(error instanceof Error ? error.message : "Falha ao salvar pagamentos da igreja.", true);
     }
   }
 
@@ -1832,7 +1915,13 @@
     if (el.usersRoleForm) el.usersRoleForm.addEventListener("submit", submitRoleForm);
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
-    if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersChurchPaymentsForm) el.usersChurchPaymentsForm.addEventListener("submit", submitChurchPaymentsForm);
+    if (el.usersChurchRefreshBtn) {
+      el.usersChurchRefreshBtn.addEventListener("click", () => {
+        Promise.all([loadTenantProfile(), loadTenantPaymentSettings(), loadPublicEventsForChurch()])
+          .catch((error) => setChurchMessage(error.message, true));
+      });
+    }
     if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
     if (el.usersChurchLogoUploadBtn) el.usersChurchLogoUploadBtn.addEventListener("click", () => uploadChurchLogo().catch((error) => setChurchMessage(error.message, true)));
     if (el.usersChurchLogoFile) el.usersChurchLogoFile.addEventListener("change", syncSelectedLogoPreview);

@@ -8,7 +8,14 @@ from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db,
 from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
-from app.schemas.tenant import TenantBrandingResponse, TenantCreate, TenantResponse, TenantUpdate
+from app.schemas.tenant import (
+    TenantBrandingResponse,
+    TenantCreate,
+    TenantPaymentSettingsResponse,
+    TenantPaymentSettingsUpdate,
+    TenantResponse,
+    TenantUpdate,
+)
 from app.services import tenant_service
 
 router = APIRouter()
@@ -83,6 +90,28 @@ async def upload_current_tenant_logo(
     if previous_logo_url != current_tenant.logo_url:
         tenant_service._remove_local_logo_if_managed(previous_logo_url)
     return current_tenant
+
+
+@router.get("/current/payments", response_model=TenantPaymentSettingsResponse)
+def get_current_tenant_payment_settings(
+    _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantPaymentSettingsResponse:
+    return tenant_service.build_payment_settings_response(current_tenant)
+
+
+@router.put("/current/payments", response_model=TenantPaymentSettingsResponse)
+def update_current_tenant_payment_settings(
+    payload: TenantPaymentSettingsUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantPaymentSettingsResponse:
+    try:
+        tenant = tenant_service.update_tenant_payment_settings(db, current_tenant, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return tenant_service.build_payment_settings_response(tenant)
 
 
 @router.get("/public/{tenant_slug}/branding", response_model=TenantBrandingResponse)

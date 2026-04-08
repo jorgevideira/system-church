@@ -63,3 +63,29 @@ class TenantBrandingResponse(BaseModel):
     support_whatsapp: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class TenantPaymentSettingsResponse(BaseModel):
+    payment_provider: str = "internal"
+    payment_pix_enabled: bool = True
+    payment_card_enabled: bool = True
+    mercadopago_public_key: Optional[str] = None
+    mercadopago_integrator_id: Optional[str] = None
+    mercadopago_access_token_configured: bool = False
+    mercadopago_webhook_secret_configured: bool = False
+    mercadopago_live_ready: bool = False
+    checkout_mode: str = "internal"
+
+    model_config = {"from_attributes": True}
+
+
+class TenantPaymentSettingsUpdate(BaseModel):
+    payment_provider: Optional[str] = Field(None, max_length=50)
+    payment_pix_enabled: Optional[bool] = None
+    payment_card_enabled: Optional[bool] = None
+    mercadopago_public_key: Optional[str] = Field(None, max_length=255)
+    mercadopago_integrator_id: Optional[str] = Field(None, max_length=255)
+    mercadopago_access_token: Optional[str] = Field(None, max_length=255)
+    mercadopago_webhook_secret: Optional[str] = Field(None, max_length=255)
+    clear_mercadopago_access_token: bool = False
+    clear_mercadopago_webhook_secret: bool = False

@@ -523,8 +523,37 @@ h1, h2, h3, h4 {
   white-space: nowrap;
 }
 
+.tenant-payment-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.tenant-payment-status-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.85rem;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.tenant-payment-status-card span {
+  display: block;
+  font-size: 0.8rem;
+  color: #6a8097;
+  margin-bottom: 0.25rem;
+}
+
+.tenant-payment-status-card strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+}
+
 @media (max-width: 720px) {
   .phone-input-group {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-payment-status-grid {
     grid-template-columns: 1fr;
   }
 }

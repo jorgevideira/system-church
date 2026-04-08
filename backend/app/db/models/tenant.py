@@ -24,6 +24,13 @@ class Tenant(Base):
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     support_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     support_whatsapp: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="internal")
+    payment_pix_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    payment_card_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mercadopago_access_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mercadopago_public_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mercadopago_webhook_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mercadopago_integrator_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

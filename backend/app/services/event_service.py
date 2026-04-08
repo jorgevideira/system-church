@@ -15,7 +15,7 @@ from app.db.models.tenant import Tenant
 from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
-from app.services import event_notification_service, mercadopago_service, transaction_service
+from app.services import event_notification_service, mercadopago_service, tenant_service, transaction_service
 
 
 def _slugify(value: str) -> str:
@@ -247,7 +247,12 @@ def create_public_registration(
     payment = None
     if payment_required:
         checkout_reference = _generate_checkout_reference(event, registration.registration_code)
-        provider = "mercadopago" if mercadopago_service.is_enabled() else "internal"
+        if payment_method == "pix" and not tenant.payment_pix_enabled:
+            raise ValueError("PIX is disabled for this church")
+        if payment_method == "card" and not tenant.payment_card_enabled:
+            raise ValueError("Card payments are disabled for this church")
+
+        provider = "mercadopago" if mercadopago_service.is_enabled(tenant) else "internal"
         checkout_url = None
         pix_copy_paste = None
         provider_payload: dict | None = None
@@ -255,7 +260,7 @@ def create_public_registration(
 
         if provider == "mercadopago":
             preference = mercadopago_service.create_checkout_preference(
-                tenant_slug=tenant.slug,
+                tenant=tenant,
                 event_title=event.title,
                 registration_code=registration.registration_code,
                 checkout_reference=checkout_reference,
@@ -426,16 +431,27 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
 
 
 def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional[EventPayment]:
-    payment_data = mercadopago_service.fetch_payment(provider_payment_id)
-    checkout_reference = payment_data.get("external_reference")
-    if not checkout_reference:
-        return None
+    candidate_tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).order_by(Tenant.id.asc()).all()
+    include_global = tenant_service.get_payment_provider(None) == "mercadopago"
+    for tenant in candidate_tenants + ([None] if include_global else []):
+        if tenant is not None and not mercadopago_service.is_enabled(tenant):
+            continue
+        try:
+            payment_data = mercadopago_service.fetch_payment(provider_payment_id, tenant)
+        except Exception:
+            continue
+        checkout_reference = payment_data.get("external_reference")
+        if not checkout_reference:
+            continue
 
-    webhook_payload = EventPaymentWebhookPayload(
-        checkout_reference=checkout_reference,
-        status=mercadopago_service.map_payment_status(payment_data.get("status")),
-        provider_reference=str(payment_data.get("id")),
-        paid_at=mercadopago_service.parse_paid_at(payment_data),
-        provider_payload=payment_data,
-    )
-    return apply_payment_webhook(db, webhook_payload)
+        webhook_payload = EventPaymentWebhookPayload(
+            checkout_reference=checkout_reference,
+            status=mercadopago_service.map_payment_status(payment_data.get("status")),
+            provider_reference=str(payment_data.get("id")),
+            paid_at=mercadopago_service.parse_paid_at(payment_data),
+            provider_payload=payment_data,
+        )
+        updated = apply_payment_webhook(db, webhook_payload)
+        if updated is not None:
+            return updated
+    return None

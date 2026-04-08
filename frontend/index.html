@@ -2160,6 +2160,73 @@
                 </div>
               </div>
             </section>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Pagamentos</h4>
+                <span class="tiny">Configure o recebedor real de PIX e cartão desta igreja</span>
+              </div>
+              <p id="usersChurchPaymentsMessage" class="message"></p>
+              <form id="usersChurchPaymentsForm" class="stack">
+                <div class="events-form-row">
+                  <label>Modo do checkout
+                    <select id="usersChurchPaymentProvider">
+                      <option value="internal">Interno de teste</option>
+                      <option value="mercadopago">Mercado Pago</option>
+                    </select>
+                  </label>
+                  <label>Status
+                    <input id="usersChurchPaymentModeStatus" type="text" readonly value="Checkout interno">
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label class="inline-check">
+                    <input id="usersChurchPaymentPixEnabled" type="checkbox" checked>
+                    Aceitar PIX
+                  </label>
+                  <label class="inline-check">
+                    <input id="usersChurchPaymentCardEnabled" type="checkbox" checked>
+                    Aceitar cartão
+                  </label>
+                </div>
+                <label>Public key do Mercado Pago
+                  <input id="usersChurchMercadoPagoPublicKey" type="text" maxlength="255" placeholder="APP_USR-... ou TEST-...">
+                </label>
+                <label>Access token do Mercado Pago
+                  <input id="usersChurchMercadoPagoAccessToken" type="password" maxlength="255" placeholder="Cole o access token da conta que vai receber">
+                </label>
+                <label class="inline-check">
+                  <input id="usersChurchMercadoPagoClearAccessToken" type="checkbox">
+                  Limpar access token salvo
+                </label>
+                <label>Webhook secret
+                  <input id="usersChurchMercadoPagoWebhookSecret" type="password" maxlength="255" placeholder="Opcional, recomendado em produção">
+                </label>
+                <label class="inline-check">
+                  <input id="usersChurchMercadoPagoClearWebhookSecret" type="checkbox">
+                  Limpar webhook secret salvo
+                </label>
+                <label>Integrator ID
+                  <input id="usersChurchMercadoPagoIntegratorId" type="text" maxlength="255" placeholder="Opcional">
+                </label>
+                <div class="tenant-payment-status-grid">
+                  <article class="tenant-payment-status-card">
+                    <span>Token configurado</span>
+                    <strong id="usersChurchPaymentTokenStatus">Não</strong>
+                  </article>
+                  <article class="tenant-payment-status-card">
+                    <span>Webhook secret</span>
+                    <strong id="usersChurchPaymentWebhookStatus">Não</strong>
+                  </article>
+                  <article class="tenant-payment-status-card">
+                    <span>Checkout real</span>
+                    <strong id="usersChurchPaymentLiveStatus">Desligado</strong>
+                  </article>
+                </div>
+                <div class="modal-actions">
+                  <button class="btn" type="submit">Salvar pagamentos</button>
+                </div>
+              </form>
+            </section>
             <div class="modal-actions">
               <button class="btn" type="submit">Salvar perfil da igreja</button>
             </div>

@@ -253,8 +253,8 @@ async def event_payment_webhook(
     x_signature = request.headers.get("x-signature")
     x_request_id = request.headers.get("x-request-id")
 
-    if provider_payment_id and mercadopago_service.is_enabled():
-        if not mercadopago_service.validate_webhook_signature(
+    if provider_payment_id:
+        if mercadopago_service.is_enabled() and not mercadopago_service.validate_webhook_signature(
             data_id=str(provider_payment_id),
             x_signature=x_signature,
             x_request_id=x_request_id,
