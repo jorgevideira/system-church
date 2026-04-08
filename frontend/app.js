@@ -8,6 +8,7 @@ const CURRENT_USER_IS_ADMIN_STORAGE_KEY = "currentUserIsAdmin";
 const state = {
   accessToken: localStorage.getItem("accessToken") || "",
   refreshToken: localStorage.getItem("refreshToken") || "",
+  publicPaymentPollTimer: null,
   categories: [],
   ministries: [],
   transactionsRaw: [],
@@ -79,7 +80,26 @@ const state = {
 
 const el = {
   loginScreen: document.getElementById("loginScreen"),
+  publicEventScreen: document.getElementById("publicEventScreen"),
   appShell: document.getElementById("appShell"),
+  publicEventTitle: document.getElementById("publicEventTitle"),
+  publicEventSummary: document.getElementById("publicEventSummary"),
+  publicEventMetaDate: document.getElementById("publicEventMetaDate"),
+  publicEventMetaLocation: document.getElementById("publicEventMetaLocation"),
+  publicEventMetaCode: document.getElementById("publicEventMetaCode"),
+  publicPaymentBadge: document.getElementById("publicPaymentBadge"),
+  publicPaymentHeadline: document.getElementById("publicPaymentHeadline"),
+  publicPaymentMessage: document.getElementById("publicPaymentMessage"),
+  publicRegistrationName: document.getElementById("publicRegistrationName"),
+  publicPaymentAmount: document.getElementById("publicPaymentAmount"),
+  publicPaymentMethod: document.getElementById("publicPaymentMethod"),
+  publicRegistrationStatus: document.getElementById("publicRegistrationStatus"),
+  publicPixBlock: document.getElementById("publicPixBlock"),
+  publicPixCode: document.getElementById("publicPixCode"),
+  publicCopyPixBtn: document.getElementById("publicCopyPixBtn"),
+  publicCheckoutBlock: document.getElementById("publicCheckoutBlock"),
+  publicCheckoutLink: document.getElementById("publicCheckoutLink"),
+  publicRefreshStatusBtn: document.getElementById("publicRefreshStatusBtn"),
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
   payablesView: document.getElementById("payablesView"),
@@ -469,7 +489,151 @@ function setMessage(node, text, isError = false) {
 
 function showApp(isAuthed) {
   el.loginScreen.classList.toggle("hide", isAuthed);
+  el.publicEventScreen.classList.add("hide");
   el.appShell.classList.toggle("hide", !isAuthed);
+}
+
+function showPublicEventApp() {
+  el.loginScreen.classList.add("hide");
+  el.appShell.classList.add("hide");
+  el.publicEventScreen.classList.remove("hide");
+}
+
+function isPublicRegistrationRoute() {
+  const match = window.location.pathname.match(/\/events\/registration\/([^/?#]+)/);
+  return Boolean(match);
+}
+
+function getCheckoutReferenceFromRoute() {
+  const match = window.location.pathname.match(/\/events\/registration\/([^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatPublicStatusLabel(value) {
+  const map = {
+    pending: "Pagamento pendente",
+    paid: "Pagamento aprovado",
+    failed: "Pagamento recusado",
+    expired: "Pagamento expirado",
+    cancelled: "Pagamento cancelado",
+    refunded: "Pagamento estornado",
+    pending_payment: "Aguardando pagamento",
+    confirmed: "Inscricao confirmada",
+    card: "Cartao",
+    pix: "PIX",
+  };
+  return map[value] || String(value || "-");
+}
+
+function clearPublicPaymentPolling() {
+  if (state.publicPaymentPollTimer) {
+    clearTimeout(state.publicPaymentPollTimer);
+    state.publicPaymentPollTimer = null;
+  }
+}
+
+function schedulePublicPaymentPolling(checkoutReference) {
+  clearPublicPaymentPolling();
+  state.publicPaymentPollTimer = window.setTimeout(() => {
+    loadPublicPaymentStatus(checkoutReference, { silent: true }).catch(() => {});
+  }, 10000);
+}
+
+function renderPublicPaymentStatus(payload) {
+  const { event, registration, payment } = payload;
+  document.title = `${event.title} | Inscricao`;
+  el.publicEventTitle.textContent = event.title;
+  el.publicEventSummary.textContent = event.summary || event.description || "Acompanhe sua inscricao e o status do pagamento.";
+  el.publicEventMetaDate.textContent = `Data: ${formatDateTime(event.start_at)}`;
+  el.publicEventMetaLocation.textContent = `Local: ${event.location || "A definir"}`;
+  el.publicEventMetaCode.textContent = `Codigo: ${registration.registration_code}`;
+  el.publicRegistrationName.textContent = registration.attendee_name;
+  el.publicPaymentAmount.textContent = formatCurrency(payment.amount);
+  el.publicPaymentMethod.textContent = formatPublicStatusLabel(payment.payment_method);
+  el.publicRegistrationStatus.textContent = formatPublicStatusLabel(registration.status);
+
+  const paymentStatus = String(payment.status || "").toLowerCase();
+  el.publicPaymentBadge.textContent = formatPublicStatusLabel(paymentStatus);
+  el.publicPaymentBadge.className = `public-event-status-badge ${paymentStatus}`;
+
+  if (paymentStatus === "paid") {
+    el.publicPaymentHeadline.textContent = "Pagamento confirmado";
+    el.publicPaymentMessage.textContent = "Sua inscricao esta confirmada. Guarde este codigo para apresentar no evento.";
+  } else if (paymentStatus === "pending") {
+    el.publicPaymentHeadline.textContent = "Pagamento em andamento";
+    el.publicPaymentMessage.textContent = "Conclua o pagamento para confirmar sua inscricao. O status sera atualizado automaticamente.";
+  } else {
+    el.publicPaymentHeadline.textContent = "Pagamento requer atencao";
+    el.publicPaymentMessage.textContent = "Seu pagamento ainda nao foi concluido. Revise os dados e tente novamente se necessario.";
+  }
+
+  const hasPix = Boolean(payment.pix_copy_paste);
+  el.publicPixBlock.classList.toggle("hide", !hasPix);
+  el.publicPixCode.value = hasPix ? payment.pix_copy_paste : "";
+
+  const hasCheckoutUrl = Boolean(payment.checkout_url);
+  el.publicCheckoutBlock.classList.toggle("hide", !hasCheckoutUrl);
+  if (hasCheckoutUrl) {
+    el.publicCheckoutLink.href = payment.checkout_url;
+  }
+
+  if (paymentStatus === "pending") {
+    schedulePublicPaymentPolling(payment.checkout_reference);
+  } else {
+    clearPublicPaymentPolling();
+  }
+}
+
+async function loadPublicPaymentStatus(checkoutReference, options = {}) {
+  const response = await fetch(`${API_PREFIX}/events/public/payments/${encodeURIComponent(checkoutReference)}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const detail = errorDetailToText(body.detail ?? body, "Falha ao carregar status da inscricao");
+    if (!options.silent) {
+      el.publicPaymentMessage.textContent = detail;
+    }
+    throw new Error(detail);
+  }
+  const payload = await response.json();
+  renderPublicPaymentStatus(payload);
+  return payload;
+}
+
+async function initializePublicEventApp() {
+  showPublicEventApp();
+  const checkoutReference = getCheckoutReferenceFromRoute();
+  if (!checkoutReference) {
+    el.publicPaymentMessage.textContent = "Referencia de pagamento nao encontrada na URL.";
+    return;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const returnStatus = searchParams.get("status");
+  if (returnStatus === "success") {
+    el.publicPaymentMessage.textContent = "Retorno recebido. Estamos atualizando a confirmacao do pagamento.";
+  }
+
+  try {
+    await loadPublicPaymentStatus(checkoutReference);
+  } catch (error) {
+    el.publicPaymentMessage.textContent = error.message;
+  }
 }
 
 function setActiveView(viewId) {
@@ -2974,6 +3138,11 @@ async function loadReports() {
 }
 
 async function initializeApp() {
+  if (isPublicRegistrationRoute()) {
+    await initializePublicEventApp();
+    return;
+  }
+
   if (!state.accessToken) {
     showApp(false);
     return;
@@ -3040,6 +3209,31 @@ el.loginForm.addEventListener("submit", async (event) => {
 el.logoutBtn.addEventListener("click", () => {
   logout();
   setMessage(el.authMessage, "Sessao encerrada.");
+});
+
+el.publicRefreshStatusBtn.addEventListener("click", async () => {
+  try {
+    const checkoutReference = getCheckoutReferenceFromRoute();
+    if (!checkoutReference) {
+      throw new Error("Referencia de pagamento nao encontrada.");
+    }
+    await loadPublicPaymentStatus(checkoutReference);
+  } catch (error) {
+    el.publicPaymentMessage.textContent = error.message;
+  }
+});
+
+el.publicCopyPixBtn.addEventListener("click", async () => {
+  try {
+    const pixCode = String(el.publicPixCode.value || "").trim();
+    if (!pixCode) {
+      throw new Error("Nenhum codigo PIX disponivel.");
+    }
+    await navigator.clipboard.writeText(pixCode);
+    el.publicPaymentMessage.textContent = "Codigo PIX copiado com sucesso.";
+  } catch (error) {
+    el.publicPaymentMessage.textContent = error.message;
+  }
 });
 
 el.refreshBtn.addEventListener("click", async () => {

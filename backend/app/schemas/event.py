@@ -202,6 +202,12 @@ class PublicEventRegistrationResponse(BaseModel):
     payment: Optional[EventPaymentResponse] = None
 
 
+class PublicEventPaymentStatusResponse(BaseModel):
+    event: PublicEventResponse
+    registration: EventRegistrationResponse
+    payment: EventPaymentResponse
+
+
 class EventPaymentWebhookPayload(BaseModel):
     checkout_reference: str
     status: str

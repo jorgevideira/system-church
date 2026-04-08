@@ -42,6 +42,65 @@
     </div>
   </section>
 
+  <section id="publicEventScreen" class="public-event-screen hide">
+    <div class="public-event-shell">
+      <aside class="public-event-hero">
+        <p class="eyebrow">Inscrição Online</p>
+        <h1 id="publicEventTitle">Acompanhando sua inscrição</h1>
+        <p id="publicEventSummary" class="hint">Estamos preparando o status da sua inscrição e do pagamento.</p>
+        <ul class="hero-list">
+          <li id="publicEventMetaDate">Data do evento</li>
+          <li id="publicEventMetaLocation">Local do evento</li>
+          <li id="publicEventMetaCode">Código da inscrição</li>
+        </ul>
+      </aside>
+
+      <div class="public-event-card">
+        <div class="public-event-status-badge" id="publicPaymentBadge">Carregando</div>
+        <h2 id="publicPaymentHeadline">Verificando pagamento</h2>
+        <p id="publicPaymentMessage" class="message">Aguarde enquanto buscamos as informações mais recentes.</p>
+
+        <div class="public-event-grid">
+          <article class="public-event-metric">
+            <span>Participante</span>
+            <strong id="publicRegistrationName">-</strong>
+          </article>
+          <article class="public-event-metric">
+            <span>Valor</span>
+            <strong id="publicPaymentAmount">R$ 0,00</strong>
+          </article>
+          <article class="public-event-metric">
+            <span>Forma</span>
+            <strong id="publicPaymentMethod">-</strong>
+          </article>
+          <article class="public-event-metric">
+            <span>Status</span>
+            <strong id="publicRegistrationStatus">-</strong>
+          </article>
+        </div>
+
+        <div id="publicPixBlock" class="public-payment-block hide">
+          <p class="public-payment-label">PIX copia e cola</p>
+          <textarea id="publicPixCode" rows="4" readonly></textarea>
+          <div class="public-payment-actions">
+            <button id="publicCopyPixBtn" class="btn" type="button">Copiar PIX</button>
+          </div>
+        </div>
+
+        <div id="publicCheckoutBlock" class="public-payment-block hide">
+          <p class="public-payment-label">Checkout online</p>
+          <div class="public-payment-actions">
+            <a id="publicCheckoutLink" class="btn" href="#" target="_blank" rel="noopener noreferrer">Abrir pagamento</a>
+          </div>
+        </div>
+
+        <div class="public-payment-actions public-payment-actions-footer">
+          <button id="publicRefreshStatusBtn" class="btn ghost" type="button">Atualizar status</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div id="appShell" class="app-shell hide">
     <header class="topbar">
       <h2>Church Finance Console</h2>

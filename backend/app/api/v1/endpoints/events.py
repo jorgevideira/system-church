@@ -15,6 +15,7 @@ from app.schemas.event import (
     EventResponse,
     EventUpdate,
     PublicEventDetailResponse,
+    PublicEventPaymentStatusResponse,
     PublicEventResponse,
     PublicEventRegistrationResponse,
 )
@@ -140,6 +141,21 @@ def get_public_registration(
     if registration is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registration not found")
     return registration
+
+
+@router.get("/public/payments/{checkout_reference}", response_model=PublicEventPaymentStatusResponse)
+def get_public_payment_status(
+    checkout_reference: str,
+    db: Session = Depends(get_db),
+) -> PublicEventPaymentStatusResponse:
+    event, registration, payment = event_service.get_public_payment_status(db, checkout_reference)
+    if event is None or registration is None or payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment status not found")
+    return PublicEventPaymentStatusResponse(
+        event=PublicEventResponse.model_validate(event),
+        registration=registration,
+        payment=payment,
+    )
 
 
 @router.get("/public/{tenant_slug}/{event_slug}", response_model=PublicEventDetailResponse)
