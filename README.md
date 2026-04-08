@@ -39,6 +39,15 @@ O projeto combina backend robusto (FastAPI + SQLAlchemy + Celery) com frontend w
 
 Para detalhes tecnicos de arquitetura, consulte [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Evolucao SaaS
+
+O produto agora possui uma direcao clara de evolucao para se tornar uma plataforma multi-igrejas, web/mobile, com permissoes mais granulares, eventos com inscricoes publicas e pagamentos online.
+
+Documentos de referencia:
+
+- [Arquitetura alvo SaaS](docs/target-architecture.md)
+- [Roadmap de evolucao](docs/saas-evolution-roadmap.md)
+
 ## Como Rodar (Docker)
 
 ### 1) Clonar repositorio
