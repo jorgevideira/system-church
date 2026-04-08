@@ -73,6 +73,13 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class UserTenantLinkRequest(BaseModel):
+    email: EmailStr
+    role: str = "viewer"
+    role_id: Optional[int] = None
+    is_default: bool = False
+
+
 class UserResponse(UserBase):
     id: int
     active_tenant_id: Optional[int] = None

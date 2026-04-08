@@ -16,47 +16,71 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "tenants",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("slug", sa.String(length=120), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name"),
-        sa.UniqueConstraint("slug"),
-    )
-    op.create_index("ix_tenants_id", "tenants", ["id"])
-    op.create_index("ix_tenants_name", "tenants", ["name"])
-    op.create_index("ix_tenants_slug", "tenants", ["slug"])
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
 
-    op.add_column("users", sa.Column("active_tenant_id", sa.Integer(), nullable=True))
-    op.create_foreign_key("fk_users_active_tenant_id", "users", "tenants", ["active_tenant_id"], ["id"])
-    op.create_index("ix_users_active_tenant_id", "users", ["active_tenant_id"])
+    if "tenants" not in inspector.get_table_names():
+        op.create_table(
+            "tenants",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("name", sa.String(length=255), nullable=False),
+            sa.Column("slug", sa.String(length=120), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("name"),
+            sa.UniqueConstraint("slug"),
+        )
 
-    op.create_table(
-        "tenant_memberships",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("tenant_id", sa.Integer(), nullable=False),
-        sa.Column("role", sa.String(length=50), nullable=False),
-        sa.Column("role_id", sa.Integer(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["role_id"], ["roles.id"]),
-        sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("user_id", "tenant_id", name="uq_tenant_memberships_user_tenant"),
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenants_id ON tenants (id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenants_name ON tenants (name)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenants_slug ON tenants (slug)")
+
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    if "active_tenant_id" not in user_columns:
+        op.add_column("users", sa.Column("active_tenant_id", sa.Integer(), nullable=True))
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE constraint_name = 'fk_users_active_tenant_id'
+            ) THEN
+                ALTER TABLE users
+                ADD CONSTRAINT fk_users_active_tenant_id
+                FOREIGN KEY (active_tenant_id) REFERENCES tenants(id);
+            END IF;
+        END $$;
+        """
     )
-    op.create_index("ix_tenant_memberships_id", "tenant_memberships", ["id"])
-    op.create_index("ix_tenant_memberships_user_id", "tenant_memberships", ["user_id"])
-    op.create_index("ix_tenant_memberships_tenant_id", "tenant_memberships", ["tenant_id"])
-    op.create_index("ix_tenant_memberships_role_id", "tenant_memberships", ["role_id"])
+    op.execute("CREATE INDEX IF NOT EXISTS ix_users_active_tenant_id ON users (active_tenant_id)")
+
+    if "tenant_memberships" not in inspector.get_table_names():
+        op.create_table(
+            "tenant_memberships",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("user_id", sa.Integer(), nullable=False),
+            sa.Column("tenant_id", sa.Integer(), nullable=False),
+            sa.Column("role", sa.String(length=50), nullable=False),
+            sa.Column("role_id", sa.Integer(), nullable=True),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.false()),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+            sa.ForeignKeyConstraint(["role_id"], ["roles.id"]),
+            sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("user_id", "tenant_id", name="uq_tenant_memberships_user_tenant"),
+        )
+
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_memberships_id ON tenant_memberships (id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_memberships_user_id ON tenant_memberships (user_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_memberships_tenant_id ON tenant_memberships (tenant_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tenant_memberships_role_id ON tenant_memberships (role_id)")
 
 
 def downgrade() -> None:

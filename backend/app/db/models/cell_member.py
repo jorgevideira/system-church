@@ -10,6 +10,7 @@ class CellMember(Base):
     __tablename__ = "cell_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact: Mapped[str | None] = mapped_column(String(120), nullable=True)
     user_id: Mapped[int | None] = mapped_column(

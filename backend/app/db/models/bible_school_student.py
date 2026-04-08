@@ -10,6 +10,7 @@ class BibleSchoolStudent(Base):
     __tablename__ = "bible_school_students"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     class_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("bible_school_classes.id", ondelete="CASCADE"),

@@ -3,12 +3,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, get_current_active_user, require_editor
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
 from app.db.models.bible_school_class import BibleSchoolClass
 from app.db.models.bible_school_course import BibleSchoolCourse
 from app.db.models import BibleSchoolAttendance, BibleSchoolStudent
 from app.db.models.bible_school_lesson import BibleSchoolLesson
 from app.db.models.bible_school_professor import BibleSchoolProfessor
+from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.bible_school import (
     BibleSchoolAttendanceResponse,
@@ -38,8 +39,9 @@ def list_courses(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolCourse]:
-    q = db.query(BibleSchoolCourse)
+    q = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.tenant_id == current_tenant.id)
     if active_only:
         q = q.filter(BibleSchoolCourse.active.is_(True))
     return q.order_by(BibleSchoolCourse.name.asc()).all()
@@ -50,12 +52,17 @@ def create_course(
     payload: BibleSchoolCourseCreate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolCourse:
-    existing = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.name == payload.name).first()
+    existing = (
+        db.query(BibleSchoolCourse)
+        .filter(BibleSchoolCourse.tenant_id == current_tenant.id, BibleSchoolCourse.name == payload.name)
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ja existe um curso com esse nome")
 
-    row = BibleSchoolCourse(**payload.model_dump())
+    row = BibleSchoolCourse(**payload.model_dump(), tenant_id=current_tenant.id)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -68,8 +75,9 @@ def update_course(
     payload: BibleSchoolCourseUpdate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolCourse:
-    row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id).first()
+    row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Curso nao encontrado")
 
@@ -87,12 +95,17 @@ def delete_course(
     course_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id).first()
+    row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Curso nao encontrado")
 
-    has_classes = db.query(BibleSchoolClass.id).filter(BibleSchoolClass.course_id == course_id).first()
+    has_classes = (
+        db.query(BibleSchoolClass.id)
+        .filter(BibleSchoolClass.tenant_id == current_tenant.id, BibleSchoolClass.course_id == course_id)
+        .first()
+    )
     if has_classes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -109,10 +122,11 @@ def list_classes(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolClassResponse]:
     q = db.query(BibleSchoolClass, BibleSchoolCourse.name.label("course_name")).join(
         BibleSchoolCourse, BibleSchoolCourse.id == BibleSchoolClass.course_id
-    )
+    ).filter(BibleSchoolClass.tenant_id == current_tenant.id, BibleSchoolCourse.tenant_id == current_tenant.id)
     if course_id:
         q = q.filter(BibleSchoolClass.course_id == course_id)
     if active_only:
@@ -146,12 +160,17 @@ def create_class(
     payload: BibleSchoolClassCreate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolClassResponse:
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == payload.course_id).first()
+    course = (
+        db.query(BibleSchoolCourse)
+        .filter(BibleSchoolCourse.id == payload.course_id, BibleSchoolCourse.tenant_id == current_tenant.id)
+        .first()
+    )
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Curso nao encontrado")
 
-    row = BibleSchoolClass(**payload.model_dump())
+    row = BibleSchoolClass(**payload.model_dump(), tenant_id=current_tenant.id)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -167,14 +186,19 @@ def update_class(
     payload: BibleSchoolClassUpdate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolClassResponse:
-    row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id).first()
+    row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
     changes = payload.model_dump(exclude_unset=True)
     if "course_id" in changes:
-        course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == changes["course_id"]).first()
+        course = (
+            db.query(BibleSchoolCourse)
+            .filter(BibleSchoolCourse.id == changes["course_id"], BibleSchoolCourse.tenant_id == current_tenant.id)
+            .first()
+        )
         if not course:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Curso nao encontrado")
 
@@ -183,7 +207,7 @@ def update_class(
 
     db.commit()
     db.refresh(row)
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == row.course_id).first()
+    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == row.course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
     return BibleSchoolClassResponse(
         **row.__dict__,
         course_name=course.name if course else None,
@@ -195,12 +219,17 @@ def delete_class(
     class_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id).first()
+    row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
-    has_lessons = db.query(BibleSchoolLesson.id).filter(BibleSchoolLesson.class_id == class_id).first()
+    has_lessons = (
+        db.query(BibleSchoolLesson.id)
+        .filter(BibleSchoolLesson.tenant_id == current_tenant.id, BibleSchoolLesson.class_id == class_id)
+        .first()
+    )
     if has_lessons:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -216,8 +245,9 @@ def list_professors(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolProfessor]:
-    q = db.query(BibleSchoolProfessor)
+    q = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.tenant_id == current_tenant.id)
     if active_only:
         q = q.filter(BibleSchoolProfessor.active.is_(True))
     return q.order_by(BibleSchoolProfessor.name.asc()).all()
@@ -228,13 +258,18 @@ def create_professor(
     payload: BibleSchoolProfessorCreate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolProfessor:
     if payload.email:
-        existing = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.email == payload.email).first()
+        existing = (
+            db.query(BibleSchoolProfessor)
+            .filter(BibleSchoolProfessor.tenant_id == current_tenant.id, BibleSchoolProfessor.email == payload.email)
+            .first()
+        )
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ja existe um professor com esse email")
 
-    row = BibleSchoolProfessor(**payload.model_dump())
+    row = BibleSchoolProfessor(**payload.model_dump(), tenant_id=current_tenant.id)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -247,8 +282,9 @@ def update_professor(
     payload: BibleSchoolProfessorUpdate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolProfessor:
-    row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id).first()
+    row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
 
@@ -266,12 +302,17 @@ def delete_professor(
     professor_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id).first()
+    row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
 
-    has_lessons = db.query(BibleSchoolLesson.id).filter(BibleSchoolLesson.professor_id == professor_id).first()
+    has_lessons = (
+        db.query(BibleSchoolLesson.id)
+        .filter(BibleSchoolLesson.tenant_id == current_tenant.id, BibleSchoolLesson.professor_id == professor_id)
+        .first()
+    )
     if has_lessons:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -289,6 +330,7 @@ def list_lessons(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolLessonResponse]:
     q = db.query(
         BibleSchoolLesson,
@@ -301,6 +343,10 @@ def list_lessons(
         BibleSchoolCourse, BibleSchoolCourse.id == BibleSchoolClass.course_id
     ).outerjoin(
         BibleSchoolProfessor, BibleSchoolProfessor.id == BibleSchoolLesson.professor_id
+    ).filter(
+        BibleSchoolLesson.tenant_id == current_tenant.id,
+        BibleSchoolClass.tenant_id == current_tenant.id,
+        BibleSchoolCourse.tenant_id == current_tenant.id,
     )
 
     if class_id:
@@ -336,24 +382,25 @@ def create_lesson(
     payload: BibleSchoolLessonCreate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolLessonResponse:
-    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id).first()
+    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
     if payload.professor_id:
-        professor = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == payload.professor_id).first()
+        professor = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == payload.professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id).first()
         if not professor:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
     else:
         professor = None
 
-    row = BibleSchoolLesson(**payload.model_dump())
+    row = BibleSchoolLesson(**payload.model_dump(), tenant_id=current_tenant.id)
     db.add(row)
     db.commit()
     db.refresh(row)
 
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id).first()
+    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
     return BibleSchoolLessonResponse(
         **row.__dict__,
         class_name=classroom.name,
@@ -368,25 +415,31 @@ def update_lesson(
     payload: BibleSchoolLessonUpdate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolLessonResponse:
-    row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id).first()
+    row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aula nao encontrada")
 
     changes = payload.model_dump(exclude_unset=True)
     if "class_id" in changes:
-        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == changes["class_id"]).first()
+        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == changes["class_id"], BibleSchoolClass.tenant_id == current_tenant.id).first()
         if not classroom:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
     else:
-        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == row.class_id).first()
+        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == row.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
 
     if "professor_id" in changes and changes["professor_id"]:
-        professor = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == changes["professor_id"]).first()
+        professor = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == changes["professor_id"], BibleSchoolProfessor.tenant_id == current_tenant.id).first()
         if not professor:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
     else:
-        professor = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == row.professor_id).first() if row.professor_id else None
+        professor = (
+            db.query(BibleSchoolProfessor)
+            .filter(BibleSchoolProfessor.id == row.professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id)
+            .first()
+            if row.professor_id else None
+        )
 
     for field, value in changes.items():
         setattr(row, field, value)
@@ -394,7 +447,12 @@ def update_lesson(
     db.commit()
     db.refresh(row)
 
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id).first() if classroom else None
+    course = (
+        db.query(BibleSchoolCourse)
+        .filter(BibleSchoolCourse.id == classroom.course_id, BibleSchoolCourse.tenant_id == current_tenant.id)
+        .first()
+        if classroom else None
+    )
     return BibleSchoolLessonResponse(
         **row.__dict__,
         class_name=classroom.name if classroom else None,
@@ -408,8 +466,9 @@ def delete_lesson(
     lesson_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id).first()
+    row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aula nao encontrada")
 
@@ -423,6 +482,7 @@ def list_students(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolStudentResponse]:
     q = db.query(
         BibleSchoolStudent,
@@ -434,6 +494,10 @@ def list_students(
     ).join(
         BibleSchoolCourse,
         BibleSchoolCourse.id == BibleSchoolClass.course_id,
+    ).filter(
+        BibleSchoolStudent.tenant_id == current_tenant.id,
+        BibleSchoolClass.tenant_id == current_tenant.id,
+        BibleSchoolCourse.tenant_id == current_tenant.id,
     )
 
     if class_id:
@@ -465,22 +529,27 @@ def create_student(
     payload: BibleSchoolStudentCreate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolStudentResponse:
-    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id).first()
+    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
     if payload.email:
-        exists_email = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.email == payload.email).first()
+        exists_email = (
+            db.query(BibleSchoolStudent)
+            .filter(BibleSchoolStudent.tenant_id == current_tenant.id, BibleSchoolStudent.email == payload.email)
+            .first()
+        )
         if exists_email:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ja existe um aluno com esse email")
 
-    row = BibleSchoolStudent(**payload.model_dump())
+    row = BibleSchoolStudent(**payload.model_dump(), tenant_id=current_tenant.id)
     db.add(row)
     db.commit()
     db.refresh(row)
 
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id).first()
+    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
     return BibleSchoolStudentResponse(
         **row.__dict__,
         class_name=classroom.name,
@@ -494,22 +563,27 @@ def update_student(
     payload: BibleSchoolStudentUpdate,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolStudentResponse:
-    row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id).first()
+    row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id, BibleSchoolStudent.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno nao encontrado")
 
     changes = payload.model_dump(exclude_unset=True)
 
     if "class_id" in changes:
-        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == changes["class_id"]).first()
+        classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == changes["class_id"], BibleSchoolClass.tenant_id == current_tenant.id).first()
         if not classroom:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
     if "email" in changes and changes["email"]:
         exists_email = (
             db.query(BibleSchoolStudent)
-            .filter(BibleSchoolStudent.email == changes["email"], BibleSchoolStudent.id != student_id)
+            .filter(
+                BibleSchoolStudent.tenant_id == current_tenant.id,
+                BibleSchoolStudent.email == changes["email"],
+                BibleSchoolStudent.id != student_id,
+            )
             .first()
         )
         if exists_email:
@@ -521,8 +595,13 @@ def update_student(
     db.commit()
     db.refresh(row)
 
-    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == row.class_id).first()
-    course = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == classroom.course_id).first() if classroom else None
+    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == row.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
+    course = (
+        db.query(BibleSchoolCourse)
+        .filter(BibleSchoolCourse.id == classroom.course_id, BibleSchoolCourse.tenant_id == current_tenant.id)
+        .first()
+        if classroom else None
+    )
     return BibleSchoolStudentResponse(
         **row.__dict__,
         class_name=classroom.name if classroom else None,
@@ -535,8 +614,9 @@ def delete_student(
     student_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id).first()
+    row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id, BibleSchoolStudent.tenant_id == current_tenant.id).first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno nao encontrado")
 
@@ -546,27 +626,28 @@ def delete_student(
 
 def _build_attendance_response(
     lesson_id: int,
+    tenant_id: int,
     db: Session,
 ) -> List[BibleSchoolAttendanceResponse]:
     """Helper function to build attendance response list"""
-    lesson = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id).first()
+    lesson = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == tenant_id).first()
     if not lesson:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aula nao encontrada")
 
-    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == lesson.class_id).first()
+    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == lesson.class_id, BibleSchoolClass.tenant_id == tenant_id).first()
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
     students = (
         db.query(BibleSchoolStudent)
-        .filter(BibleSchoolStudent.class_id == classroom.id)
+        .filter(BibleSchoolStudent.tenant_id == tenant_id, BibleSchoolStudent.class_id == classroom.id)
         .order_by(BibleSchoolStudent.name.asc())
         .all()
     )
 
     attendance_rows = (
         db.query(BibleSchoolAttendance)
-        .filter(BibleSchoolAttendance.lesson_id == lesson_id)
+        .filter(BibleSchoolAttendance.tenant_id == tenant_id, BibleSchoolAttendance.lesson_id == lesson_id)
         .all()
     )
     attendance_map = {row.student_id: row for row in attendance_rows}
@@ -594,8 +675,9 @@ def list_lesson_attendance(
     lesson_id: int,
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolAttendanceResponse]:
-    return _build_attendance_response(lesson_id, db)
+    return _build_attendance_response(lesson_id, current_tenant.id, db)
 
 
 @router.put("/lessons/{lesson_id}/attendance", response_model=List[BibleSchoolAttendanceResponse])
@@ -604,12 +686,13 @@ def upsert_lesson_attendance(
     payload: BibleSchoolAttendanceUpsertRequest,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolAttendanceResponse]:
-    lesson = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id).first()
+    lesson = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()
     if not lesson:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aula nao encontrada")
 
-    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == lesson.class_id).first()
+    classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == lesson.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma nao encontrada")
 
@@ -619,7 +702,7 @@ def upsert_lesson_attendance(
         if item.status not in valid_statuses:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status de chamada invalido")
 
-        student = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == item.student_id).first()
+        student = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == item.student_id, BibleSchoolStudent.tenant_id == current_tenant.id).first()
         if not student:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno nao encontrado")
         if student.class_id != classroom.id:
@@ -627,7 +710,11 @@ def upsert_lesson_attendance(
 
         existing = (
             db.query(BibleSchoolAttendance)
-            .filter(BibleSchoolAttendance.lesson_id == lesson_id, BibleSchoolAttendance.student_id == item.student_id)
+            .filter(
+                BibleSchoolAttendance.tenant_id == current_tenant.id,
+                BibleSchoolAttendance.lesson_id == lesson_id,
+                BibleSchoolAttendance.student_id == item.student_id,
+            )
             .first()
         )
         if existing:
@@ -636,6 +723,7 @@ def upsert_lesson_attendance(
         else:
             db.add(
                 BibleSchoolAttendance(
+                    tenant_id=current_tenant.id,
                     lesson_id=lesson_id,
                     student_id=item.student_id,
                     status=item.status,
@@ -644,4 +732,4 @@ def upsert_lesson_attendance(
             )
 
     db.commit()
-    return _build_attendance_response(lesson_id, db)
+    return _build_attendance_response(lesson_id, current_tenant.id, db)

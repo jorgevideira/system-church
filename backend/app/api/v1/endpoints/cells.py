@@ -4,8 +4,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_db, require_editor
+from app.api.v1.deps import get_current_active_user, get_current_membership, get_current_tenant, get_db, require_editor
 from app.core.constants import ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER
+from app.db.models.tenant import Tenant
+from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.schemas.cell import (
     CellCreate,
@@ -74,8 +76,8 @@ CELL_MANAGE_PERMISSIONS = {
 }
 
 
-def _active_permission_names(user: User) -> set[str]:
-    role_obj = getattr(user, "role_obj", None)
+def _active_permission_names(membership: TenantMembership) -> set[str]:
+    role_obj = getattr(membership, "role_obj", None)
     permissions = getattr(role_obj, "permissions", None)
     if not permissions:
         return set()
@@ -86,46 +88,56 @@ def _active_permission_names(user: User) -> set[str]:
     }
 
 
-def _is_role_obj_admin(user: User) -> bool:
-    role_obj = getattr(user, "role_obj", None)
+def _is_role_obj_admin(membership: TenantMembership) -> bool:
+    role_obj = getattr(membership, "role_obj", None)
     return bool(role_obj and role_obj.is_admin)
 
 
-def _has_any_cell_view_permission(user: User) -> bool:
-    return bool(_active_permission_names(user) & CELL_VIEW_PERMISSIONS)
+def _has_any_cell_view_permission(membership: TenantMembership) -> bool:
+    return bool(_active_permission_names(membership) & CELL_VIEW_PERMISSIONS)
 
 
-def _has_any_cell_manage_permission(user: User) -> bool:
-    return bool(_active_permission_names(user) & CELL_MANAGE_PERMISSIONS)
+def _has_any_cell_manage_permission(membership: TenantMembership) -> bool:
+    return bool(_active_permission_names(membership) & CELL_MANAGE_PERMISSIONS)
 
 
-def _is_editor_user(user: User) -> bool:
-    return user.role in (ROLE_ADMIN, ROLE_EDITOR) or _is_role_obj_admin(user) or _has_any_cell_manage_permission(user)
+def _is_editor_user(user: User, membership: TenantMembership) -> bool:
+    return (
+        user.role in (ROLE_ADMIN, ROLE_EDITOR)
+        or membership.role in (ROLE_ADMIN, ROLE_EDITOR)
+        or _is_role_obj_admin(membership)
+        or _has_any_cell_manage_permission(membership)
+    )
 
 
-def _get_allowed_cell_ids_for_user(db: Session, user: User) -> Optional[list[int]]:
-    if _is_editor_user(user):
+def _get_allowed_cell_ids_for_user(db: Session, user: User, membership: TenantMembership, tenant: Tenant) -> Optional[list[int]]:
+    if _is_editor_user(user, membership):
         return None
-    if _has_any_cell_view_permission(user):
+    if _has_any_cell_view_permission(membership):
         return None
-    if user.role == ROLE_LEADER:
-        return cell_service.list_cell_ids_led_by_user(db, user)
+    if user.role == ROLE_LEADER or membership.role == ROLE_LEADER:
+        return cell_service.list_cell_ids_led_by_user(db, user, tenant.id)
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
 
 
-def _require_cell_access(db: Session, user: User, cell_id: int) -> None:
-    if _is_editor_user(user):
+def _require_cell_access(db: Session, user: User, membership: TenantMembership, tenant: Tenant, cell_id: int) -> None:
+    if _is_editor_user(user, membership):
         return
-    if _has_any_cell_view_permission(user):
+    if _has_any_cell_view_permission(membership):
         return
-    if user.role != ROLE_LEADER:
+    if user.role != ROLE_LEADER and membership.role != ROLE_LEADER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
-    if not cell_service.user_has_access_to_cell(db, user, cell_id):
+    if not cell_service.user_has_access_to_cell(db, user, tenant.id, cell_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this cell")
 
 
-def _require_editor_or_leader(user: User) -> None:
-    if user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER) or _is_role_obj_admin(user) or _has_any_cell_manage_permission(user):
+def _require_editor_or_leader(user: User, membership: TenantMembership) -> None:
+    if (
+        user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER)
+        or membership.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER)
+        or _is_role_obj_admin(membership)
+        or _has_any_cell_manage_permission(membership)
+    ):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor or leader access required")
 
@@ -134,9 +146,11 @@ def list_cells(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellResponse]:
-    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user)
-    return cell_service.list_cells(db, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
+    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
+    return cell_service.list_cells(db, current_tenant.id, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
 
 
 @router.get("/my", response_model=list[CellResponse])
@@ -144,9 +158,11 @@ def list_my_cells(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellResponse]:
-    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user)
-    return cell_service.list_cells(db, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
+    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
+    return cell_service.list_cells(db, current_tenant.id, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
 
 
 @router.post("/", response_model=CellResponse, status_code=status.HTTP_201_CREATED)
@@ -154,8 +170,9 @@ def create_cell(
     payload: CellCreate,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellResponse:
-    return cell_service.create_cell(db, payload)
+    return cell_service.create_cell(db, payload, current_tenant.id)
 
 
 @router.get("/{cell_id}", response_model=CellResponse)
@@ -163,9 +180,11 @@ def get_cell(
     cell_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     return cell
@@ -177,8 +196,9 @@ def update_cell(
     payload: CellUpdate,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellResponse:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     return cell_service.update_cell(db, cell, payload)
@@ -190,8 +210,9 @@ def update_cell_status(
     payload: CellStatusUpdate,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellResponse:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     return cell_service.update_cell(db, cell, CellUpdate(status=payload.status))
@@ -202,8 +223,9 @@ def delete_cell(
     cell_id: int,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     cell_service.delete_cell(db, cell)
@@ -214,9 +236,11 @@ def list_members(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMemberResponse]:
-    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user)
-    return cell_service.list_members(db, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
+    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
+    return cell_service.list_members(db, current_tenant.id, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
 
 
 @router.post("/members/all", response_model=CellMemberResponse, status_code=status.HTTP_201_CREATED)
@@ -224,9 +248,11 @@ def create_member(
     payload: CellMemberCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
-    _require_editor_or_leader(current_user)
-    return cell_service.create_member(db, payload)
+    _require_editor_or_leader(current_user, current_membership)
+    return cell_service.create_member(db, payload, current_tenant.id)
 
 
 @router.put("/members/{member_id}", response_model=CellMemberResponse)
@@ -235,13 +261,15 @@ def update_member(
     payload: CellMemberUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
-    _require_editor_or_leader(current_user)
-    if current_user.role == ROLE_LEADER:
-        allowed_cell_ids = cell_service.list_cell_ids_led_by_user(db, current_user)
-        if not cell_service.member_is_in_cells(db, member_id, allowed_cell_ids):
+    _require_editor_or_leader(current_user, current_membership)
+    if current_user.role == ROLE_LEADER or current_membership.role == ROLE_LEADER:
+        allowed_cell_ids = cell_service.list_cell_ids_led_by_user(db, current_user, current_tenant.id)
+        if not cell_service.member_is_in_cells(db, member_id, current_tenant.id, allowed_cell_ids):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this member")
-    member = cell_service.get_member(db, member_id)
+    member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
     return cell_service.update_member(db, member, payload)
@@ -252,12 +280,14 @@ def list_cell_members(
     cell_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMemberLinkResponse]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
-    return cell_service.list_cell_members(db, cell_id)
+    return cell_service.list_cell_members(db, current_tenant.id, cell_id)
 
 
 @router.get("/{cell_id}/people", response_model=list[CellMemberResponse])
@@ -267,12 +297,14 @@ def list_cell_people(
     on_date: Optional[date] = Query(None, alias="on_date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMemberResponse]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
-    return cell_service.list_cell_people(db, cell_id, stage_filter=stage_filter, on_date=on_date)
+    return cell_service.list_cell_people(db, current_tenant.id, cell_id, stage_filter=stage_filter, on_date=on_date)
 
 
 @router.post("/{cell_id}/members/{member_id}", response_model=CellMemberLinkResponse, status_code=status.HTTP_201_CREATED)
@@ -282,19 +314,21 @@ def assign_member_to_cell(
     payload: CellMemberLinkCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberLinkResponse:
-    _require_editor_or_leader(current_user)
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    member = cell_service.get_member(db, member_id)
+    member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     try:
-        return cell_service.assign_member_to_cell(db, cell_id, member_id, start_date=payload.start_date)
+        return cell_service.assign_member_to_cell(db, current_tenant.id, cell_id, member_id, start_date=payload.start_date)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -305,19 +339,21 @@ def unassign_member_from_cell(
     member_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    _require_editor_or_leader(current_user)
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    member = cell_service.get_member(db, member_id)
+    member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     try:
-        cell_service.unassign_member_from_cell(db, cell_id=cell_id, member_id=member_id)
+        cell_service.unassign_member_from_cell(db, current_tenant.id, cell_id=cell_id, member_id=member_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -329,25 +365,28 @@ def transfer_member(
     payload: CellMemberTransferRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberLinkResponse:
-    _require_editor_or_leader(current_user)
-    _require_cell_access(db, current_user, cell_id)
-    _require_cell_access(db, current_user, payload.target_cell_id)
-    current_cell = cell_service.get_cell(db, cell_id)
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, payload.target_cell_id)
+    current_cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not current_cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Current cell not found")
 
-    target_cell = cell_service.get_cell(db, payload.target_cell_id)
+    target_cell = cell_service.get_cell(db, payload.target_cell_id, current_tenant.id)
     if not target_cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target cell not found")
 
-    member = cell_service.get_member(db, member_id)
+    member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     try:
         return cell_service.transfer_member(
             db,
+            current_tenant.id,
             member_id=member_id,
             target_cell_id=payload.target_cell_id,
             transfer_date=payload.transfer_date,
@@ -364,17 +403,20 @@ def promote_member(
     payload: CellMemberPromoteRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
-    _require_editor_or_leader(current_user)
-    _require_cell_access(db, current_user, cell_id)
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
 
-    member = cell_service.get_member(db, member_id)
+    member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     try:
         return cell_service.promote_member_stage(
             db,
+            tenant_id=current_tenant.id,
             cell_id=cell_id,
             member=member,
             target_stage=payload.target_stage,
@@ -388,12 +430,14 @@ def list_leaders(
     cell_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellLeaderAssignmentResponse]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
-    return cell_service.list_leader_assignments(db, cell_id)
+    return cell_service.list_leader_assignments(db, current_tenant.id, cell_id)
 
 
 @router.post("/{cell_id}/leaders", response_model=CellLeaderAssignmentResponse, status_code=status.HTTP_201_CREATED)
@@ -402,22 +446,23 @@ def assign_leader(
     payload: CellLeaderAssignmentCreate,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellLeaderAssignmentResponse:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    member = cell_service.get_member(db, payload.member_id)
+    member = cell_service.get_member(db, payload.member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     if payload.discipler_member_id is not None:
-        discipler = cell_service.get_member(db, payload.discipler_member_id)
+        discipler = cell_service.get_member(db, payload.discipler_member_id, current_tenant.id)
         if not discipler:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Discipler member not found")
 
     try:
-        return cell_service.assign_leader(db, cell_id, payload)
+        return cell_service.assign_leader(db, current_tenant.id, cell_id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -429,12 +474,13 @@ def update_leader_assignment(
     payload: CellLeaderAssignmentUpdate,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellLeaderAssignmentResponse:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    assignment = cell_service.get_leader_assignment(db, assignment_id)
+    assignment = cell_service.get_leader_assignment(db, assignment_id, current_tenant.id)
     if not assignment or assignment.cell_id != cell_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leader assignment not found")
 
@@ -447,12 +493,13 @@ def delete_leader_assignment(
     assignment_id: int,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    cell = cell_service.get_cell(db, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    assignment = cell_service.get_leader_assignment(db, assignment_id)
+    assignment = cell_service.get_leader_assignment(db, assignment_id, current_tenant.id)
     if not assignment or assignment.cell_id != cell_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leader assignment not found")
 
@@ -466,13 +513,15 @@ def list_meetings(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMeetingResponse]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
 
-    return cell_service.list_meetings(db, cell_id, start_date=start_date, end_date=end_date)
+    return cell_service.list_meetings(db, current_tenant.id, cell_id, start_date=start_date, end_date=end_date)
 
 
 @router.post("/{cell_id}/meetings", response_model=CellMeetingResponse, status_code=status.HTTP_201_CREATED)
@@ -481,13 +530,15 @@ def create_meeting(
     payload: CellMeetingCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMeetingResponse:
-    _require_editor_or_leader(current_user)
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
-    return cell_service.create_meeting(db, cell_id, payload)
+    return cell_service.create_meeting(db, current_tenant.id, cell_id, payload)
 
 
 @router.get("/meetings/{meeting_id}", response_model=CellMeetingResponse)
@@ -495,11 +546,13 @@ def get_meeting(
     meeting_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMeetingResponse:
-    meeting = cell_service.get_meeting(db, meeting_id)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
     return meeting
 
 
@@ -509,12 +562,14 @@ def update_meeting(
     payload: CellMeetingUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMeetingResponse:
-    _require_editor_or_leader(current_user)
-    meeting = cell_service.get_meeting(db, meeting_id)
+    _require_editor_or_leader(current_user, current_membership)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
     return cell_service.update_meeting(db, meeting, payload)
 
 
@@ -524,13 +579,15 @@ def upsert_meeting_attendances(
     payload: CellMeetingAttendancesBulkRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMeetingAttendanceResponse]:
-    _require_editor_or_leader(current_user)
-    meeting = cell_service.get_meeting(db, meeting_id)
+    _require_editor_or_leader(current_user, current_membership)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
-    return cell_service.upsert_meeting_attendances(db, meeting_id, payload.items)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
+    return cell_service.upsert_meeting_attendances(db, current_tenant.id, meeting_id, payload.items)
 
 
 @router.get("/meetings/{meeting_id}/attendances", response_model=list[CellMeetingAttendanceResponse])
@@ -538,12 +595,14 @@ def list_meeting_attendances(
     meeting_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMeetingAttendanceResponse]:
-    meeting = cell_service.get_meeting(db, meeting_id)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
-    return cell_service.list_meeting_attendances(db, meeting_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
+    return cell_service.list_meeting_attendances(db, current_tenant.id, meeting_id)
 
 
 @router.post("/meetings/{meeting_id}/visitors", response_model=CellMeetingVisitorResponse, status_code=status.HTTP_201_CREATED)
@@ -552,13 +611,15 @@ def add_meeting_visitor(
     payload: CellVisitorCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMeetingVisitorResponse:
-    _require_editor_or_leader(current_user)
-    meeting = cell_service.get_meeting(db, meeting_id)
+    _require_editor_or_leader(current_user, current_membership)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
-    return cell_service.add_meeting_visitor(db, meeting_id, payload)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
+    return cell_service.add_meeting_visitor(db, current_tenant.id, meeting_id, payload)
 
 
 @router.get("/meetings/{meeting_id}/visitors", response_model=list[CellMeetingVisitorResponse])
@@ -566,12 +627,14 @@ def list_meeting_visitors(
     meeting_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellMeetingVisitorResponse]:
-    meeting = cell_service.get_meeting(db, meeting_id)
+    meeting = cell_service.get_meeting(db, meeting_id, current_tenant.id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    _require_cell_access(db, current_user, meeting.cell_id)
-    return cell_service.list_meeting_visitors(db, meeting_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, meeting.cell_id)
+    return cell_service.list_meeting_visitors(db, current_tenant.id, meeting_id)
 
 
 @router.get("/dashboard/summary", response_model=list[CellSummaryResponse])
@@ -580,9 +643,17 @@ def dashboard_summary(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellSummaryResponse]:
-    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user)
-    return cell_service.get_cells_summary(db, start_date=start_date, end_date=end_date, allowed_cell_ids=allowed_cell_ids)
+    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
+    return cell_service.get_cells_summary(
+        db,
+        current_tenant.id,
+        start_date=start_date,
+        end_date=end_date,
+        allowed_cell_ids=allowed_cell_ids,
+    )
 
 
 @router.get("/{cell_id}/dashboard/frequency", response_model=list[CellFrequencyPoint])
@@ -592,9 +663,11 @@ def dashboard_frequency(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellFrequencyPoint]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     return cell_service.get_cell_frequency(db, cell_id, start_date=start_date, end_date=end_date)
@@ -607,9 +680,11 @@ def dashboard_growth(
     end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellGrowthResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     return cell_service.get_cell_growth(db, cell_id, start_date, end_date)
@@ -622,9 +697,11 @@ def dashboard_retention(
     end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellRetentionResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if end_date < start_date:
@@ -639,9 +716,11 @@ def dashboard_visitors_recurring(
     end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellRecurringVisitorsResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if end_date < start_date:
@@ -657,9 +736,11 @@ def dashboard_history(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[CellHistoryPoint]:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if (start_date and not end_date) or (end_date and not start_date):
@@ -676,9 +757,11 @@ def dashboard_insights(
     end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellDashboardInsightsResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if end_date < start_date:
@@ -693,9 +776,11 @@ def dashboard_charts(
     end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellDashboardChartsResponse:
-    _require_cell_access(db, current_user, cell_id)
-    cell = cell_service.get_cell(db, cell_id)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
     if end_date < start_date:

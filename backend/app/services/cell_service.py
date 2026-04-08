@@ -30,10 +30,11 @@ from app.schemas.cell import (
 
 def list_cells(
     db: Session,
+    tenant_id: int,
     status_filter: Optional[str] = None,
     allowed_cell_ids: Optional[list[int]] = None,
 ) -> list[Cell]:
-    q = db.query(Cell)
+    q = db.query(Cell).filter(Cell.tenant_id == tenant_id)
     if allowed_cell_ids is not None:
         if not allowed_cell_ids:
             return []
@@ -43,11 +44,13 @@ def list_cells(
     return q.order_by(Cell.name.asc()).all()
 
 
-def list_cell_ids_led_by_user(db: Session, user: User) -> list[int]:
+def list_cell_ids_led_by_user(db: Session, user: User, tenant_id: int) -> list[int]:
     rows = (
         db.query(CellLeaderAssignment.cell_id)
         .join(CellMember, CellMember.id == CellLeaderAssignment.member_id)
         .filter(
+            CellLeaderAssignment.tenant_id == tenant_id,
+            CellMember.tenant_id == tenant_id,
             CellMember.user_id == user.id,
             CellLeaderAssignment.active.is_(True),
         )
@@ -57,17 +60,17 @@ def list_cell_ids_led_by_user(db: Session, user: User) -> list[int]:
     return [row.cell_id for row in rows]
 
 
-def user_has_access_to_cell(db: Session, user: User, cell_id: int) -> bool:
-    led_cell_ids = list_cell_ids_led_by_user(db, user)
+def user_has_access_to_cell(db: Session, user: User, tenant_id: int, cell_id: int) -> bool:
+    led_cell_ids = list_cell_ids_led_by_user(db, user, tenant_id)
     return cell_id in led_cell_ids
 
 
-def get_cell(db: Session, cell_id: int) -> Optional[Cell]:
-    return db.query(Cell).filter(Cell.id == cell_id).first()
+def get_cell(db: Session, cell_id: int, tenant_id: int) -> Optional[Cell]:
+    return db.query(Cell).filter(Cell.id == cell_id, Cell.tenant_id == tenant_id).first()
 
 
-def create_cell(db: Session, payload: CellCreate) -> Cell:
-    cell = Cell(**payload.model_dump())
+def create_cell(db: Session, payload: CellCreate, tenant_id: int) -> Cell:
+    cell = Cell(**payload.model_dump(), tenant_id=tenant_id)
     db.add(cell)
     db.commit()
     db.refresh(cell)
@@ -88,10 +91,10 @@ def delete_cell(db: Session, cell: Cell) -> None:
     db.commit()
 
 
-def create_member(db: Session, payload: CellMemberCreate) -> CellMember:
+def create_member(db: Session, payload: CellMemberCreate, tenant_id: int) -> CellMember:
     data = payload.model_dump()
     data["count_start_date"] = data.get("count_start_date") or date.today()
-    member = CellMember(**data, is_active=(data.get("status", "active") == "active"))
+    member = CellMember(**data, tenant_id=tenant_id, is_active=(data.get("status", "active") == "active"))
     db.add(member)
     db.commit()
     db.refresh(member)
@@ -100,16 +103,18 @@ def create_member(db: Session, payload: CellMemberCreate) -> CellMember:
 
 def list_members(
     db: Session,
+    tenant_id: int,
     status_filter: Optional[str] = None,
     allowed_cell_ids: Optional[list[int]] = None,
 ) -> list[CellMember]:
-    q = db.query(CellMember)
+    q = db.query(CellMember).filter(CellMember.tenant_id == tenant_id)
     if allowed_cell_ids is not None:
         if not allowed_cell_ids:
             return []
         q = (
             q.join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
             .filter(
+                CellMemberLink.tenant_id == tenant_id,
                 CellMemberLink.active.is_(True),
                 CellMemberLink.cell_id.in_(allowed_cell_ids),
             )
@@ -120,12 +125,13 @@ def list_members(
     return q.order_by(CellMember.full_name.asc()).all()
 
 
-def member_is_in_cells(db: Session, member_id: int, allowed_cell_ids: list[int]) -> bool:
+def member_is_in_cells(db: Session, member_id: int, tenant_id: int, allowed_cell_ids: list[int]) -> bool:
     if not allowed_cell_ids:
         return False
     link = (
         db.query(CellMemberLink)
         .filter(
+            CellMemberLink.tenant_id == tenant_id,
             CellMemberLink.member_id == member_id,
             CellMemberLink.active.is_(True),
             CellMemberLink.cell_id.in_(allowed_cell_ids),
@@ -135,8 +141,8 @@ def member_is_in_cells(db: Session, member_id: int, allowed_cell_ids: list[int])
     return link is not None
 
 
-def get_member(db: Session, member_id: int) -> Optional[CellMember]:
-    return db.query(CellMember).filter(CellMember.id == member_id).first()
+def get_member(db: Session, member_id: int, tenant_id: int) -> Optional[CellMember]:
+    return db.query(CellMember).filter(CellMember.id == member_id, CellMember.tenant_id == tenant_id).first()
 
 
 def update_member(db: Session, member: CellMember, payload: CellMemberUpdate) -> CellMember:
@@ -156,10 +162,10 @@ def update_member(db: Session, member: CellMember, payload: CellMemberUpdate) ->
     return member
 
 
-def list_cell_members(db: Session, cell_id: int) -> list[CellMemberLink]:
+def list_cell_members(db: Session, tenant_id: int, cell_id: int) -> list[CellMemberLink]:
     return (
         db.query(CellMemberLink)
-        .filter(CellMemberLink.cell_id == cell_id, CellMemberLink.active.is_(True))
+        .filter(CellMemberLink.tenant_id == tenant_id, CellMemberLink.cell_id == cell_id, CellMemberLink.active.is_(True))
         .order_by(CellMemberLink.start_date.asc())
         .all()
     )
@@ -167,6 +173,7 @@ def list_cell_members(db: Session, cell_id: int) -> list[CellMemberLink]:
 
 def list_cell_people(
     db: Session,
+    tenant_id: int,
     cell_id: int,
     stage_filter: Optional[str] = None,
     on_date: Optional[date] = None,
@@ -175,6 +182,8 @@ def list_cell_people(
         db.query(CellMember)
         .join(CellMemberLink, CellMemberLink.member_id == CellMember.id)
         .filter(
+            CellMember.tenant_id == tenant_id,
+            CellMemberLink.tenant_id == tenant_id,
             CellMemberLink.cell_id == cell_id,
             CellMember.status == "active",
             CellMember.is_active.is_(True),
@@ -197,6 +206,7 @@ def list_cell_people(
 def promote_member_stage(
     db: Session,
     *,
+    tenant_id: int,
     cell_id: int,
     member: CellMember,
     target_stage: str,
@@ -204,6 +214,7 @@ def promote_member_stage(
     active_link = (
         db.query(CellMemberLink)
         .filter(
+            CellMemberLink.tenant_id == tenant_id,
             CellMemberLink.cell_id == cell_id,
             CellMemberLink.member_id == member.id,
             CellMemberLink.active.is_(True),
@@ -234,22 +245,24 @@ def promote_member_stage(
 
 def assign_member_to_cell(
     db: Session,
+    tenant_id: int,
     cell_id: int,
     member_id: int,
     start_date: Optional[date] = None,
 ) -> CellMemberLink:
     current_link = (
         db.query(CellMemberLink)
-        .filter(CellMemberLink.member_id == member_id, CellMemberLink.active.is_(True))
+        .filter(CellMemberLink.tenant_id == tenant_id, CellMemberLink.member_id == member_id, CellMemberLink.active.is_(True))
         .first()
     )
     if current_link:
         raise ValueError("Member is already linked to an active cell")
 
-    member = get_member(db, member_id)
+    member = get_member(db, member_id, tenant_id)
     default_start_date = start_date or (member.count_start_date if member else None) or date.today()
 
     link = CellMemberLink(
+        tenant_id=tenant_id,
         cell_id=cell_id,
         member_id=member_id,
         start_date=default_start_date,
@@ -263,6 +276,7 @@ def assign_member_to_cell(
 
 def unassign_member_from_cell(
     db: Session,
+    tenant_id: int,
     *,
     cell_id: int,
     member_id: int,
@@ -271,6 +285,7 @@ def unassign_member_from_cell(
     link = (
         db.query(CellMemberLink)
         .filter(
+            CellMemberLink.tenant_id == tenant_id,
             CellMemberLink.cell_id == cell_id,
             CellMemberLink.member_id == member_id,
             CellMemberLink.active.is_(True),
@@ -289,6 +304,7 @@ def unassign_member_from_cell(
 
 def transfer_member(
     db: Session,
+    tenant_id: int,
     *,
     member_id: int,
     target_cell_id: int,
@@ -297,7 +313,7 @@ def transfer_member(
 ) -> CellMemberLink:
     current_link = (
         db.query(CellMemberLink)
-        .filter(CellMemberLink.member_id == member_id, CellMemberLink.active.is_(True))
+        .filter(CellMemberLink.tenant_id == tenant_id, CellMemberLink.member_id == member_id, CellMemberLink.active.is_(True))
         .first()
     )
     if not current_link:
@@ -311,6 +327,7 @@ def transfer_member(
     current_link.transfer_reason = transfer_reason
 
     new_link = CellMemberLink(
+        tenant_id=tenant_id,
         cell_id=target_cell_id,
         member_id=member_id,
         start_date=effective_date,
@@ -323,10 +340,10 @@ def transfer_member(
     return new_link
 
 
-def list_leader_assignments(db: Session, cell_id: int) -> list[CellLeaderAssignment]:
+def list_leader_assignments(db: Session, tenant_id: int, cell_id: int) -> list[CellLeaderAssignment]:
     return (
         db.query(CellLeaderAssignment)
-        .filter(CellLeaderAssignment.cell_id == cell_id)
+        .filter(CellLeaderAssignment.tenant_id == tenant_id, CellLeaderAssignment.cell_id == cell_id)
         .order_by(CellLeaderAssignment.start_date.desc())
         .all()
     )
@@ -334,6 +351,7 @@ def list_leader_assignments(db: Session, cell_id: int) -> list[CellLeaderAssignm
 
 def assign_leader(
     db: Session,
+    tenant_id: int,
     cell_id: int,
     payload: CellLeaderAssignmentCreate,
 ) -> CellLeaderAssignment:
@@ -341,9 +359,10 @@ def assign_leader(
         raise ValueError("Leader cannot be linked to themselves as discipler")
 
     if payload.is_primary:
-        _disable_other_primary_assignments(db, cell_id)
+        _disable_other_primary_assignments(db, tenant_id, cell_id)
 
     assignment = CellLeaderAssignment(
+        tenant_id=tenant_id,
         cell_id=cell_id,
         member_id=payload.member_id,
         discipler_member_id=payload.discipler_member_id,
@@ -358,6 +377,7 @@ def assign_leader(
     active_link = (
         db.query(CellMemberLink)
         .filter(
+            CellMemberLink.tenant_id == tenant_id,
             CellMemberLink.cell_id == cell_id,
             CellMemberLink.member_id == payload.member_id,
             CellMemberLink.active.is_(True),
@@ -365,10 +385,11 @@ def assign_leader(
         .first()
     )
     if active_link is None:
-        member = get_member(db, payload.member_id)
+        member = get_member(db, payload.member_id, tenant_id)
         link_start_date = payload.start_date or (member.count_start_date if member else None) or date.today()
         db.add(
             CellMemberLink(
+                tenant_id=tenant_id,
                 cell_id=cell_id,
                 member_id=payload.member_id,
                 start_date=link_start_date,
@@ -393,7 +414,7 @@ def update_leader_assignment(
             raise ValueError("Leader cannot be linked to themselves as discipler")
 
     if changes.get("is_primary") is True:
-        _disable_other_primary_assignments(db, assignment.cell_id, skip_assignment_id=assignment.id)
+        _disable_other_primary_assignments(db, assignment.tenant_id, assignment.cell_id, skip_assignment_id=assignment.id)
 
     for field, value in changes.items():
         setattr(assignment, field, value)
@@ -408,16 +429,22 @@ def delete_leader_assignment(db: Session, assignment: CellLeaderAssignment) -> N
     db.commit()
 
 
-def get_leader_assignment(db: Session, assignment_id: int) -> Optional[CellLeaderAssignment]:
-    return db.query(CellLeaderAssignment).filter(CellLeaderAssignment.id == assignment_id).first()
+def get_leader_assignment(db: Session, assignment_id: int, tenant_id: int) -> Optional[CellLeaderAssignment]:
+    return (
+        db.query(CellLeaderAssignment)
+        .filter(CellLeaderAssignment.id == assignment_id, CellLeaderAssignment.tenant_id == tenant_id)
+        .first()
+    )
 
 
 def _disable_other_primary_assignments(
     db: Session,
+    tenant_id: int,
     cell_id: int,
     skip_assignment_id: Optional[int] = None,
 ) -> None:
     q = db.query(CellLeaderAssignment).filter(
+        CellLeaderAssignment.tenant_id == tenant_id,
         CellLeaderAssignment.cell_id == cell_id,
         CellLeaderAssignment.active.is_(True),
         CellLeaderAssignment.is_primary.is_(True),
@@ -431,11 +458,12 @@ def _disable_other_primary_assignments(
 
 def list_meetings(
     db: Session,
+    tenant_id: int,
     cell_id: int,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
 ) -> list[CellMeeting]:
-    q = db.query(CellMeeting).filter(CellMeeting.cell_id == cell_id)
+    q = db.query(CellMeeting).filter(CellMeeting.tenant_id == tenant_id, CellMeeting.cell_id == cell_id)
     if start_date:
         q = q.filter(CellMeeting.meeting_date >= start_date)
     if end_date:
@@ -443,12 +471,12 @@ def list_meetings(
     return q.order_by(CellMeeting.meeting_date.desc(), CellMeeting.id.desc()).all()
 
 
-def get_meeting(db: Session, meeting_id: int) -> Optional[CellMeeting]:
-    return db.query(CellMeeting).filter(CellMeeting.id == meeting_id).first()
+def get_meeting(db: Session, meeting_id: int, tenant_id: int) -> Optional[CellMeeting]:
+    return db.query(CellMeeting).filter(CellMeeting.id == meeting_id, CellMeeting.tenant_id == tenant_id).first()
 
 
-def create_meeting(db: Session, cell_id: int, payload: CellMeetingCreate) -> CellMeeting:
-    meeting = CellMeeting(cell_id=cell_id, **payload.model_dump())
+def create_meeting(db: Session, tenant_id: int, cell_id: int, payload: CellMeetingCreate) -> CellMeeting:
+    meeting = CellMeeting(cell_id=cell_id, tenant_id=tenant_id, **payload.model_dump())
     db.add(meeting)
     db.commit()
     db.refresh(meeting)
@@ -466,6 +494,7 @@ def update_meeting(db: Session, meeting: CellMeeting, payload: CellMeetingUpdate
 
 def upsert_meeting_attendances(
     db: Session,
+    tenant_id: int,
     meeting_id: int,
     items: list[CellMeetingAttendanceItem],
 ) -> list[CellMeetingAttendance]:
@@ -474,6 +503,7 @@ def upsert_meeting_attendances(
         existing = (
             db.query(CellMeetingAttendance)
             .filter(
+                CellMeetingAttendance.tenant_id == tenant_id,
                 CellMeetingAttendance.meeting_id == meeting_id,
                 CellMeetingAttendance.member_id == item.member_id,
             )
@@ -486,6 +516,7 @@ def upsert_meeting_attendances(
             continue
 
         row = CellMeetingAttendance(
+            tenant_id=tenant_id,
             meeting_id=meeting_id,
             member_id=item.member_id,
             attendance_status=item.attendance_status,
@@ -500,10 +531,10 @@ def upsert_meeting_attendances(
     return result
 
 
-def list_meeting_attendances(db: Session, meeting_id: int) -> list[CellMeetingAttendance]:
+def list_meeting_attendances(db: Session, tenant_id: int, meeting_id: int) -> list[CellMeetingAttendance]:
     return (
         db.query(CellMeetingAttendance)
-        .filter(CellMeetingAttendance.meeting_id == meeting_id)
+        .filter(CellMeetingAttendance.tenant_id == tenant_id, CellMeetingAttendance.meeting_id == meeting_id)
         .order_by(CellMeetingAttendance.id.asc())
         .all()
     )
@@ -511,12 +542,14 @@ def list_meeting_attendances(db: Session, meeting_id: int) -> list[CellMeetingAt
 
 def add_meeting_visitor(
     db: Session,
+    tenant_id: int,
     meeting_id: int,
     payload: CellVisitorCreate,
 ) -> CellMeetingVisitor:
     visitor = (
         db.query(CellVisitor)
         .filter(
+            CellVisitor.tenant_id == tenant_id,
             CellVisitor.full_name == payload.full_name,
             CellVisitor.contact == payload.contact,
         )
@@ -524,6 +557,7 @@ def add_meeting_visitor(
     )
     if visitor is None:
         visitor = CellVisitor(
+            tenant_id=tenant_id,
             full_name=payload.full_name,
             contact=payload.contact,
             count_start_date=payload.count_start_date or date.today(),
@@ -532,6 +566,7 @@ def add_meeting_visitor(
         db.flush()
 
     meeting_visitor = CellMeetingVisitor(
+        tenant_id=tenant_id,
         meeting_id=meeting_id,
         visitor_id=visitor.id,
         is_first_time=payload.is_first_time,
@@ -543,10 +578,10 @@ def add_meeting_visitor(
     return meeting_visitor
 
 
-def list_meeting_visitors(db: Session, meeting_id: int) -> list[CellMeetingVisitor]:
+def list_meeting_visitors(db: Session, tenant_id: int, meeting_id: int) -> list[CellMeetingVisitor]:
     return (
         db.query(CellMeetingVisitor)
-        .filter(CellMeetingVisitor.meeting_id == meeting_id)
+        .filter(CellMeetingVisitor.tenant_id == tenant_id, CellMeetingVisitor.meeting_id == meeting_id)
         .order_by(CellMeetingVisitor.id.asc())
         .all()
     )
@@ -554,11 +589,12 @@ def list_meeting_visitors(db: Session, meeting_id: int) -> list[CellMeetingVisit
 
 def get_cells_summary(
     db: Session,
+    tenant_id: int,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     allowed_cell_ids: Optional[list[int]] = None,
 ) -> list[dict]:
-    cells = list_cells(db, allowed_cell_ids=allowed_cell_ids)
+    cells = list_cells(db, tenant_id=tenant_id, allowed_cell_ids=allowed_cell_ids)
     rows: list[dict] = []
     for cell in cells:
         active_members = (
@@ -614,7 +650,8 @@ def get_cell_frequency(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
 ) -> list[dict]:
-    meetings = list_meetings(db, cell_id, start_date=start_date, end_date=end_date)
+    tenant_id = db.query(Cell.tenant_id).filter(Cell.id == cell_id).scalar()
+    meetings = list_meetings(db, tenant_id, cell_id, start_date=start_date, end_date=end_date) if tenant_id is not None else []
     active_members = (
         db.query(CellMemberLink)
         .filter(CellMemberLink.cell_id == cell_id, CellMemberLink.active.is_(True))

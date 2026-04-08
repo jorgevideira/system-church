@@ -10,6 +10,7 @@ class CellLeaderAssignment(Base):
     __tablename__ = "cell_leader_assignments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     cell_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("cells.id", ondelete="CASCADE"),

@@ -6,7 +6,7 @@ from app.core.security import get_password_hash, verify_password
 from app.db.models.role import Role
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserTenantLinkRequest, UserUpdate
 
 
 def get_user(db: Session, user_id: int) -> Optional[User]:
@@ -84,6 +84,54 @@ def create_user(db: Session, user_create: UserCreate, tenant_id: int | None = No
         db.commit()
         db.refresh(user)
     return user
+
+
+def link_user_to_tenant(db: Session, link_request: UserTenantLinkRequest, tenant_id: int) -> Optional[User]:
+    user = get_user_by_email(db, link_request.email)
+    if user is None:
+        return None
+
+    existing_membership = (
+        db.query(TenantMembership)
+        .filter(
+            TenantMembership.user_id == user.id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+        .first()
+    )
+    if existing_membership is not None:
+        raise ValueError("User is already linked to this tenant")
+
+    role_name = link_request.role
+    if link_request.role_id is not None:
+        role_obj = db.query(Role).filter(Role.id == link_request.role_id, Role.tenant_id == tenant_id).first()
+        if role_obj is None:
+            raise ValueError("Role not found for this tenant")
+        role_name = role_obj.name.lower()
+
+    if link_request.is_default:
+        (
+            db.query(TenantMembership)
+            .filter(TenantMembership.user_id == user.id, TenantMembership.is_default.is_(True))
+            .update({"is_default": False}, synchronize_session=False)
+        )
+
+    has_membership = db.query(TenantMembership.id).filter(TenantMembership.user_id == user.id).first() is not None
+    membership = TenantMembership(
+        user_id=user.id,
+        tenant_id=tenant_id,
+        role=role_name,
+        role_id=link_request.role_id,
+        is_active=True,
+        is_default=link_request.is_default or not has_membership,
+    )
+    db.add(membership)
+
+    if user.active_tenant_id is None or membership.is_default:
+        user.active_tenant_id = tenant_id
+
+    db.commit()
+    return get_user_for_tenant(db, user.id, tenant_id)
 
 
 def update_user_for_tenant(db: Session, user_id: int, tenant_id: int, user_update: UserUpdate) -> Optional[User]:

@@ -8,6 +8,7 @@ class LostSheep(Base):
     __tablename__ = "lost_sheep"
 
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     member_id = Column(Integer, ForeignKey("cell_members.id"), nullable=False, index=True)
     previous_cell_id = Column(Integer, ForeignKey("cells.id"), nullable=False, index=True)
     phone_number = Column(String(20), nullable=True)

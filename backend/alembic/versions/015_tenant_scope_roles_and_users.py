@@ -16,15 +16,27 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("roles", sa.Column("tenant_id", sa.Integer(), nullable=True))
-    op.create_index("ix_roles_tenant_id", "roles", ["tenant_id"])
-    op.create_foreign_key(
-        "fk_roles_tenant_id",
-        "roles",
-        "tenants",
-        ["tenant_id"],
-        ["id"],
-        ondelete="CASCADE",
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("roles")}
+    if "tenant_id" not in existing_columns:
+        op.add_column("roles", sa.Column("tenant_id", sa.Integer(), nullable=True))
+    op.execute("CREATE INDEX IF NOT EXISTS ix_roles_tenant_id ON roles (tenant_id)")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE constraint_name = 'fk_roles_tenant_id'
+            ) THEN
+                ALTER TABLE roles
+                ADD CONSTRAINT fk_roles_tenant_id
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+            END IF;
+        END $$;
+        """
     )
     op.execute(
         """
