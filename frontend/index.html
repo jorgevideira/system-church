@@ -2539,8 +2539,55 @@
               <input id="usersChurchIsActive" type="checkbox" checked>
               Igreja ativa
             </label>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Links públicos da igreja</h4>
+                <span class="tiny">Compartilhe ou valide antes de publicar</span>
+              </div>
+              <div class="stack">
+                <label>Landing pública
+                  <div class="inline-field-group">
+                    <input id="usersChurchLandingUrl" type="text" readonly>
+                    <button id="usersChurchCopyLandingBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+                <label>Agenda pública
+                  <div class="inline-field-group">
+                    <input id="usersChurchCatalogUrl" type="text" readonly>
+                    <button id="usersChurchCopyCatalogBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+                <label>Login branded
+                  <div class="inline-field-group">
+                    <input id="usersChurchLoginUrl" type="text" readonly>
+                    <button id="usersChurchCopyLoginBtn" class="btn ghost btn-inline" type="button">Copiar</button>
+                  </div>
+                </label>
+              </div>
+            </section>
+            <section class="dashboard-card">
+              <div class="section-title">
+                <h4>Preview rápido</h4>
+                <span class="tiny">Como a igreja está aparecendo para o público</span>
+              </div>
+              <div class="tenant-preview-card">
+                <div class="tenant-preview-shell">
+                  <img id="usersChurchPreviewLogo" class="public-brand-logo hide" alt="Logo preview da igreja">
+                  <p class="eyebrow tenant-preview-eyebrow">Preview da landing</p>
+                  <h4 id="usersChurchPreviewTitle">Sua igreja</h4>
+                  <p id="usersChurchPreviewSummary" class="tenant-preview-summary">A descrição pública aparecerá aqui para visitantes e equipe.</p>
+                  <div class="tenant-preview-meta">
+                    <span id="usersChurchPreviewSupport">Contato da igreja</span>
+                    <span id="usersChurchPreviewSlug">Slug público</span>
+                  </div>
+                  <div class="tenant-preview-actions">
+                    <button id="usersChurchOpenLandingBtn" class="btn ghost" type="button">Abrir landing</button>
+                    <button id="usersChurchPreviewBtn" class="btn ghost" type="button">Abrir vitrine pública</button>
+                  </div>
+                </div>
+              </div>
+            </section>
             <div class="modal-actions">
-              <button id="usersChurchPreviewBtn" class="btn ghost" type="button">Abrir vitrine pública</button>
               <button class="btn" type="submit">Salvar perfil da igreja</button>
             </div>
           </form>

@@ -299,6 +299,18 @@
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
+    usersChurchOpenLandingBtn: document.getElementById("usersChurchOpenLandingBtn"),
+    usersChurchLandingUrl: document.getElementById("usersChurchLandingUrl"),
+    usersChurchCatalogUrl: document.getElementById("usersChurchCatalogUrl"),
+    usersChurchLoginUrl: document.getElementById("usersChurchLoginUrl"),
+    usersChurchCopyLandingBtn: document.getElementById("usersChurchCopyLandingBtn"),
+    usersChurchCopyCatalogBtn: document.getElementById("usersChurchCopyCatalogBtn"),
+    usersChurchCopyLoginBtn: document.getElementById("usersChurchCopyLoginBtn"),
+    usersChurchPreviewLogo: document.getElementById("usersChurchPreviewLogo"),
+    usersChurchPreviewTitle: document.getElementById("usersChurchPreviewTitle"),
+    usersChurchPreviewSummary: document.getElementById("usersChurchPreviewSummary"),
+    usersChurchPreviewSupport: document.getElementById("usersChurchPreviewSupport"),
+    usersChurchPreviewSlug: document.getElementById("usersChurchPreviewSlug"),
 
     usersChurchCreateModal: document.getElementById("usersChurchCreateModal"),
     usersChurchCreateForm: document.getElementById("usersChurchCreateForm"),
@@ -422,6 +434,64 @@
     if (!el.usersChurchCreateMessage) return;
     el.usersChurchCreateMessage.textContent = message || "";
     el.usersChurchCreateMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function getCurrentChurchSlug() {
+    return (el.usersChurchSlug && el.usersChurchSlug.value.trim()) || localStorage.getItem("activeTenantSlug") || "default";
+  }
+
+  function buildChurchPublicUrls() {
+    const slug = getCurrentChurchSlug();
+    const origin = window.location.origin || "";
+    return {
+      landing: `${origin}/t/${encodeURIComponent(slug)}`,
+      catalog: `${origin}/events/${encodeURIComponent(slug)}`,
+      login: `${origin}/?tenant=${encodeURIComponent(slug)}`,
+    };
+  }
+
+  function updateChurchPreview() {
+    const displayName = (el.usersChurchPublicDisplayName && el.usersChurchPublicDisplayName.value.trim())
+      || (el.usersChurchName && el.usersChurchName.value.trim())
+      || "Sua igreja";
+    const description = (el.usersChurchPublicDescription && el.usersChurchPublicDescription.value.trim())
+      || "A descrição pública aparecerá aqui para visitantes e equipe.";
+    const supportEmail = (el.usersChurchSupportEmail && el.usersChurchSupportEmail.value.trim()) || "";
+    const supportWhatsapp = (el.usersChurchSupportWhatsapp && el.usersChurchSupportWhatsapp.value.trim()) || "";
+    const logoUrl = (el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()) || "";
+    const supportParts = [supportEmail, supportWhatsapp].filter(Boolean);
+    const urls = buildChurchPublicUrls();
+
+    if (el.usersChurchLandingUrl) el.usersChurchLandingUrl.value = urls.landing;
+    if (el.usersChurchCatalogUrl) el.usersChurchCatalogUrl.value = urls.catalog;
+    if (el.usersChurchLoginUrl) el.usersChurchLoginUrl.value = urls.login;
+    if (el.usersChurchPreviewTitle) el.usersChurchPreviewTitle.textContent = displayName;
+    if (el.usersChurchPreviewSummary) el.usersChurchPreviewSummary.textContent = description;
+    if (el.usersChurchPreviewSupport) el.usersChurchPreviewSupport.textContent = supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "Contato da igreja ainda não configurado";
+    if (el.usersChurchPreviewSlug) el.usersChurchPreviewSlug.textContent = `Landing: /t/${getCurrentChurchSlug()}`;
+    if (el.usersChurchPreviewLogo) {
+      el.usersChurchPreviewLogo.classList.toggle("hide", !logoUrl);
+      if (logoUrl) {
+        el.usersChurchPreviewLogo.src = logoUrl;
+      } else {
+        el.usersChurchPreviewLogo.removeAttribute("src");
+      }
+    }
+  }
+
+  async function copyChurchUrl(kind) {
+    const urls = buildChurchPublicUrls();
+    const value = urls[kind];
+    if (!value) {
+      setChurchMessage("Link público indisponível para copiar.", true);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      setChurchMessage("Link copiado com sucesso.", false);
+    } catch (_error) {
+      setChurchMessage("Não foi possível copiar o link automaticamente.", true);
+    }
   }
 
   function escapeHtml(value) {
@@ -646,6 +716,7 @@
     if (el.usersChurchSupportEmail) el.usersChurchSupportEmail.value = tenant.support_email || "";
     if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.value = tenant.support_whatsapp || "";
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
+    updateChurchPreview();
   }
 
   async function loadInvitations() {
@@ -1344,6 +1415,7 @@
       if (window.applyTenantBranding) {
         window.applyTenantBranding(tenant);
       }
+      updateChurchPreview();
       setChurchMessage("Perfil da igreja atualizado com sucesso.", false);
     } catch (error) {
       setChurchMessage(error instanceof Error ? error.message : "Falha ao salvar perfil da igreja.", true);
@@ -1431,12 +1503,32 @@
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchRefreshBtn) el.usersChurchRefreshBtn.addEventListener("click", () => loadTenantProfile().catch((error) => setChurchMessage(error.message, true)));
     if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
-    if (el.usersChurchPreviewBtn) {
-      el.usersChurchPreviewBtn.addEventListener("click", () => {
-        const slug = (el.usersChurchSlug && el.usersChurchSlug.value.trim()) || localStorage.getItem("activeTenantSlug") || "default";
-        window.open(`/events/${encodeURIComponent(slug)}`, "_blank", "noopener,noreferrer");
+    if (el.usersChurchOpenLandingBtn) {
+      el.usersChurchOpenLandingBtn.addEventListener("click", () => {
+        window.open(buildChurchPublicUrls().landing, "_blank", "noopener,noreferrer");
       });
     }
+    if (el.usersChurchPreviewBtn) {
+      el.usersChurchPreviewBtn.addEventListener("click", () => {
+        window.open(buildChurchPublicUrls().catalog, "_blank", "noopener,noreferrer");
+      });
+    }
+    if (el.usersChurchCopyLandingBtn) el.usersChurchCopyLandingBtn.addEventListener("click", () => copyChurchUrl("landing"));
+    if (el.usersChurchCopyCatalogBtn) el.usersChurchCopyCatalogBtn.addEventListener("click", () => copyChurchUrl("catalog"));
+    if (el.usersChurchCopyLoginBtn) el.usersChurchCopyLoginBtn.addEventListener("click", () => copyChurchUrl("login"));
+    [
+      el.usersChurchName,
+      el.usersChurchSlug,
+      el.usersChurchPublicDisplayName,
+      el.usersChurchPublicDescription,
+      el.usersChurchLogoUrl,
+      el.usersChurchSupportEmail,
+      el.usersChurchSupportWhatsapp,
+    ].forEach((field) => {
+      if (field) {
+        field.addEventListener("input", updateChurchPreview);
+      }
+    });
     if (el.usersChurchCreateForm) el.usersChurchCreateForm.addEventListener("submit", submitChurchCreateForm);
     if (el.usersChurchCreateCloseBtn) el.usersChurchCreateCloseBtn.addEventListener("click", closeChurchCreateModal);
     if (el.usersChurchCreateCancelBtn) el.usersChurchCreateCancelBtn.addEventListener("click", closeChurchCreateModal);
