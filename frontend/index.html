@@ -15,14 +15,19 @@
   <section id="loginScreen" class="login-screen">
     <div class="login-shell">
       <aside class="login-hero">
-        <p class="eyebrow">Church Financial Management</p>
-        <h1>Controle financeiro com visao total</h1>
-        <p class="hint">Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.</p>
+        <img id="loginBrandLogo" class="login-brand-logo hide" alt="Logo da igreja">
+        <p id="loginBrandEyebrow" class="eyebrow">Church Financial Management</p>
+        <h1 id="loginBrandTitle">Controle financeiro com visao total</h1>
+        <p id="loginBrandSummary" class="hint">Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.</p>
         <ul class="hero-list">
-          <li>Resumo de saldo em tempo real</li>
-          <li>Lançamentos organizados por categoria</li>
-          <li>Upload de extratos CSV, OFX e PDF</li>
+          <li id="loginHeroPoint1">Resumo de saldo em tempo real</li>
+          <li id="loginHeroPoint2">Lançamentos organizados por categoria</li>
+          <li id="loginHeroPoint3">Upload de extratos CSV, OFX e PDF</li>
         </ul>
+        <div class="login-brand-footer">
+          <p id="loginBrandSupport" class="tiny login-brand-support"></p>
+          <a id="loginPublicCatalogLink" class="btn ghost hide" href="/events/default">Ver página pública</a>
+        </div>
       </aside>
 
       <div class="login-card">
@@ -178,6 +183,22 @@
         <button id="logoutBtn" class="btn ghost">Sair</button>
       </div>
     </header>
+
+    <section id="tenantOnboardingBanner" class="tenant-onboarding-banner hide">
+      <div class="tenant-onboarding-copy">
+        <p class="eyebrow tenant-onboarding-eyebrow">Onboarding da Igreja</p>
+        <h3 id="tenantOnboardingTitle">Deixe sua igreja pronta para vender</h3>
+        <p id="tenantOnboardingSummary" class="tenant-onboarding-summary">Configure identidade visual, contato e presença pública para a experiência ficar mais profissional.</p>
+      </div>
+      <div class="tenant-onboarding-progress">
+        <strong id="tenantOnboardingScore">0/5 concluído</strong>
+        <div id="tenantOnboardingChecklist" class="tenant-onboarding-checklist"></div>
+      </div>
+      <div class="tenant-onboarding-actions">
+        <button id="tenantOnboardingManageBtn" class="btn" type="button">Configurar igreja</button>
+        <a id="tenantOnboardingPreviewLink" class="btn ghost" href="/events/default" target="_blank" rel="noopener noreferrer">Ver vitrine pública</a>
+      </div>
+    </section>
 
     <main id="financeModule" class="app-grid">
       <aside class="sidebar panel">

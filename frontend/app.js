@@ -81,6 +81,15 @@ const state = {
 
 const el = {
   loginScreen: document.getElementById("loginScreen"),
+  loginBrandLogo: document.getElementById("loginBrandLogo"),
+  loginBrandEyebrow: document.getElementById("loginBrandEyebrow"),
+  loginBrandTitle: document.getElementById("loginBrandTitle"),
+  loginBrandSummary: document.getElementById("loginBrandSummary"),
+  loginHeroPoint1: document.getElementById("loginHeroPoint1"),
+  loginHeroPoint2: document.getElementById("loginHeroPoint2"),
+  loginHeroPoint3: document.getElementById("loginHeroPoint3"),
+  loginBrandSupport: document.getElementById("loginBrandSupport"),
+  loginPublicCatalogLink: document.getElementById("loginPublicCatalogLink"),
   publicCatalogScreen: document.getElementById("publicCatalogScreen"),
   publicEventDetailScreen: document.getElementById("publicEventDetailScreen"),
   publicEventScreen: document.getElementById("publicEventScreen"),
@@ -151,6 +160,13 @@ const el = {
   moduleUsersBtn: document.getElementById("moduleUsersBtn"),
   tenantSwitcher: document.getElementById("tenantSwitcher"),
   manageChurchBtn: document.getElementById("manageChurchBtn"),
+  tenantOnboardingBanner: document.getElementById("tenantOnboardingBanner"),
+  tenantOnboardingTitle: document.getElementById("tenantOnboardingTitle"),
+  tenantOnboardingSummary: document.getElementById("tenantOnboardingSummary"),
+  tenantOnboardingScore: document.getElementById("tenantOnboardingScore"),
+  tenantOnboardingChecklist: document.getElementById("tenantOnboardingChecklist"),
+  tenantOnboardingManageBtn: document.getElementById("tenantOnboardingManageBtn"),
+  tenantOnboardingPreviewLink: document.getElementById("tenantOnboardingPreviewLink"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -522,6 +538,9 @@ function showApp(isAuthed) {
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.toggle("hide", !isAuthed);
   el.tenantSwitcher.classList.toggle("hide", !isAuthed);
+  if (!isAuthed && el.tenantOnboardingBanner) {
+    el.tenantOnboardingBanner.classList.add("hide");
+  }
 }
 
 function showPublicEventApp() {
@@ -617,6 +636,133 @@ function formatPublicStatusLabel(value) {
   return map[value] || String(value || "-");
 }
 
+function getSupportLabel(branding = {}) {
+  const supportParts = [branding.support_email, branding.support_whatsapp].filter(Boolean);
+  return supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "";
+}
+
+function getLoginTenantSlug() {
+  const querySlug = new URLSearchParams(window.location.search).get("tenant");
+  return String(querySlug || localStorage.getItem("activeTenantSlug") || "default").trim() || "default";
+}
+
+function setLoginBranding(branding = {}, tenantSlug = "default") {
+  const displayName = branding.public_display_name || branding.name || "Church Financial Management";
+  const hasCustomBranding = Boolean(
+    branding.public_display_name ||
+    branding.logo_url ||
+    branding.public_description ||
+    branding.support_email ||
+    branding.support_whatsapp
+  );
+
+  if (el.loginBrandEyebrow) {
+    el.loginBrandEyebrow.textContent = hasCustomBranding ? "Plataforma da sua igreja" : "Church Financial Management";
+  }
+  if (el.loginBrandTitle) {
+    el.loginBrandTitle.textContent = hasCustomBranding
+      ? `${displayName} em um portal unico`
+      : "Controle financeiro com visao total";
+  }
+  if (el.loginBrandSummary) {
+    el.loginBrandSummary.textContent = branding.public_description
+      || "Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.";
+  }
+  if (el.loginHeroPoint1) {
+    el.loginHeroPoint1.textContent = hasCustomBranding ? "Multi-igrejas com operacao centralizada" : "Resumo de saldo em tempo real";
+  }
+  if (el.loginHeroPoint2) {
+    el.loginHeroPoint2.textContent = hasCustomBranding ? "Eventos, inscricoes e pagamentos online" : "Lancamentos organizados por categoria";
+  }
+  if (el.loginHeroPoint3) {
+    el.loginHeroPoint3.textContent = hasCustomBranding ? "Permissoes por igreja com branding proprio" : "Upload de extratos CSV, OFX e PDF";
+  }
+  if (el.loginBrandSupport) {
+    el.loginBrandSupport.textContent = getSupportLabel(branding);
+  }
+  if (el.loginBrandLogo) {
+    const logoUrl = String(branding.logo_url || "").trim();
+    el.loginBrandLogo.classList.toggle("hide", !logoUrl);
+    if (logoUrl) {
+      el.loginBrandLogo.src = logoUrl;
+    } else {
+      el.loginBrandLogo.removeAttribute("src");
+    }
+  }
+  if (el.loginPublicCatalogLink) {
+    el.loginPublicCatalogLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
+    el.loginPublicCatalogLink.classList.toggle("hide", !tenantSlug);
+  }
+}
+
+function buildTenantOnboardingItems(tenant = {}) {
+  return [
+    {
+      done: Boolean(tenant.public_display_name),
+      title: "Nome publico",
+      description: "Ajuste o nome exibido para membros e visitantes.",
+    },
+    {
+      done: Boolean(tenant.primary_color && tenant.secondary_color),
+      title: "Cores da marca",
+      description: "Defina a identidade visual da igreja.",
+    },
+    {
+      done: Boolean(tenant.logo_url),
+      title: "Logo",
+      description: "Exiba a logo nas paginas publicas e no login.",
+    },
+    {
+      done: Boolean(tenant.support_email || tenant.support_whatsapp),
+      title: "Contato",
+      description: "Mostre um canal de suporte nas paginas publicas.",
+    },
+    {
+      done: Boolean(tenant.public_description),
+      title: "Descricao",
+      description: "Explique a proposta da igreja ou ministerio.",
+    },
+  ];
+}
+
+function renderTenantOnboarding(tenant = {}) {
+  if (!el.tenantOnboardingBanner || !el.tenantOnboardingChecklist) return;
+  const canManage = Boolean(state.currentUserIsAdmin || state.currentUserRole === "admin");
+  if (!canManage) {
+    el.tenantOnboardingBanner.classList.add("hide");
+    return;
+  }
+
+  const items = buildTenantOnboardingItems(tenant);
+  const completed = items.filter((item) => item.done).length;
+  const isComplete = completed === items.length;
+
+  if (isComplete) {
+    el.tenantOnboardingBanner.classList.add("hide");
+    return;
+  }
+
+  const displayName = tenant.public_display_name || tenant.name || "sua igreja";
+  if (el.tenantOnboardingTitle) {
+    el.tenantOnboardingTitle.textContent = `${displayName}: ultimos ajustes para ficar vendavel`;
+  }
+  if (el.tenantOnboardingSummary) {
+    el.tenantOnboardingSummary.textContent = "Complete estes itens para deixar login, vitrine publica e checkout com cara de produto.";
+  }
+  if (el.tenantOnboardingScore) {
+    el.tenantOnboardingScore.textContent = `${completed}/${items.length} concluido`;
+  }
+  el.tenantOnboardingChecklist.innerHTML = items
+    .map((item) => `<div class="tenant-onboarding-item ${item.done ? "done" : ""}"><strong>${item.done ? "Concluido" : "Pendente"} · ${escapeHtml(item.title)}</strong>${escapeHtml(item.description)}</div>`)
+    .join("");
+
+  const tenantSlug = String(tenant.slug || localStorage.getItem("activeTenantSlug") || "default").trim() || "default";
+  if (el.tenantOnboardingPreviewLink) {
+    el.tenantOnboardingPreviewLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
+  }
+  el.tenantOnboardingBanner.classList.remove("hide");
+}
+
 function applyTenantBranding(branding = {}) {
   const root = document.documentElement;
   const primary = String(branding.primary_color || "").trim();
@@ -646,12 +792,17 @@ function applyTenantBranding(branding = {}) {
   });
 
   if (el.publicCatalogSupport) {
-    const supportParts = [branding.support_email, branding.support_whatsapp].filter(Boolean);
-    el.publicCatalogSupport.textContent = supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "";
+    el.publicCatalogSupport.textContent = getSupportLabel(branding);
   }
 }
 
 window.applyTenantBranding = applyTenantBranding;
+
+async function initializeLoginExperience() {
+  const tenantSlug = getLoginTenantSlug();
+  const branding = await loadPublicTenantBranding(tenantSlug);
+  setLoginBranding(branding || {}, tenantSlug);
+}
 
 async function loadPublicTenantBranding(tenantSlug) {
   if (!tenantSlug) return null;
@@ -3054,6 +3205,7 @@ function logout() {
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");
   showApp(false);
+  void initializeLoginExperience();
 }
 
 async function loadMe() {
@@ -3083,6 +3235,7 @@ async function loadMe() {
   applyTopModulePermissions();
   populateTenantSwitcher(me);
   applyTenantBranding(me.active_tenant || {});
+  renderTenantOnboarding(me.active_tenant || {});
   return me;
 }
 
@@ -3458,6 +3611,7 @@ async function initializeApp() {
 
   if (!state.accessToken) {
     showApp(false);
+    await initializeLoginExperience();
     return;
   }
 
@@ -3561,6 +3715,18 @@ if (el.tenantSwitcher) {
 
 if (el.manageChurchBtn) {
   el.manageChurchBtn.addEventListener("click", () => {
+    if (window.openChurchSettings) {
+      window.openChurchSettings();
+      return;
+    }
+    if (window.openUsersModule) {
+      window.openUsersModule();
+    }
+  });
+}
+
+if (el.tenantOnboardingManageBtn) {
+  el.tenantOnboardingManageBtn.addEventListener("click", () => {
     if (window.openChurchSettings) {
       window.openChurchSettings();
       return;
