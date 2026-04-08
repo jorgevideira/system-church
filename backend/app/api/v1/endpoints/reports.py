@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, get_current_active_user
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db
 from app.db.models.category import Category
+from app.db.models.tenant import Tenant
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
 
@@ -22,11 +23,12 @@ def _shift_month(month_start: date, delta: int) -> date:
 
 def _base_query(
     db: Session,
+    tenant_id: int,
     user_id: int,
     start_date: Optional[date],
     end_date: Optional[date],
 ):
-    q = db.query(Transaction).filter(Transaction.user_id == user_id)
+    q = db.query(Transaction).filter(Transaction.user_id == user_id, Transaction.tenant_id == tenant_id)
     if start_date:
         q = q.filter(Transaction.transaction_date >= start_date)
     if end_date:
@@ -40,8 +42,9 @@ def summary_report(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
-    q = _base_query(db, current_user.id, start_date, end_date)
+    q = _base_query(db, current_tenant.id, current_user.id, start_date, end_date)
     income = q.filter(Transaction.transaction_type == "income").with_entities(
         func.coalesce(func.sum(Transaction.amount), 0)
     ).scalar()
@@ -63,8 +66,9 @@ def by_category_report(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
-    q = _base_query(db, current_user.id, start_date, end_date)
+    q = _base_query(db, current_tenant.id, current_user.id, start_date, end_date)
     rows = (
         q.join(Category, Transaction.category_id == Category.id, isouter=True)
         .with_entities(
@@ -92,6 +96,7 @@ def monthly_report(
     year: int = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     rows = (
         db.query(
@@ -99,7 +104,7 @@ def monthly_report(
             Transaction.transaction_type,
             func.coalesce(func.sum(Transaction.amount), 0).label("total"),
         )
-        .filter(Transaction.user_id == current_user.id)
+        .filter(Transaction.user_id == current_user.id, Transaction.tenant_id == current_tenant.id)
         .filter(extract("year", Transaction.transaction_date) == year)
         .group_by("month", Transaction.transaction_type)
         .order_by("month")
@@ -115,6 +120,7 @@ def monthly_report(
 def annual_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     rows = (
         db.query(
@@ -123,7 +129,7 @@ def annual_report(
             func.coalesce(func.sum(Transaction.amount), 0).label("total"),
             func.count(Transaction.id).label("count"),
         )
-        .filter(Transaction.user_id == current_user.id)
+        .filter(Transaction.user_id == current_user.id, Transaction.tenant_id == current_tenant.id)
         .group_by("year", Transaction.transaction_type)
         .order_by("year")
         .all()
@@ -140,6 +146,7 @@ def cash_flow_report(
     months_forecast: int = Query(3, ge=1, le=12),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
@@ -152,7 +159,7 @@ def cash_flow_report(
             Transaction.transaction_type,
             func.coalesce(func.sum(Transaction.amount), 0).label("total"),
         )
-        .filter(Transaction.user_id == current_user.id)
+        .filter(Transaction.user_id == current_user.id, Transaction.tenant_id == current_tenant.id)
         .filter(Transaction.transaction_date >= history_start)
         .filter(Transaction.transaction_date < _shift_month(current_month_start, 1))
         .group_by("year", "month", Transaction.transaction_type)

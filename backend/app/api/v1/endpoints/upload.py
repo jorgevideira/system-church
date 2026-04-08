@@ -7,10 +7,11 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, get_current_active_user
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db
 from app.core.config import settings
 from app.core.constants import FILE_TYPES, MAX_FILE_SIZE_BYTES
 from app.db.models.statement_file import StatementFile
+from app.db.models.tenant import Tenant
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
 
@@ -43,6 +44,7 @@ async def upload_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     file_type = _get_file_type(file.filename or "")
     contents = await file.read()
@@ -63,6 +65,7 @@ async def upload_file(
         file_size=len(contents),
         status="pending",
         user_id=current_user.id,
+        tenant_id=current_tenant.id,
     )
     db.add(statement_file)
     db.commit()
@@ -91,8 +94,9 @@ def get_upload_status(
     file_id: int,
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
-    record = db.query(StatementFile).filter(StatementFile.id == file_id).first()
+    record = db.query(StatementFile).filter(StatementFile.id == file_id, StatementFile.tenant_id == current_tenant.id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
     return {
@@ -116,10 +120,11 @@ def retry_upload_processing(
     reset_existing: bool = True,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
         db.query(StatementFile)
-        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id)
+        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id, StatementFile.tenant_id == current_tenant.id)
         .first()
     )
     if not record:
@@ -157,10 +162,11 @@ def get_upload_duplicates_preview(
     file_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
         db.query(StatementFile)
-        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id)
+        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id, StatementFile.tenant_id == current_tenant.id)
         .first()
     )
     if not record:
@@ -196,6 +202,7 @@ def get_upload_duplicates_preview(
             inferred_type, _ = infer_transaction_type(desc, float(raw_amount))
             is_dup = check_duplicate_same_day_amount(
                 db,
+                tenant_id=record.tenant_id,
                 user_id=record.user_id,
                 transaction_date=parsed_date,
                 amount=amount,
@@ -210,6 +217,7 @@ def get_upload_duplicates_preview(
                 db.query(Transaction)
                 .filter(
                     Transaction.user_id == record.user_id,
+                    Transaction.tenant_id == record.tenant_id,
                     Transaction.transaction_date == parsed_date,
                     Transaction.amount == amount,
                     Transaction.transaction_type == inferred_type,
@@ -261,10 +269,11 @@ def apply_duplicate_selection(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
         db.query(StatementFile)
-        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id)
+        .filter(StatementFile.id == file_id, StatementFile.user_id == current_user.id, StatementFile.tenant_id == current_tenant.id)
         .first()
     )
     if not record:
@@ -275,7 +284,7 @@ def apply_duplicate_selection(
     # Evaluate duplicates imported for this file against existing user transactions.
     current_file_txs = (
         db.query(Transaction)
-        .filter(Transaction.statement_file_id == record.id, Transaction.user_id == current_user.id)
+        .filter(Transaction.statement_file_id == record.id, Transaction.user_id == current_user.id, Transaction.tenant_id == current_tenant.id)
         .all()
     )
 
@@ -285,6 +294,7 @@ def apply_duplicate_selection(
             db.query(Transaction)
             .filter(
                 Transaction.user_id == current_user.id,
+                Transaction.tenant_id == current_tenant.id,
                 Transaction.transaction_date == tx.transaction_date,
                 Transaction.amount == tx.amount,
                 Transaction.transaction_type == tx.transaction_type,
@@ -311,7 +321,7 @@ def apply_duplicate_selection(
 
     total = (
         db.query(Transaction)
-        .filter(Transaction.statement_file_id == record.id, Transaction.user_id == current_user.id)
+        .filter(Transaction.statement_file_id == record.id, Transaction.user_id == current_user.id, Transaction.tenant_id == current_tenant.id)
         .count()
     )
     record.transactions_count = total
@@ -331,10 +341,11 @@ def list_uploads(
     limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     records = (
         db.query(StatementFile)
-        .filter(StatementFile.user_id == current_user.id)
+        .filter(StatementFile.user_id == current_user.id, StatementFile.tenant_id == current_tenant.id)
         .order_by(StatementFile.created_at.desc())
         .offset(skip)
         .limit(limit)

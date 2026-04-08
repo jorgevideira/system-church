@@ -144,11 +144,13 @@ def ensure_default_tenant_memberships(db: Session, default_tenant: Tenant) -> No
 
 def create_default_categories(db: Session) -> None:
     """Create system categories defined in constants if they do not already exist."""
+    default_tenant = create_default_tenant(db)
     for cat_data in DEFAULT_CATEGORIES:
-        existing = db.query(Category).filter(Category.name == cat_data["name"]).first()
+        existing = db.query(Category).filter(Category.name == cat_data["name"], Category.tenant_id == default_tenant.id).first()
         if existing:
             continue
         category = Category(
+            tenant_id=default_tenant.id,
             name=cat_data["name"],
             description=cat_data.get("description"),
             type=cat_data.get("type", "both"),

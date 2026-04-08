@@ -6,8 +6,9 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_db, require_editor
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
 from app.core.config import settings
+from app.db.models.tenant import Tenant
 from app.db.models.transaction import Transaction
 from app.db.models.transaction_attachment import TransactionAttachment
 from app.db.models.user import User
@@ -29,10 +30,10 @@ def _safe_filename(name: str) -> str:
     return os.path.basename(name).replace("\x00", "").strip() or "attachment"
 
 
-def _get_transaction_for_user(db: Session, transaction_id: int, user: User) -> Transaction:
+def _get_transaction_for_user(db: Session, transaction_id: int, user: User, tenant: Tenant) -> Transaction:
     tx = (
         db.query(Transaction)
-        .filter(Transaction.id == transaction_id, Transaction.user_id == user.id)
+        .filter(Transaction.id == transaction_id, Transaction.user_id == user.id, Transaction.tenant_id == tenant.id)
         .first()
     )
     if not tx:
@@ -45,8 +46,9 @@ def list_transaction_attachments(
     transaction_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[TransactionAttachment]:
-    _get_transaction_for_user(db, transaction_id, current_user)
+    _get_transaction_for_user(db, transaction_id, current_user, current_tenant)
     return (
         db.query(TransactionAttachment)
         .filter(
@@ -68,8 +70,9 @@ async def upload_transaction_attachment(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionAttachment:
-    _get_transaction_for_user(db, transaction_id, current_user)
+    _get_transaction_for_user(db, transaction_id, current_user, current_tenant)
 
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File name is required")
@@ -117,8 +120,9 @@ def download_transaction_attachment(
     attachment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Response:
-    _get_transaction_for_user(db, transaction_id, current_user)
+    _get_transaction_for_user(db, transaction_id, current_user, current_tenant)
 
     attachment = (
         db.query(TransactionAttachment)

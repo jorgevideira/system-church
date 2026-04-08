@@ -12,11 +12,12 @@ from app.schemas.transaction import TransactionCreate, TransactionFilter, Transa
 
 def get_transactions(
     db: Session,
+    tenant_id: int,
     filters: Optional[TransactionFilter] = None,
     skip: int = 0,
     limit: int = 20,
 ) -> tuple[list[Transaction], int]:
-    q = db.query(Transaction).options(selectinload(Transaction.attachments))
+    q = db.query(Transaction).options(selectinload(Transaction.attachments)).filter(Transaction.tenant_id == tenant_id)
     if filters:
         if filters.start_date:
             q = q.filter(Transaction.transaction_date >= filters.start_date)
@@ -38,11 +39,11 @@ def get_transactions(
     return items, total
 
 
-def get_transaction(db: Session, transaction_id: int) -> Optional[Transaction]:
-    return db.query(Transaction).filter(Transaction.id == transaction_id).first()
+def get_transaction(db: Session, transaction_id: int, tenant_id: int) -> Optional[Transaction]:
+    return db.query(Transaction).filter(Transaction.id == transaction_id, Transaction.tenant_id == tenant_id).first()
 
 
-def create_transaction(db: Session, transaction_create: TransactionCreate, user_id: int) -> Transaction:
+def create_transaction(db: Session, transaction_create: TransactionCreate, user_id: int, tenant_id: int) -> Transaction:
     data = transaction_create.model_dump()
     if data.get("transaction_type") != "expense":
         data["ministry_id"] = None
@@ -52,7 +53,7 @@ def create_transaction(db: Session, transaction_create: TransactionCreate, user_
         str(data.get("transaction_date", "")),
         data.get("reference"),
     )
-    tx = Transaction(**data, user_id=user_id, status="confirmed", dedup_hash=dedup)
+    tx = Transaction(**data, user_id=user_id, tenant_id=tenant_id, status="confirmed", dedup_hash=dedup)
     db.add(tx)
     db.commit()
     db.refresh(tx)
@@ -63,6 +64,7 @@ def create_transaction_from_import(
     db: Session,
     transaction_create: TransactionCreate,
     user_id: int,
+    tenant_id: int,
     statement_file_id: int,
 ) -> Transaction:
     data = transaction_create.model_dump()
@@ -77,6 +79,7 @@ def create_transaction_from_import(
     tx = Transaction(
         **data,
         user_id=user_id,
+        tenant_id=tenant_id,
         statement_file_id=statement_file_id,
         status="confirmed",
         dedup_hash=dedup,
@@ -88,9 +91,9 @@ def create_transaction_from_import(
 
 
 def update_transaction(
-    db: Session, transaction_id: int, transaction_update: TransactionUpdate, user_id: int
+    db: Session, transaction_id: int, transaction_update: TransactionUpdate, user_id: int, tenant_id: int
 ) -> Optional[Transaction]:
-    tx = get_transaction(db, transaction_id)
+    tx = get_transaction(db, transaction_id, tenant_id)
     if not tx:
         return None
     update_data = transaction_update.model_dump(exclude_unset=True)
@@ -106,8 +109,8 @@ def update_transaction(
     return tx
 
 
-def delete_transaction(db: Session, transaction_id: int) -> bool:
-    tx = get_transaction(db, transaction_id)
+def delete_transaction(db: Session, transaction_id: int, tenant_id: int) -> bool:
+    tx = get_transaction(db, transaction_id, tenant_id)
     if not tx:
         return False
     db.delete(tx)
@@ -132,6 +135,7 @@ def check_duplicate(db: Session, hash_value: str) -> bool:
 def check_duplicate_same_day_amount(
     db: Session,
     *,
+    tenant_id: int,
     user_id: int,
     transaction_date: date,
     amount: Decimal,
@@ -140,6 +144,7 @@ def check_duplicate_same_day_amount(
 ) -> bool:
     """Duplicate rule requested: same day and same amount for the same user."""
     q = db.query(Transaction).filter(
+        Transaction.tenant_id == tenant_id,
         Transaction.user_id == user_id,
         Transaction.transaction_date == transaction_date,
         Transaction.amount == amount,

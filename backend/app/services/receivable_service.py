@@ -39,6 +39,7 @@ def _ensure_next_recurring_receivable(db: Session, receivable: Receivable) -> No
     next_due = _next_due_date(receivable.due_date, receivable.recurrence_type)
 
     existing = db.query(Receivable).filter(
+        Receivable.tenant_id == receivable.tenant_id,
         Receivable.user_id == receivable.user_id,
         Receivable.description == receivable.description,
         Receivable.due_date == next_due,
@@ -50,6 +51,7 @@ def _ensure_next_recurring_receivable(db: Session, receivable: Receivable) -> No
         return
 
     next_receivable = Receivable(
+        tenant_id=receivable.tenant_id,
         description=receivable.description,
         amount=receivable.amount,
         due_date=next_due,
@@ -65,9 +67,10 @@ def _ensure_next_recurring_receivable(db: Session, receivable: Receivable) -> No
     db.add(next_receivable)
 
 
-def refresh_overdue_statuses(db: Session, user_id: int) -> None:
+def refresh_overdue_statuses(db: Session, user_id: int, tenant_id: int) -> None:
     today = date.today()
     db.query(Receivable).filter(
+        Receivable.tenant_id == tenant_id,
         Receivable.user_id == user_id,
         Receivable.status == "pending",
         Receivable.due_date < today,
@@ -75,24 +78,24 @@ def refresh_overdue_statuses(db: Session, user_id: int) -> None:
     db.commit()
 
 
-def list_receivables(db: Session, user_id: int, status_filter: Optional[str] = None) -> list[Receivable]:
-    refresh_overdue_statuses(db, user_id)
-    q = db.query(Receivable).filter(Receivable.user_id == user_id)
+def list_receivables(db: Session, user_id: int, tenant_id: int, status_filter: Optional[str] = None) -> list[Receivable]:
+    refresh_overdue_statuses(db, user_id, tenant_id)
+    q = db.query(Receivable).filter(Receivable.user_id == user_id, Receivable.tenant_id == tenant_id)
     if status_filter:
         q = q.filter(Receivable.status == status_filter)
     return q.order_by(Receivable.due_date.asc(), Receivable.id.desc()).all()
 
 
-def get_receivable(db: Session, receivable_id: int, user_id: int) -> Optional[Receivable]:
-    refresh_overdue_statuses(db, user_id)
-    return db.query(Receivable).filter(Receivable.id == receivable_id, Receivable.user_id == user_id).first()
+def get_receivable(db: Session, receivable_id: int, user_id: int, tenant_id: int) -> Optional[Receivable]:
+    refresh_overdue_statuses(db, user_id, tenant_id)
+    return db.query(Receivable).filter(Receivable.id == receivable_id, Receivable.user_id == user_id, Receivable.tenant_id == tenant_id).first()
 
 
-def create_receivable(db: Session, receivable_in: ReceivableCreate, user_id: int) -> Receivable:
+def create_receivable(db: Session, receivable_in: ReceivableCreate, user_id: int, tenant_id: int) -> Receivable:
     data = receivable_in.model_dump()
     if not data.get("is_recurring"):
         data["recurrence_type"] = None
-    receivable = Receivable(**data, user_id=user_id, status="pending")
+    receivable = Receivable(**data, user_id=user_id, tenant_id=tenant_id, status="pending")
     db.add(receivable)
     db.commit()
     db.refresh(receivable)
@@ -146,6 +149,7 @@ def mark_receivable_received(
                 notes=(receivable.notes or "")[:900] or None,
             ),
             user_id=user_id,
+            tenant_id=receivable.tenant_id,
         )
         receipt_tx_id = tx.id
 
@@ -159,14 +163,14 @@ def mark_receivable_received(
     return receivable
 
 
-def get_alerts_summary(db: Session, user_id: int) -> dict:
-    refresh_overdue_statuses(db, user_id)
+def get_alerts_summary(db: Session, user_id: int, tenant_id: int) -> dict:
+    refresh_overdue_statuses(db, user_id, tenant_id)
 
     today = date.today()
     plus_3 = today + timedelta(days=3)
     plus_7 = today + timedelta(days=7)
 
-    base_q = db.query(Receivable).filter(Receivable.user_id == user_id, Receivable.status != "received")
+    base_q = db.query(Receivable).filter(Receivable.user_id == user_id, Receivable.tenant_id == tenant_id, Receivable.status != "received")
 
     overdue = base_q.filter(Receivable.due_date < today).count()
     due_today = base_q.filter(Receivable.due_date == today).count()

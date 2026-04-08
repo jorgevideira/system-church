@@ -4,7 +4,8 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_db, get_current_active_user, require_admin, require_editor
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin, require_editor
+from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.transaction import (
     PaginatedTransactions,
@@ -31,6 +32,7 @@ def list_transactions(
     size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaginatedTransactions:
     from datetime import date as date_type
 
@@ -50,7 +52,7 @@ def list_transactions(
         search_query=search_query,
     )
     skip = (page - 1) * size
-    items, total = transaction_service.get_transactions(db, filters=filters, skip=skip, limit=size)
+    items, total = transaction_service.get_transactions(db, current_tenant.id, filters=filters, skip=skip, limit=size)
     pages = math.ceil(total / size) if total else 1
     return PaginatedTransactions(items=items, total=total, page=page, size=size, pages=pages)
 
@@ -60,12 +62,14 @@ def create_transaction(
     transaction_in: TransactionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
-    tx = transaction_service.create_transaction(db, transaction_in, user_id=current_user.id)
+    tx = transaction_service.create_transaction(db, transaction_in, user_id=current_user.id, tenant_id=current_tenant.id)
     from app.services.ai_learning_service import record_feedback
 
     record_feedback(
         db,
+        tenant_id=current_tenant.id,
         user_id=current_user.id,
         description=tx.description,
         category_id=tx.category_id,
@@ -79,8 +83,9 @@ def get_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
-    tx = transaction_service.get_transaction(db, transaction_id)
+    tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     return tx
@@ -92,14 +97,16 @@ def update_transaction(
     transaction_in: TransactionUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
-    tx = transaction_service.update_transaction(db, transaction_id, transaction_in, user_id=current_user.id)
+    tx = transaction_service.update_transaction(db, transaction_id, transaction_in, user_id=current_user.id, tenant_id=current_tenant.id)
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     from app.services.ai_learning_service import record_feedback
 
     record_feedback(
         db,
+        tenant_id=current_tenant.id,
         user_id=current_user.id,
         description=tx.description,
         category_id=tx.category_id,
@@ -113,8 +120,9 @@ def delete_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    deleted = transaction_service.delete_transaction(db, transaction_id)
+    deleted = transaction_service.delete_transaction(db, transaction_id, current_tenant.id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
 
@@ -124,8 +132,9 @@ def approve_ai_suggestion(
     transaction_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
-    tx = transaction_service.get_transaction(db, transaction_id)
+    tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     if tx.ai_suggested_category_id:
@@ -141,8 +150,9 @@ def reject_ai_suggestion(
     transaction_id: int,
     db: Session = Depends(get_db),
     _editor: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
-    tx = transaction_service.get_transaction(db, transaction_id)
+    tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     tx.ai_category_suggestion = None

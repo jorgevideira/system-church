@@ -5,8 +5,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_db, require_editor
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
 from app.core.config import settings
+from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.payable import (
     MarkPayablePaidRequest,
@@ -41,8 +42,9 @@ def list_payables(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[PayableResponse]:
-    return payable_service.list_payables(db, current_user.id, status_filter=status_filter)
+    return payable_service.list_payables(db, current_user.id, current_tenant.id, status_filter=status_filter)
 
 
 @router.post("/", response_model=PayableResponse, status_code=status.HTTP_201_CREATED)
@@ -50,16 +52,18 @@ def create_payable(
     payable_in: PayableCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    return payable_service.create_payable(db, payable_in, user_id=current_user.id)
+    return payable_service.create_payable(db, payable_in, user_id=current_user.id, tenant_id=current_tenant.id)
 
 
 @router.get("/alerts/summary", response_model=PayableAlertsSummary)
 def get_payables_alerts_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableAlertsSummary:
-    return PayableAlertsSummary(**payable_service.get_alerts_summary(db, current_user.id))
+    return PayableAlertsSummary(**payable_service.get_alerts_summary(db, current_user.id, current_tenant.id))
 
 
 @router.get("/{payable_id}", response_model=PayableResponse)
@@ -67,8 +71,9 @@ def get_payable(
     payable_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
     return payable
@@ -80,8 +85,9 @@ def update_payable(
     payable_in: PayableUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
     return payable_service.update_payable(db, payable, payable_in)
@@ -92,8 +98,9 @@ def delete_payable(
     payable_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
     if payable.attachment_storage_filename:
@@ -109,8 +116,9 @@ def mark_payable_paid(
     payload: MarkPayablePaidRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
 
@@ -130,8 +138,9 @@ async def upload_payable_attachment(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
 
@@ -175,8 +184,9 @@ def download_payable_attachment(
     payable_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Response:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
     if not payable.attachment_storage_filename:
@@ -198,8 +208,9 @@ def delete_payable_attachment(
     payable_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
-    payable = payable_service.get_payable(db, payable_id, current_user.id)
+    payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
     if not payable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payable not found")
     if payable.attachment_storage_filename:

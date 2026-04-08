@@ -33,6 +33,7 @@ def extract_keywords(description: str, max_keywords: int = 6) -> list[str]:
 def record_feedback(
     db: Session,
     *,
+    tenant_id: int,
     user_id: int,
     description: str,
     category_id: Optional[int],
@@ -46,6 +47,7 @@ def record_feedback(
         rule = (
             db.query(ClassificationFeedback)
             .filter(
+                ClassificationFeedback.tenant_id == tenant_id,
                 ClassificationFeedback.user_id == user_id,
                 ClassificationFeedback.keyword == kw,
                 ClassificationFeedback.category_id == category_id,
@@ -58,6 +60,7 @@ def record_feedback(
         else:
             db.add(
                 ClassificationFeedback(
+                    tenant_id=tenant_id,
                     user_id=user_id,
                     keyword=kw,
                     category_id=category_id,
@@ -71,6 +74,7 @@ def record_feedback(
 def infer_from_feedback(
     db: Session,
     *,
+    tenant_id: int,
     user_id: int,
     description: str,
 ) -> tuple[Optional[str], Optional[str], float]:
@@ -81,6 +85,7 @@ def infer_from_feedback(
     rules = (
         db.query(ClassificationFeedback)
         .filter(
+            ClassificationFeedback.tenant_id == tenant_id,
             ClassificationFeedback.user_id == user_id,
             ClassificationFeedback.keyword.in_(keywords),
         )
@@ -101,7 +106,7 @@ def infer_from_feedback(
     category_name = None
     if category_scores:
         best_category_id = max(category_scores, key=category_scores.get)
-        cat = db.query(Category).filter(Category.id == best_category_id).first()
+        cat = db.query(Category).filter(Category.id == best_category_id, Category.tenant_id == tenant_id).first()
         if cat:
             category_name = cat.name
 

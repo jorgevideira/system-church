@@ -40,6 +40,7 @@ def _ensure_next_recurring_payable(db: Session, payable: Payable) -> None:
     next_due = _next_due_date(payable.due_date, payable.recurrence_type)
 
     existing = db.query(Payable).filter(
+        Payable.tenant_id == payable.tenant_id,
         Payable.user_id == payable.user_id,
         Payable.description == payable.description,
         Payable.due_date == next_due,
@@ -51,6 +52,7 @@ def _ensure_next_recurring_payable(db: Session, payable: Payable) -> None:
         return
 
     next_payable = Payable(
+        tenant_id=payable.tenant_id,
         description=payable.description,
         amount=payable.amount,
         due_date=next_due,
@@ -66,9 +68,10 @@ def _ensure_next_recurring_payable(db: Session, payable: Payable) -> None:
     db.add(next_payable)
 
 
-def refresh_overdue_statuses(db: Session, user_id: int) -> None:
+def refresh_overdue_statuses(db: Session, user_id: int, tenant_id: int) -> None:
     today = date.today()
     db.query(Payable).filter(
+        Payable.tenant_id == tenant_id,
         Payable.user_id == user_id,
         Payable.status == "pending",
         Payable.due_date < today,
@@ -76,24 +79,24 @@ def refresh_overdue_statuses(db: Session, user_id: int) -> None:
     db.commit()
 
 
-def list_payables(db: Session, user_id: int, status_filter: Optional[str] = None) -> list[Payable]:
-    refresh_overdue_statuses(db, user_id)
-    q = db.query(Payable).filter(Payable.user_id == user_id)
+def list_payables(db: Session, user_id: int, tenant_id: int, status_filter: Optional[str] = None) -> list[Payable]:
+    refresh_overdue_statuses(db, user_id, tenant_id)
+    q = db.query(Payable).filter(Payable.user_id == user_id, Payable.tenant_id == tenant_id)
     if status_filter:
         q = q.filter(Payable.status == status_filter)
     return q.order_by(Payable.due_date.asc(), Payable.id.desc()).all()
 
 
-def get_payable(db: Session, payable_id: int, user_id: int) -> Optional[Payable]:
-    refresh_overdue_statuses(db, user_id)
-    return db.query(Payable).filter(Payable.id == payable_id, Payable.user_id == user_id).first()
+def get_payable(db: Session, payable_id: int, user_id: int, tenant_id: int) -> Optional[Payable]:
+    refresh_overdue_statuses(db, user_id, tenant_id)
+    return db.query(Payable).filter(Payable.id == payable_id, Payable.user_id == user_id, Payable.tenant_id == tenant_id).first()
 
 
-def create_payable(db: Session, payable_in: PayableCreate, user_id: int) -> Payable:
+def create_payable(db: Session, payable_in: PayableCreate, user_id: int, tenant_id: int) -> Payable:
     data = payable_in.model_dump()
     if not data.get("is_recurring"):
         data["recurrence_type"] = None
-    payable = Payable(**data, user_id=user_id, status="pending")
+    payable = Payable(**data, user_id=user_id, tenant_id=tenant_id, status="pending")
     db.add(payable)
     db.commit()
     db.refresh(payable)
@@ -118,6 +121,7 @@ def delete_payable(db: Session, payable: Payable) -> None:
         payment_tx = db.query(Transaction).filter(
             Transaction.id == payable.payment_transaction_id,
             Transaction.user_id == payable.user_id,
+            Transaction.tenant_id == payable.tenant_id,
         ).first()
         if payment_tx:
             db.delete(payment_tx)
@@ -156,6 +160,7 @@ def mark_payable_paid(
                 notes=(payable.notes or "")[:900] or None,
             ),
             user_id=user_id,
+            tenant_id=payable.tenant_id,
         )
         payment_tx_id = tx.id
 
@@ -194,14 +199,14 @@ def clear_payable_attachment(db: Session, payable: Payable) -> Payable:
     return payable
 
 
-def get_alerts_summary(db: Session, user_id: int) -> dict:
-    refresh_overdue_statuses(db, user_id)
+def get_alerts_summary(db: Session, user_id: int, tenant_id: int) -> dict:
+    refresh_overdue_statuses(db, user_id, tenant_id)
 
     today = date.today()
     plus_3 = today + timedelta(days=3)
     plus_7 = today + timedelta(days=7)
 
-    base_q = db.query(Payable).filter(Payable.user_id == user_id, Payable.status != "paid")
+    base_q = db.query(Payable).filter(Payable.user_id == user_id, Payable.tenant_id == tenant_id, Payable.status != "paid")
 
     overdue = base_q.filter(Payable.due_date < today).count()
     due_today = base_q.filter(Payable.due_date == today).count()

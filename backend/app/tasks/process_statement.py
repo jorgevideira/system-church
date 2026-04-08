@@ -49,7 +49,7 @@ def process_statement_task(self, file_id: int, include_duplicates: bool = False)
             db.commit()
             return {"status": "completed", "transactions_imported": 0, "detail": statement.error_message}
 
-        categories = db.query(Category).filter(Category.is_active.is_(True)).all()
+        categories = db.query(Category).filter(Category.is_active.is_(True), Category.tenant_id == statement.tenant_id).all()
         category_dicts = [{"id": c.id, "name": c.name} for c in categories]
         category_name_to_id = {c.name: c.id for c in categories}
 
@@ -87,6 +87,7 @@ def process_statement_task(self, file_id: int, include_duplicates: bool = False)
 
                 learned_category_name, learned_type, learned_conf = infer_from_feedback(
                     db,
+                    tenant_id=statement.tenant_id,
                     user_id=statement.user_id,
                     description=desc,
                 )
@@ -98,6 +99,7 @@ def process_statement_task(self, file_id: int, include_duplicates: bool = False)
                 if not include_duplicates:
                     is_dup_day_amount = check_duplicate_same_day_amount(
                         db,
+                        tenant_id=statement.tenant_id,
                         user_id=statement.user_id,
                         transaction_date=parsed_date,
                         amount=amount,
@@ -127,6 +129,7 @@ def process_statement_task(self, file_id: int, include_duplicates: bool = False)
                     db,
                     tx_create,
                     user_id=statement.user_id,
+                    tenant_id=statement.tenant_id,
                     statement_file_id=statement.id,
                 )
                 tx.ai_confidence = max(float(tx.ai_confidence or 0), inferred_confidence)
