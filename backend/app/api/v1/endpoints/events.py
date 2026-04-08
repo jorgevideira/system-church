@@ -19,7 +19,8 @@ from app.schemas.event import (
     PublicEventResponse,
     PublicEventRegistrationResponse,
 )
-from app.services import event_service, mercadopago_service
+from app.schemas.event_notification import EventAnalyticsResponse, EventNotificationResponse
+from app.services import event_notification_service, event_service, mercadopago_service
 
 router = APIRouter()
 
@@ -110,6 +111,32 @@ def list_event_payments(
     return event_service.list_event_payments(db, event_id, current_tenant.id)
 
 
+@router.get("/{event_id}/notifications", response_model=List[EventNotificationResponse])
+def list_event_notifications(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> List[EventNotificationResponse]:
+    event = event_service.get_event(db, event_id, current_tenant.id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event_notification_service.list_notifications(db, event_id, current_tenant.id)
+
+
+@router.get("/{event_id}/analytics", response_model=EventAnalyticsResponse)
+def get_event_analytics(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> EventAnalyticsResponse:
+    event = event_service.get_event(db, event_id, current_tenant.id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event_notification_service.build_event_analytics(db, event)
+
+
 @router.post("/payments/{payment_id}/confirm", response_model=EventPaymentResponse)
 def confirm_event_payment(
     payment_id: int,
@@ -141,6 +168,17 @@ def get_public_registration(
     if registration is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registration not found")
     return registration
+
+
+@router.get("/public/tenants/{tenant_slug}/events", response_model=List[PublicEventResponse])
+def list_public_events(
+    tenant_slug: str,
+    db: Session = Depends(get_db),
+) -> List[PublicEventResponse]:
+    tenant, events = event_service.list_public_events(db, tenant_slug)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    return [PublicEventResponse.model_validate(event) for event in events]
 
 
 @router.get("/public/payments/{checkout_reference}", response_model=PublicEventPaymentStatusResponse)

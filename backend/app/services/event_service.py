@@ -15,7 +15,7 @@ from app.db.models.tenant import Tenant
 from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
-from app.services import mercadopago_service, transaction_service
+from app.services import event_notification_service, mercadopago_service, transaction_service
 
 
 def _slugify(value: str) -> str:
@@ -131,6 +131,24 @@ def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Op
         .first()
     )
     return tenant, event
+
+
+def list_public_events(db: Session, tenant_slug: str) -> tuple[Optional[Tenant], list[Event]]:
+    tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug, Tenant.is_active.is_(True)).first()
+    if tenant is None:
+        return None, []
+    events = (
+        db.query(Event)
+        .filter(
+            Event.tenant_id == tenant.id,
+            Event.visibility == "public",
+            Event.is_active.is_(True),
+            Event.status == "published",
+        )
+        .order_by(Event.start_at.asc(), Event.id.asc())
+        .all()
+    )
+    return tenant, events
 
 
 def count_reserved_slots(db: Session, event_id: int, tenant_id: int) -> int:
@@ -280,6 +298,12 @@ def create_public_registration(
     db.refresh(registration)
     if payment is not None:
         db.refresh(payment)
+    event_notification_service.enqueue_registration_notifications(
+        db,
+        event=event,
+        registration=registration,
+        phase="registration_created",
+    )
     return registration, payment
 
 
@@ -379,6 +403,15 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
         registration.status = "confirmed"
         registration.confirmed_at = payment.paid_at
         _ensure_income_transaction(db, event, registration, payment)
+        db.commit()
+        db.refresh(payment)
+        event_notification_service.enqueue_registration_notifications(
+            db,
+            event=event,
+            registration=registration,
+            phase="payment_confirmed",
+        )
+        return payment
     elif payload.status in {"failed", "expired", "cancelled", "refunded"}:
         registration.payment_status = payload.status
         if payload.status in {"expired", "cancelled"}:

@@ -33,3 +33,4 @@ from app.db.models.bible_school_attendance import BibleSchoolAttendance  # noqa:
 from app.db.models.event import Event  # noqa: F401
 from app.db.models.event_registration import EventRegistration  # noqa: F401
 from app.db.models.event_payment import EventPayment  # noqa: F401
+from app.db.models.event_notification import EventNotification  # noqa: F401

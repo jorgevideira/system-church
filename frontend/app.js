@@ -80,8 +80,27 @@ const state = {
 
 const el = {
   loginScreen: document.getElementById("loginScreen"),
+  publicCatalogScreen: document.getElementById("publicCatalogScreen"),
+  publicEventDetailScreen: document.getElementById("publicEventDetailScreen"),
   publicEventScreen: document.getElementById("publicEventScreen"),
   appShell: document.getElementById("appShell"),
+  publicCatalogTitle: document.getElementById("publicCatalogTitle"),
+  publicCatalogSummary: document.getElementById("publicCatalogSummary"),
+  publicCatalogGrid: document.getElementById("publicCatalogGrid"),
+  publicDetailTitle: document.getElementById("publicDetailTitle"),
+  publicDetailSummary: document.getElementById("publicDetailSummary"),
+  publicDetailMetaDate: document.getElementById("publicDetailMetaDate"),
+  publicDetailMetaLocation: document.getElementById("publicDetailMetaLocation"),
+  publicDetailMetaSlots: document.getElementById("publicDetailMetaSlots"),
+  publicDetailMessage: document.getElementById("publicDetailMessage"),
+  publicEventRegistrationForm: document.getElementById("publicEventRegistrationForm"),
+  publicDetailName: document.getElementById("publicDetailName"),
+  publicDetailEmail: document.getElementById("publicDetailEmail"),
+  publicDetailPhone: document.getElementById("publicDetailPhone"),
+  publicDetailQuantity: document.getElementById("publicDetailQuantity"),
+  publicDetailPaymentMethod: document.getElementById("publicDetailPaymentMethod"),
+  publicDetailNotes: document.getElementById("publicDetailNotes"),
+  publicDetailSubmitBtn: document.getElementById("publicDetailSubmitBtn"),
   publicEventTitle: document.getElementById("publicEventTitle"),
   publicEventSummary: document.getElementById("publicEventSummary"),
   publicEventMetaDate: document.getElementById("publicEventMetaDate"),
@@ -489,14 +508,34 @@ function setMessage(node, text, isError = false) {
 
 function showApp(isAuthed) {
   el.loginScreen.classList.toggle("hide", isAuthed);
+  el.publicCatalogScreen.classList.add("hide");
+  el.publicEventDetailScreen.classList.add("hide");
   el.publicEventScreen.classList.add("hide");
   el.appShell.classList.toggle("hide", !isAuthed);
 }
 
 function showPublicEventApp() {
   el.loginScreen.classList.add("hide");
+  el.publicCatalogScreen.classList.add("hide");
+  el.publicEventDetailScreen.classList.add("hide");
   el.appShell.classList.add("hide");
   el.publicEventScreen.classList.remove("hide");
+}
+
+function showPublicCatalogApp() {
+  el.loginScreen.classList.add("hide");
+  el.publicEventDetailScreen.classList.add("hide");
+  el.publicEventScreen.classList.add("hide");
+  el.appShell.classList.add("hide");
+  el.publicCatalogScreen.classList.remove("hide");
+}
+
+function showPublicEventDetailApp() {
+  el.loginScreen.classList.add("hide");
+  el.publicCatalogScreen.classList.add("hide");
+  el.publicEventScreen.classList.add("hide");
+  el.appShell.classList.add("hide");
+  el.publicEventDetailScreen.classList.remove("hide");
 }
 
 function isPublicRegistrationRoute() {
@@ -504,9 +543,33 @@ function isPublicRegistrationRoute() {
   return Boolean(match);
 }
 
+function isPublicCatalogRoute() {
+  return Boolean(window.location.pathname.match(/^\/events\/([^/]+)\/?$/));
+}
+
+function isPublicEventDetailRoute() {
+  return Boolean(window.location.pathname.match(/^\/events\/([^/]+)\/([^/]+)\/?$/));
+}
+
 function getCheckoutReferenceFromRoute() {
   const match = window.location.pathname.match(/\/events\/registration\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : "";
+}
+
+function getPublicCatalogTenantSlug() {
+  const match = window.location.pathname.match(/^\/events\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : "default";
+}
+
+function getPublicEventRouteParams() {
+  const match = window.location.pathname.match(/^\/events\/([^/]+)\/([^/]+)\/?$/);
+  if (!match) {
+    return { tenantSlug: "default", eventSlug: "" };
+  }
+  return {
+    tenantSlug: decodeURIComponent(match[1]),
+    eventSlug: decodeURIComponent(match[2]),
+  };
 }
 
 function formatCurrency(value) {
@@ -539,6 +602,15 @@ function formatPublicStatusLabel(value) {
     pix: "PIX",
   };
   return map[value] || String(value || "-");
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function clearPublicPaymentPolling() {
@@ -634,6 +706,74 @@ async function initializePublicEventApp() {
   } catch (error) {
     el.publicPaymentMessage.textContent = error.message;
   }
+}
+
+function renderPublicCatalog(events, tenantSlug) {
+  document.title = "Eventos | Inscricao Online";
+  el.publicCatalogTitle.textContent = "Eventos disponíveis";
+  el.publicCatalogSummary.textContent = "Escolha um evento público, faça sua inscrição e acompanhe o pagamento online.";
+
+  if (!events.length) {
+    el.publicCatalogGrid.innerHTML = "<article class='public-event-card-link'><h3>Nenhum evento disponível</h3><p class='tiny'>Publique um evento para começar a receber inscrições.</p></article>";
+    return;
+  }
+
+  el.publicCatalogGrid.innerHTML = events.map((event) => `
+    <a class="public-event-card-link" href="/events/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(event.slug)}">
+      <div>
+        <p class="eyebrow">Evento Público</p>
+        <h3>${escapeHtml(event.title)}</h3>
+      </div>
+      <p>${escapeHtml(event.summary || event.description || "Inscrições abertas online.")}</p>
+      <div class="public-event-card-meta">
+        <span>${escapeHtml(formatDateTime(event.start_at))}</span>
+        <span>${escapeHtml(event.location || "Local a definir")}</span>
+        <span>${escapeHtml(formatCurrency(event.price_per_registration || 0))}</span>
+      </div>
+    </a>
+  `).join("");
+}
+
+async function initializePublicCatalogApp() {
+  showPublicCatalogApp();
+  const tenantSlug = getPublicCatalogTenantSlug();
+  const response = await fetch(`${API_PREFIX}/events/public/tenants/${encodeURIComponent(tenantSlug)}/events`);
+  if (!response.ok) {
+    el.publicCatalogGrid.innerHTML = "<article class='public-event-card-link'><h3>Falha ao carregar eventos</h3><p class='tiny'>Tente novamente em instantes.</p></article>";
+    return;
+  }
+  const events = await response.json();
+  renderPublicCatalog(events, tenantSlug);
+}
+
+function renderPublicEventDetail(payload) {
+  const { tenant_slug: tenantSlug, event, available_slots: availableSlots } = payload;
+  document.title = `${event.title} | Inscricao`;
+  el.publicDetailTitle.textContent = event.title;
+  el.publicDetailSummary.textContent = event.summary || event.description || "Preencha seus dados para gerar a inscrição.";
+  el.publicDetailMetaDate.textContent = `Data: ${formatDateTime(event.start_at)}`;
+  el.publicDetailMetaLocation.textContent = `Local: ${event.location || "A definir"}`;
+  el.publicDetailMetaSlots.textContent = `Vagas: ${availableSlots == null ? "Ilimitadas" : availableSlots}`;
+  el.publicDetailMessage.textContent = `Valor por inscrição: ${formatCurrency(event.price_per_registration || 0)}`;
+  el.publicEventRegistrationForm.dataset.tenantSlug = tenantSlug;
+  el.publicEventRegistrationForm.dataset.eventSlug = event.slug;
+  el.publicDetailQuantity.max = String(event.max_registrations_per_order || 1);
+}
+
+async function initializePublicEventDetailApp() {
+  showPublicEventDetailApp();
+  const { tenantSlug, eventSlug } = getPublicEventRouteParams();
+  if (!eventSlug) {
+    el.publicDetailMessage.textContent = "Evento não encontrado.";
+    return;
+  }
+  const response = await fetch(`${API_PREFIX}/events/public/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventSlug)}`);
+  if (!response.ok) {
+    el.publicDetailMessage.textContent = "Falha ao carregar detalhes do evento.";
+    return;
+  }
+  const payload = await response.json();
+  renderPublicEventDetail(payload);
 }
 
 function setActiveView(viewId) {
@@ -3143,6 +3283,16 @@ async function initializeApp() {
     return;
   }
 
+  if (isPublicEventDetailRoute()) {
+    await initializePublicEventDetailApp();
+    return;
+  }
+
+  if (isPublicCatalogRoute()) {
+    await initializePublicCatalogApp();
+    return;
+  }
+
   if (!state.accessToken) {
     showApp(false);
     return;
@@ -3233,6 +3383,45 @@ el.publicCopyPixBtn.addEventListener("click", async () => {
     el.publicPaymentMessage.textContent = "Codigo PIX copiado com sucesso.";
   } catch (error) {
     el.publicPaymentMessage.textContent = error.message;
+  }
+});
+
+el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const tenantSlug = String(el.publicEventRegistrationForm.dataset.tenantSlug || "").trim();
+    const eventSlug = String(el.publicEventRegistrationForm.dataset.eventSlug || "").trim();
+    if (!tenantSlug || !eventSlug) {
+      throw new Error("Evento público não carregado.");
+    }
+
+    const payload = {
+      attendee_name: el.publicDetailName.value.trim(),
+      attendee_email: el.publicDetailEmail.value.trim(),
+      attendee_phone: el.publicDetailPhone.value.trim() || null,
+      quantity: Number(el.publicDetailQuantity.value || 1),
+      payment_method: el.publicDetailPaymentMethod.value,
+      notes: el.publicDetailNotes.value.trim() || null,
+    };
+
+    const response = await fetch(`${API_PREFIX}/events/public/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventSlug)}/registrations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(errorDetailToText(body.detail ?? body, "Falha ao criar inscricao"));
+    }
+
+    const result = await response.json();
+    if (result.payment && result.payment.checkout_url) {
+      window.location.href = `/events/registration/${encodeURIComponent(result.payment.checkout_reference)}`;
+      return;
+    }
+    throw new Error("Pagamento nao foi gerado para esta inscrição.");
+  } catch (error) {
+    el.publicDetailMessage.textContent = error.message;
   }
 });
 

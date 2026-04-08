@@ -31,6 +31,7 @@ from app.db.models.bible_school_attendance import BibleSchoolAttendance
 from app.db.models.event import Event
 from app.db.models.event_registration import EventRegistration
 from app.db.models.event_payment import EventPayment
+from app.db.models.event_notification import EventNotification
 
 __all__ = [
     "User",
@@ -67,4 +68,5 @@ __all__ = [
     "Event",
     "EventRegistration",
     "EventPayment",
+    "EventNotification",
 ]

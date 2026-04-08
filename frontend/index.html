@@ -42,6 +42,61 @@
     </div>
   </section>
 
+  <section id="publicCatalogScreen" class="public-event-screen hide">
+    <div class="public-catalog-shell">
+      <div class="public-catalog-header">
+        <p class="eyebrow">Agenda da Igreja</p>
+        <h1 id="publicCatalogTitle">Eventos disponíveis</h1>
+        <p id="publicCatalogSummary" class="hint">Inscreva-se online e acompanhe seu pagamento sem precisar fazer login.</p>
+      </div>
+      <div id="publicCatalogGrid" class="public-catalog-grid"></div>
+    </div>
+  </section>
+
+  <section id="publicEventDetailScreen" class="public-event-screen hide">
+    <div class="public-event-shell">
+      <aside class="public-event-hero">
+        <p class="eyebrow">Evento Público</p>
+        <h1 id="publicDetailTitle">Carregando evento</h1>
+        <p id="publicDetailSummary" class="hint">Estamos preparando os detalhes do evento.</p>
+        <ul class="hero-list">
+          <li id="publicDetailMetaDate">Data do evento</li>
+          <li id="publicDetailMetaLocation">Local do evento</li>
+          <li id="publicDetailMetaSlots">Vagas disponíveis</li>
+        </ul>
+      </aside>
+
+      <div class="public-event-card">
+        <h2>Faça sua inscrição</h2>
+        <p id="publicDetailMessage" class="message">Preencha os dados abaixo para gerar seu pagamento.</p>
+        <form id="publicEventRegistrationForm" class="stack">
+          <label>Nome completo
+            <input id="publicDetailName" type="text" required>
+          </label>
+          <label>E-mail
+            <input id="publicDetailEmail" type="email" required>
+          </label>
+          <label>Telefone
+            <input id="publicDetailPhone" type="text">
+          </label>
+          <label>Quantidade
+            <input id="publicDetailQuantity" type="number" min="1" value="1" required>
+          </label>
+          <label>Forma de pagamento
+            <select id="publicDetailPaymentMethod" required>
+              <option value="pix">PIX</option>
+              <option value="card">Cartão</option>
+            </select>
+          </label>
+          <label>Observações
+            <input id="publicDetailNotes" type="text" placeholder="Opcional">
+          </label>
+          <button id="publicDetailSubmitBtn" class="btn" type="submit">Gerar inscrição</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <section id="publicEventScreen" class="public-event-screen hide">
     <div class="public-event-shell">
       <aside class="public-event-hero">

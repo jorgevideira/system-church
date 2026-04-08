@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     MERCADOPAGO_WEBHOOK_SECRET: str | None = None
     MERCADOPAGO_INTEGRATOR_ID: str | None = None
 
+    # Notifications
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str | None = None
+    SMTP_USE_TLS: bool = True
+    WHATSAPP_WEBHOOK_URL: str | None = None
+    WHATSAPP_WEBHOOK_TOKEN: str | None = None
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
