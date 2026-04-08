@@ -163,6 +163,7 @@
         <button id="moduleFinanceBtn" class="module-btn active" type="button">Financeiro</button>
         <button id="moduleCellsBtn" class="module-btn" type="button">Células</button>
         <button id="moduleBibleSchoolBtn" class="module-btn" type="button">Escola Bíblica</button>
+        <button id="moduleEventsBtn" class="module-btn" type="button">Eventos</button>
         <button id="moduleUsersBtn" class="module-btn" type="button" onclick="window.openUsersModule && window.openUsersModule()">Configurações</button>
       </div>
       <div class="session-box">
@@ -2029,6 +2030,7 @@
             <option value="finance">Financeiro</option>
             <option value="cells">Células</option>
             <option value="school">Escola Bíblica</option>
+            <option value="events">Eventos</option>
             <option value="users">Configurações</option>
           </select>
         </label>
@@ -2056,10 +2058,228 @@
     </div>
   </div>
 
+  <section id="eventsModule" class="module-panel hide">
+    <div class="events-module-grid">
+      <aside class="events-sidebar panel">
+        <p class="sidebar-title">Eventos</p>
+        <button id="eventsNavEventsBtn" class="nav-btn active" type="button">Agenda</button>
+        <button id="eventsNavRegistrationsBtn" class="nav-btn" type="button">Inscrições</button>
+        <button id="eventsNavPaymentsBtn" class="nav-btn" type="button">Pagamentos</button>
+        <button id="eventsNavAnalyticsBtn" class="nav-btn" type="button">Analytics</button>
+        <button id="eventsNavNotificationsBtn" class="nav-btn" type="button">Notificações</button>
+      </aside>
+      <section class="events-content-stack">
+        <p id="eventsMessage" class="message"></p>
+
+        <section id="eventsAgendaView" class="panel events-view">
+          <div class="section-title">
+            <h3>Agenda de Eventos</h3>
+            <div class="module-actions">
+              <button id="eventsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+
+          <div class="events-admin-grid">
+            <div class="panel events-form-panel">
+              <h4 id="eventsFormTitle">Novo evento</h4>
+              <form id="eventsForm" class="stack">
+                <input type="hidden" id="eventsFormId">
+                <label>Título
+                  <input type="text" id="eventsTitle" required maxlength="255">
+                </label>
+                <label>Slug público
+                  <input type="text" id="eventsSlug" maxlength="255" placeholder="Opcional">
+                </label>
+                <label>Resumo
+                  <input type="text" id="eventsSummary" maxlength="255" placeholder="Opcional">
+                </label>
+                <label>Descrição
+                  <textarea id="eventsDescription" rows="4" placeholder="Detalhes do evento"></textarea>
+                </label>
+                <label>Local
+                  <input type="text" id="eventsLocation" maxlength="255" placeholder="Opcional">
+                </label>
+                <div class="events-form-row">
+                  <label>Início
+                    <input type="datetime-local" id="eventsStartAt" required>
+                  </label>
+                  <label>Fim
+                    <input type="datetime-local" id="eventsEndAt" required>
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label>Abertura das inscrições
+                    <input type="datetime-local" id="eventsRegistrationOpensAt">
+                  </label>
+                  <label>Encerramento das inscrições
+                    <input type="datetime-local" id="eventsRegistrationClosesAt">
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label>Visibilidade
+                    <select id="eventsVisibility">
+                      <option value="public">Público</option>
+                      <option value="private">Privado</option>
+                    </select>
+                  </label>
+                  <label>Status
+                    <select id="eventsStatus">
+                      <option value="draft">Rascunho</option>
+                      <option value="published">Publicado</option>
+                      <option value="cancelled">Cancelado</option>
+                      <option value="completed">Concluído</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label>Capacidade
+                    <input type="number" id="eventsCapacity" min="1" placeholder="Opcional">
+                  </label>
+                  <label>Máx. por inscrição
+                    <input type="number" id="eventsMaxRegistrationsPerOrder" min="1" value="1" required>
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label>Preço por inscrição
+                    <input type="number" id="eventsPricePerRegistration" min="0" step="0.01" value="0">
+                  </label>
+                  <label>Moeda
+                    <input type="text" id="eventsCurrency" maxlength="10" value="BRL">
+                  </label>
+                </div>
+                <div class="events-form-row">
+                  <label class="inline-check">
+                    <input type="checkbox" id="eventsAllowPublicRegistration" checked>
+                    Permitir inscrição pública
+                  </label>
+                  <label class="inline-check">
+                    <input type="checkbox" id="eventsRequirePayment">
+                    Exigir pagamento
+                  </label>
+                  <label class="inline-check">
+                    <input type="checkbox" id="eventsIsActive" checked>
+                    Evento ativo
+                  </label>
+                </div>
+                <div class="modal-actions">
+                  <button id="eventsFormResetBtn" class="btn ghost" type="button">Limpar</button>
+                  <button id="eventsDeleteBtn" class="btn ghost hide" type="button">Excluir</button>
+                  <button class="btn" type="submit">Salvar evento</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <h4>Eventos cadastrados</h4>
+                <div class="module-actions">
+                  <span id="eventsSelectedBadge" class="tiny">Nenhum evento selecionado</span>
+                </div>
+              </div>
+              <div id="eventsCards" class="events-cards">
+                <article class="event-admin-card">
+                  <h4>Sem eventos</h4>
+                  <p class="tiny">Crie seu primeiro evento para começar.</p>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="eventsRegistrationsView" class="panel events-view hide">
+          <div class="section-title">
+            <h3>Inscrições</h3>
+            <div class="module-actions">
+              <button id="eventsRegistrationsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p class="tiny" id="eventsRegistrationsHint">Selecione um evento na agenda para ver as inscrições.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Código</th><th>Participante</th><th>Qtd</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
+              </thead>
+              <tbody id="eventsRegistrationsBody"><tr><td colspan="7">Selecione um evento.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="eventsPaymentsView" class="panel events-view hide">
+          <div class="section-title">
+            <h3>Pagamentos</h3>
+            <div class="module-actions">
+              <button id="eventsPaymentsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p class="tiny" id="eventsPaymentsHint">Selecione um evento na agenda para acompanhar pagamentos PIX e cartão.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Referência</th><th>Método</th><th>Status</th><th>Valor</th><th>Checkout</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="eventsPaymentsBody"><tr><td colspan="6">Selecione um evento.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="eventsAnalyticsView" class="panel events-view hide">
+          <div class="section-title">
+            <h3>Analytics do Evento</h3>
+            <div class="module-actions">
+              <button id="eventsAnalyticsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p class="tiny" id="eventsAnalyticsHint">Selecione um evento na agenda para ver ocupação, receita e conversão.</p>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-label">Vagas reservadas</div><div class="stat-value" id="eventsReservedSlots">0</div></div>
+            <div class="stat-card"><div class="stat-label">Inscrições confirmadas</div><div class="stat-value approved" id="eventsConfirmedRegistrations">0</div></div>
+            <div class="stat-card"><div class="stat-label">Inscrições pendentes</div><div class="stat-value" id="eventsPendingRegistrations">0</div></div>
+            <div class="stat-card"><div class="stat-label">Receita confirmada</div><div class="stat-value" id="eventsRevenueConfirmed">R$ 0,00</div></div>
+            <div class="stat-card"><div class="stat-label">Receita pendente</div><div class="stat-value" id="eventsRevenuePending">R$ 0,00</div></div>
+            <div class="stat-card"><div class="stat-label">Capacidade</div><div class="stat-value" id="eventsCapacityValue">-</div></div>
+          </div>
+          <div class="events-analytics-grid">
+            <article class="dashboard-card">
+              <h4>Status dos pagamentos</h4>
+              <canvas id="eventsPaymentStatusChart" class="cells-canvas" aria-label="Status dos pagamentos"></canvas>
+            </article>
+            <article class="dashboard-card">
+              <h4>Métodos de pagamento</h4>
+              <canvas id="eventsPaymentMethodChart" class="cells-canvas" aria-label="Métodos de pagamento"></canvas>
+            </article>
+          </div>
+          <article class="dashboard-card">
+            <h4>Inscrições por dia</h4>
+            <canvas id="eventsRegistrationsTimelineChart" class="cells-canvas" aria-label="Inscrições por dia"></canvas>
+          </article>
+        </section>
+
+        <section id="eventsNotificationsView" class="panel events-view hide">
+          <div class="section-title">
+            <h3>Notificações</h3>
+            <div class="module-actions">
+              <button id="eventsNotificationsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p class="tiny" id="eventsNotificationsHint">Selecione um evento na agenda para auditar e-mail e WhatsApp.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Canal</th><th>Destinatário</th><th>Template</th><th>Status</th><th>Erro</th><th>Enviado em</th></tr>
+              </thead>
+              <tbody id="eventsNotificationsBody"><tr><td colspan="6">Selecione um evento.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </div>
+  </section>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
   <script src="cells-module.js"></script>
   <script src="school-module.js"></script>
+  <script src="events-module.js?v=20260408-events-admin-1"></script>
   <script src="users-module.js?v=20260401-users-actions-fix-2"></script>
 </body>
 </html>

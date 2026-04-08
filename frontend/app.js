@@ -141,6 +141,7 @@ const el = {
   moduleFinanceBtn: document.getElementById("moduleFinanceBtn"),
   moduleCellsBtn: document.getElementById("moduleCellsBtn"),
   moduleBibleSchoolBtn: document.getElementById("moduleBibleSchoolBtn"),
+  moduleEventsBtn: document.getElementById("moduleEventsBtn"),
   moduleUsersBtn: document.getElementById("moduleUsersBtn"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
@@ -859,7 +860,7 @@ function hasModuleAccess(moduleName) {
 }
 
 function getFirstAccessibleModule() {
-  const orderedModules = ["finance", "cells", "school", "users"];
+  const orderedModules = ["finance", "cells", "school", "events", "users"];
   for (const moduleName of orderedModules) {
     if (hasModuleAccess(moduleName)) {
       return moduleName;
@@ -884,6 +885,7 @@ function openFirstAccessibleModule() {
   const clickMap = {
     cells: el.moduleCellsBtn,
     school: el.moduleBibleSchoolBtn,
+    events: el.moduleEventsBtn,
     users: el.moduleUsersBtn,
   };
   const targetBtn = clickMap[moduleName];
@@ -920,6 +922,7 @@ function applyTopModulePermissions() {
     [el.moduleFinanceBtn, "finance"],
     [el.moduleCellsBtn, "cells"],
     [el.moduleBibleSchoolBtn, "school"],
+    [el.moduleEventsBtn, "events"],
     [el.moduleUsersBtn, "users"],
   ];
 
@@ -2878,6 +2881,9 @@ async function login(email, password) {
   state.refreshToken = data.refresh_token;
   localStorage.setItem("accessToken", data.access_token);
   localStorage.setItem("refreshToken", data.refresh_token);
+  if (data.active_tenant_slug) {
+    localStorage.setItem("activeTenantSlug", data.active_tenant_slug);
+  }
 }
 
 function logout() {
@@ -2892,6 +2898,7 @@ function logout() {
   localStorage.removeItem("currentUserRole");
   localStorage.removeItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY);
   localStorage.removeItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY);
+  localStorage.removeItem("activeTenantSlug");
   document.body.dataset.userRole = "";
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");

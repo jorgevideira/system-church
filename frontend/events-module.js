@@ -1,0 +1,760 @@
+(function () {
+  const apiPrefix = "/api/v1";
+  const eventsEndpoint = `${apiPrefix}/events`;
+  const permissionStorageKey = "currentUserPermissions";
+  const isAdminStorageKey = "currentUserIsAdmin";
+
+  const VIEW_PERMISSIONS = {
+    agenda: "events_events_view",
+    registrations: "events_registrations_view",
+    payments: "events_payments_view",
+    analytics: "events_analytics_view",
+    notifications: "events_notifications_view",
+  };
+
+  let eventsBound = false;
+
+  const el = {
+    eventsBtn: document.getElementById("moduleEventsBtn"),
+    eventsModule: document.getElementById("eventsModule"),
+    eventsMessage: document.getElementById("eventsMessage"),
+    eventsNavEventsBtn: document.getElementById("eventsNavEventsBtn"),
+    eventsNavRegistrationsBtn: document.getElementById("eventsNavRegistrationsBtn"),
+    eventsNavPaymentsBtn: document.getElementById("eventsNavPaymentsBtn"),
+    eventsNavAnalyticsBtn: document.getElementById("eventsNavAnalyticsBtn"),
+    eventsNavNotificationsBtn: document.getElementById("eventsNavNotificationsBtn"),
+    eventsAgendaView: document.getElementById("eventsAgendaView"),
+    eventsRegistrationsView: document.getElementById("eventsRegistrationsView"),
+    eventsPaymentsView: document.getElementById("eventsPaymentsView"),
+    eventsAnalyticsView: document.getElementById("eventsAnalyticsView"),
+    eventsNotificationsView: document.getElementById("eventsNotificationsView"),
+    eventsRefreshBtn: document.getElementById("eventsRefreshBtn"),
+    eventsForm: document.getElementById("eventsForm"),
+    eventsFormTitle: document.getElementById("eventsFormTitle"),
+    eventsFormId: document.getElementById("eventsFormId"),
+    eventsTitle: document.getElementById("eventsTitle"),
+    eventsSlug: document.getElementById("eventsSlug"),
+    eventsSummary: document.getElementById("eventsSummary"),
+    eventsDescription: document.getElementById("eventsDescription"),
+    eventsLocation: document.getElementById("eventsLocation"),
+    eventsStartAt: document.getElementById("eventsStartAt"),
+    eventsEndAt: document.getElementById("eventsEndAt"),
+    eventsRegistrationOpensAt: document.getElementById("eventsRegistrationOpensAt"),
+    eventsRegistrationClosesAt: document.getElementById("eventsRegistrationClosesAt"),
+    eventsVisibility: document.getElementById("eventsVisibility"),
+    eventsStatus: document.getElementById("eventsStatus"),
+    eventsCapacity: document.getElementById("eventsCapacity"),
+    eventsMaxRegistrationsPerOrder: document.getElementById("eventsMaxRegistrationsPerOrder"),
+    eventsPricePerRegistration: document.getElementById("eventsPricePerRegistration"),
+    eventsCurrency: document.getElementById("eventsCurrency"),
+    eventsAllowPublicRegistration: document.getElementById("eventsAllowPublicRegistration"),
+    eventsRequirePayment: document.getElementById("eventsRequirePayment"),
+    eventsIsActive: document.getElementById("eventsIsActive"),
+    eventsFormResetBtn: document.getElementById("eventsFormResetBtn"),
+    eventsDeleteBtn: document.getElementById("eventsDeleteBtn"),
+    eventsCards: document.getElementById("eventsCards"),
+    eventsSelectedBadge: document.getElementById("eventsSelectedBadge"),
+    eventsRegistrationsRefreshBtn: document.getElementById("eventsRegistrationsRefreshBtn"),
+    eventsRegistrationsHint: document.getElementById("eventsRegistrationsHint"),
+    eventsRegistrationsBody: document.getElementById("eventsRegistrationsBody"),
+    eventsPaymentsRefreshBtn: document.getElementById("eventsPaymentsRefreshBtn"),
+    eventsPaymentsHint: document.getElementById("eventsPaymentsHint"),
+    eventsPaymentsBody: document.getElementById("eventsPaymentsBody"),
+    eventsAnalyticsRefreshBtn: document.getElementById("eventsAnalyticsRefreshBtn"),
+    eventsAnalyticsHint: document.getElementById("eventsAnalyticsHint"),
+    eventsReservedSlots: document.getElementById("eventsReservedSlots"),
+    eventsConfirmedRegistrations: document.getElementById("eventsConfirmedRegistrations"),
+    eventsPendingRegistrations: document.getElementById("eventsPendingRegistrations"),
+    eventsRevenueConfirmed: document.getElementById("eventsRevenueConfirmed"),
+    eventsRevenuePending: document.getElementById("eventsRevenuePending"),
+    eventsCapacityValue: document.getElementById("eventsCapacityValue"),
+    eventsPaymentStatusChart: document.getElementById("eventsPaymentStatusChart"),
+    eventsPaymentMethodChart: document.getElementById("eventsPaymentMethodChart"),
+    eventsRegistrationsTimelineChart: document.getElementById("eventsRegistrationsTimelineChart"),
+    eventsNotificationsRefreshBtn: document.getElementById("eventsNotificationsRefreshBtn"),
+    eventsNotificationsHint: document.getElementById("eventsNotificationsHint"),
+    eventsNotificationsBody: document.getElementById("eventsNotificationsBody"),
+  };
+
+  const state = {
+    events: [],
+    registrations: [],
+    payments: [],
+    notifications: [],
+    analytics: null,
+    permissionSet: new Set(),
+    isAdmin: false,
+    currentView: "agenda",
+    selectedEventId: null,
+    charts: {
+      paymentStatus: null,
+      paymentMethod: null,
+      registrationsTimeline: null,
+    },
+  };
+
+  function getToken() {
+    return localStorage.getItem("accessToken") || "";
+  }
+
+  function loadPermissionState() {
+    try {
+      const raw = localStorage.getItem(permissionStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      state.permissionSet = new Set(Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []);
+    } catch (_error) {
+      state.permissionSet = new Set();
+    }
+    state.isAdmin = localStorage.getItem(isAdminStorageKey) === "true";
+  }
+
+  function hasPermission(permissionName) {
+    if (!permissionName) return false;
+    if (state.isAdmin) return true;
+    return state.permissionSet.has(permissionName);
+  }
+
+  function hasEventsModuleAccess() {
+    if (state.isAdmin) return true;
+    for (const permissionName of state.permissionSet) {
+      if (permissionName.indexOf("events_") === 0) return true;
+    }
+    return false;
+  }
+
+  function getFirstAllowedView() {
+    if (hasPermission(VIEW_PERMISSIONS.agenda)) return "agenda";
+    if (hasPermission(VIEW_PERMISSIONS.registrations)) return "registrations";
+    if (hasPermission(VIEW_PERMISSIONS.payments)) return "payments";
+    if (hasPermission(VIEW_PERMISSIONS.analytics)) return "analytics";
+    if (hasPermission(VIEW_PERMISSIONS.notifications)) return "notifications";
+    return null;
+  }
+
+  function buildHeaders(includeJson = false) {
+    const headers = new Headers();
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    if (includeJson) headers.set("Content-Type", "application/json");
+    return headers;
+  }
+
+  async function parseError(response, fallbackMessage) {
+    let detail = fallbackMessage;
+    try {
+      const body = await response.json();
+      if (body && typeof body === "object") {
+        if (typeof body.detail === "string") detail = body.detail;
+        if (typeof body.msg === "string") detail = body.msg;
+      }
+    } catch (_error) {
+      // no-op
+    }
+    if (response.status === 401) return "Sessao expirada. Faca login novamente.";
+    return detail;
+  }
+
+  async function fetchJson(url, options = {}, fallbackMessage = "Falha na requisicao.") {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      throw new Error(await parseError(response, fallbackMessage));
+    }
+    if (response.status === 204) return null;
+    return response.json();
+  }
+
+  function setMessage(message, isError = false) {
+    if (!el.eventsMessage) return;
+    el.eventsMessage.textContent = message || "";
+    el.eventsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("pt-BR");
+  }
+
+  function formatMoney(value, currency = "BRL") {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
+  }
+
+  function statusLabel(value) {
+    const map = {
+      draft: "Rascunho",
+      published: "Publicado",
+      cancelled: "Cancelado",
+      completed: "Concluido",
+      pending_payment: "Pendente",
+      confirmed: "Confirmada",
+      pending: "Pendente",
+      paid: "Pago",
+      failed: "Falhou",
+      expired: "Expirou",
+      refunded: "Reembolsado",
+      not_required: "Nao exigido",
+      queued: "Na fila",
+      sent: "Enviado",
+    };
+    return map[String(value || "").toLowerCase()] || String(value || "-");
+  }
+
+  function toInputDateTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (item) => String(item).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function toIsoDateTime(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
+  }
+
+  function applyModuleVisibility() {
+    const canOpen = hasEventsModuleAccess();
+    if (el.eventsBtn) {
+      el.eventsBtn.classList.toggle("hide", !canOpen);
+      el.eventsBtn.disabled = !canOpen;
+    }
+    if (el.eventsNavEventsBtn) el.eventsNavEventsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.agenda));
+    if (el.eventsNavRegistrationsBtn) el.eventsNavRegistrationsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.registrations));
+    if (el.eventsNavPaymentsBtn) el.eventsNavPaymentsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.payments));
+    if (el.eventsNavAnalyticsBtn) el.eventsNavAnalyticsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.analytics));
+    if (el.eventsNavNotificationsBtn) el.eventsNavNotificationsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.notifications));
+    if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.toggle("hide", !(state.selectedEventId && hasPermission("events_events_delete")));
+  }
+
+  function setActiveModule(moduleName) {
+    if (window.setTopModule) {
+      window.setTopModule(moduleName);
+      return;
+    }
+    if (el.eventsModule) {
+      el.eventsModule.classList.toggle("hide", moduleName !== "events");
+    }
+  }
+
+  function setView(viewName) {
+    const requiredPermission = VIEW_PERMISSIONS[viewName];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+      setMessage("Acesso negado: sua role nao permite esta tela.", true);
+      const fallbackView = getFirstAllowedView();
+      if (!fallbackView || fallbackView === viewName) return;
+      viewName = fallbackView;
+    }
+
+    state.currentView = viewName;
+    if (el.eventsNavEventsBtn) el.eventsNavEventsBtn.classList.toggle("active", viewName === "agenda");
+    if (el.eventsNavRegistrationsBtn) el.eventsNavRegistrationsBtn.classList.toggle("active", viewName === "registrations");
+    if (el.eventsNavPaymentsBtn) el.eventsNavPaymentsBtn.classList.toggle("active", viewName === "payments");
+    if (el.eventsNavAnalyticsBtn) el.eventsNavAnalyticsBtn.classList.toggle("active", viewName === "analytics");
+    if (el.eventsNavNotificationsBtn) el.eventsNavNotificationsBtn.classList.toggle("active", viewName === "notifications");
+
+    if (el.eventsAgendaView) el.eventsAgendaView.classList.toggle("hide", viewName !== "agenda");
+    if (el.eventsRegistrationsView) el.eventsRegistrationsView.classList.toggle("hide", viewName !== "registrations");
+    if (el.eventsPaymentsView) el.eventsPaymentsView.classList.toggle("hide", viewName !== "payments");
+    if (el.eventsAnalyticsView) el.eventsAnalyticsView.classList.toggle("hide", viewName !== "analytics");
+    if (el.eventsNotificationsView) el.eventsNotificationsView.classList.toggle("hide", viewName !== "notifications");
+  }
+
+  function resetEventForm() {
+    if (!el.eventsForm) return;
+    el.eventsForm.reset();
+    el.eventsFormId.value = "";
+    el.eventsMaxRegistrationsPerOrder.value = "1";
+    el.eventsPricePerRegistration.value = "0";
+    el.eventsCurrency.value = "BRL";
+    el.eventsAllowPublicRegistration.checked = true;
+    el.eventsIsActive.checked = true;
+    if (el.eventsFormTitle) el.eventsFormTitle.textContent = "Novo evento";
+    if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.add("hide");
+  }
+
+  function selectedEvent() {
+    return state.events.find((item) => item.id === state.selectedEventId) || null;
+  }
+
+  function updateSelectedBadge() {
+    const event = selectedEvent();
+    if (el.eventsSelectedBadge) {
+      el.eventsSelectedBadge.textContent = event ? `Selecionado: ${event.title}` : "Nenhum evento selecionado";
+    }
+    applyModuleVisibility();
+  }
+
+  function fillEventForm(event) {
+    el.eventsFormId.value = String(event.id);
+    el.eventsTitle.value = event.title || "";
+    el.eventsSlug.value = event.slug || "";
+    el.eventsSummary.value = event.summary || "";
+    el.eventsDescription.value = event.description || "";
+    el.eventsLocation.value = event.location || "";
+    el.eventsStartAt.value = toInputDateTime(event.start_at);
+    el.eventsEndAt.value = toInputDateTime(event.end_at);
+    el.eventsRegistrationOpensAt.value = toInputDateTime(event.registration_opens_at);
+    el.eventsRegistrationClosesAt.value = toInputDateTime(event.registration_closes_at);
+    el.eventsVisibility.value = event.visibility || "public";
+    el.eventsStatus.value = event.status || "draft";
+    el.eventsCapacity.value = event.capacity || "";
+    el.eventsMaxRegistrationsPerOrder.value = String(event.max_registrations_per_order || 1);
+    el.eventsPricePerRegistration.value = String(event.price_per_registration || 0);
+    el.eventsCurrency.value = event.currency || "BRL";
+    el.eventsAllowPublicRegistration.checked = Boolean(event.allow_public_registration);
+    el.eventsRequirePayment.checked = Boolean(event.require_payment);
+    el.eventsIsActive.checked = Boolean(event.is_active);
+    if (el.eventsFormTitle) el.eventsFormTitle.textContent = `Editar evento: ${event.title}`;
+    if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.toggle("hide", !hasPermission("events_events_delete"));
+  }
+
+  function renderEvents() {
+    if (!el.eventsCards) return;
+
+    if (!state.events.length) {
+      el.eventsCards.innerHTML = "<article class='event-admin-card'><h4>Sem eventos</h4><p class='tiny'>Crie seu primeiro evento para comecar a vender inscricoes.</p></article>";
+      updateSelectedBadge();
+      return;
+    }
+
+    const tenantSlug = localStorage.getItem("activeTenantSlug") || "default";
+    el.eventsCards.innerHTML = state.events.map((event) => {
+      const isSelected = event.id === state.selectedEventId;
+      const publicUrl = `/events/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(event.slug)}`;
+      const showPublicLink = event.visibility === "public";
+      return `
+        <article class="event-admin-card${isSelected ? " active" : ""}">
+          <div class="event-admin-card-head">
+            <div>
+              <h4>${escapeHtml(event.title)}</h4>
+              <p>${escapeHtml(event.summary || event.description || "Sem resumo cadastrado.")}</p>
+            </div>
+            <span class="event-admin-chip">${escapeHtml(statusLabel(event.status))}</span>
+          </div>
+          <div class="event-admin-card-meta">
+            <span class="event-admin-chip">${escapeHtml(formatDateTime(event.start_at))}</span>
+            <span class="event-admin-chip">${escapeHtml(event.location || "Local a definir")}</span>
+            <span class="event-admin-chip">${escapeHtml(formatMoney(event.price_per_registration || 0, event.currency || "BRL"))}</span>
+          </div>
+          <div class="event-admin-card-actions">
+            <button class="btn btn-mini" type="button" data-event-select="${event.id}">Selecionar</button>
+            ${hasPermission("events_events_edit") ? `<button class="btn ghost btn-mini" type="button" data-event-edit="${event.id}">Editar</button>` : ""}
+            ${showPublicLink ? `<a class="btn ghost btn-mini" href="${publicUrl}" target="_blank" rel="noreferrer">Pagina publica</a>` : ""}
+          </div>
+        </article>
+      `;
+    }).join("");
+    updateSelectedBadge();
+  }
+
+  async function loadEvents() {
+    setMessage("Carregando eventos...");
+    state.events = await fetchJson(`${eventsEndpoint}/?include_inactive=true`, { headers: buildHeaders(false) }, "Falha ao carregar eventos.");
+    if (state.selectedEventId && !state.events.some((item) => item.id === state.selectedEventId)) {
+      state.selectedEventId = null;
+      resetEventForm();
+    }
+    renderEvents();
+    setMessage("");
+  }
+
+  async function loadRegistrations() {
+    if (!state.selectedEventId) {
+      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Selecione um evento.</td></tr>";
+      return;
+    }
+    state.registrations = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/registrations`, { headers: buildHeaders(false) }, "Falha ao carregar inscricoes.");
+    if (!state.registrations.length) {
+      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Nenhuma inscricao ate o momento.</td></tr>";
+      return;
+    }
+    el.eventsRegistrationsBody.innerHTML = state.registrations.map((registration) => `
+      <tr>
+        <td>${escapeHtml(registration.registration_code)}</td>
+        <td>${escapeHtml(registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
+        <td>${escapeHtml(String(registration.quantity || 0))}</td>
+        <td>${escapeHtml(statusLabel(registration.status))}</td>
+        <td>${escapeHtml(statusLabel(registration.payment_status))}</td>
+        <td>${escapeHtml(formatMoney(registration.total_amount, registration.currency || "BRL"))}</td>
+        <td>${escapeHtml(formatDateTime(registration.created_at))}</td>
+      </tr>
+    `).join("");
+  }
+
+  async function loadPayments() {
+    if (!state.selectedEventId) {
+      el.eventsPaymentsBody.innerHTML = "<tr><td colspan='6'>Selecione um evento.</td></tr>";
+      return;
+    }
+    state.payments = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/payments`, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos.");
+    if (!state.payments.length) {
+      el.eventsPaymentsBody.innerHTML = "<tr><td colspan='6'>Nenhum pagamento registrado.</td></tr>";
+      return;
+    }
+    el.eventsPaymentsBody.innerHTML = state.payments.map((payment) => `
+      <tr>
+        <td>${escapeHtml(payment.checkout_reference)}</td>
+        <td>${escapeHtml(String(payment.payment_method || "-").toUpperCase())}</td>
+        <td>${escapeHtml(statusLabel(payment.status))}</td>
+        <td>${escapeHtml(formatMoney(payment.amount, payment.currency || "BRL"))}</td>
+        <td>${payment.checkout_url ? `<a href="${escapeHtml(payment.checkout_url)}" target="_blank" rel="noreferrer">Abrir</a>` : "-"}</td>
+        <td>
+          ${payment.status !== "paid" && hasPermission("events_payments_manage")
+            ? `<button class="btn ghost btn-mini" type="button" data-payment-confirm="${payment.id}">Confirmar</button>`
+            : "<span class='tiny'>Sem acao</span>"}
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function destroyChart(chart) {
+    if (chart && typeof chart.destroy === "function") {
+      chart.destroy();
+    }
+  }
+
+  function buildChart(canvas, existingChart, type, labels, data, label, color) {
+    if (!canvas || !window.Chart) return null;
+    destroyChart(existingChart);
+    return new window.Chart(canvas, {
+      type,
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          backgroundColor: color,
+          borderColor: Array.isArray(color) ? color[0] : color,
+          borderWidth: 2,
+          fill: type === "line",
+          tension: 0.28,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: type !== "bar" && type !== "line",
+          },
+        },
+        scales: type === "doughnut" ? {} : {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
+  async function loadAnalytics() {
+    if (!state.selectedEventId) {
+      el.eventsAnalyticsHint.textContent = "Selecione um evento na agenda para ver ocupacao, receita e conversao.";
+      return;
+    }
+    state.analytics = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/analytics`, { headers: buildHeaders(false) }, "Falha ao carregar analytics do evento.");
+    const analytics = state.analytics;
+    el.eventsAnalyticsHint.textContent = `Analytics atualizados para ${analytics.title}.`;
+    el.eventsReservedSlots.textContent = String(analytics.reserved_slots || 0);
+    el.eventsConfirmedRegistrations.textContent = String(analytics.confirmed_registrations || 0);
+    el.eventsPendingRegistrations.textContent = String(analytics.pending_registrations || 0);
+    el.eventsRevenueConfirmed.textContent = formatMoney(analytics.total_revenue_confirmed || 0);
+    el.eventsRevenuePending.textContent = formatMoney(analytics.total_revenue_pending || 0);
+    el.eventsCapacityValue.textContent = analytics.capacity ? String(analytics.capacity) : "Ilimitada";
+
+    const paymentStatusRows = Array.isArray(analytics.payment_status_breakdown) ? analytics.payment_status_breakdown : [];
+    const paymentMethodRows = Array.isArray(analytics.payment_method_breakdown) ? analytics.payment_method_breakdown : [];
+    const timelineRows = Array.isArray(analytics.registrations_by_day) ? analytics.registrations_by_day : [];
+
+    state.charts.paymentStatus = buildChart(
+      el.eventsPaymentStatusChart,
+      state.charts.paymentStatus,
+      "doughnut",
+      paymentStatusRows.map((row) => statusLabel(row.status)),
+      paymentStatusRows.map((row) => Number(row.count || 0)),
+      "Pagamentos",
+      ["#2b6cb0", "#38a169", "#f6ad55", "#e53e3e", "#718096", "#805ad5"],
+    );
+
+    state.charts.paymentMethod = buildChart(
+      el.eventsPaymentMethodChart,
+      state.charts.paymentMethod,
+      "bar",
+      paymentMethodRows.map((row) => String(row.payment_method || "-").toUpperCase()),
+      paymentMethodRows.map((row) => Number(row.count || 0)),
+      "Metodo",
+      "#2f855a",
+    );
+
+    state.charts.registrationsTimeline = buildChart(
+      el.eventsRegistrationsTimelineChart,
+      state.charts.registrationsTimeline,
+      "line",
+      timelineRows.map((row) => row.date || "-"),
+      timelineRows.map((row) => Number(row.count || 0)),
+      "Inscricoes",
+      "#c05621",
+    );
+  }
+
+  async function loadNotifications() {
+    if (!state.selectedEventId) {
+      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='6'>Selecione um evento.</td></tr>";
+      return;
+    }
+    state.notifications = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/notifications`, { headers: buildHeaders(false) }, "Falha ao carregar notificacoes.");
+    if (!state.notifications.length) {
+      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='6'>Nenhuma notificacao registrada.</td></tr>";
+      return;
+    }
+    el.eventsNotificationsBody.innerHTML = state.notifications.map((notification) => `
+      <tr>
+        <td>${escapeHtml(String(notification.channel || "-").toUpperCase())}</td>
+        <td>${escapeHtml(notification.recipient || "-")}</td>
+        <td>${escapeHtml(notification.template_key || "-")}</td>
+        <td>${escapeHtml(statusLabel(notification.status))}</td>
+        <td>${escapeHtml(notification.error_message || "-")}</td>
+        <td>${escapeHtml(formatDateTime(notification.sent_at || notification.created_at))}</td>
+      </tr>
+    `).join("");
+  }
+
+  async function refreshCurrentView() {
+    if (state.currentView === "agenda") {
+      await loadEvents();
+      return;
+    }
+    if (state.currentView === "registrations") {
+      await loadRegistrations();
+      return;
+    }
+    if (state.currentView === "payments") {
+      await loadPayments();
+      return;
+    }
+    if (state.currentView === "analytics") {
+      await loadAnalytics();
+      return;
+    }
+    if (state.currentView === "notifications") {
+      await loadNotifications();
+    }
+  }
+
+  async function selectEvent(eventId, openForm = false) {
+    state.selectedEventId = Number(eventId);
+    const event = selectedEvent();
+    if (event && openForm) {
+      fillEventForm(event);
+    }
+    renderEvents();
+    if (state.currentView !== "agenda") {
+      await refreshCurrentView();
+    }
+  }
+
+  function readFormPayload() {
+    return {
+      title: el.eventsTitle.value.trim(),
+      slug: el.eventsSlug.value.trim() || null,
+      summary: el.eventsSummary.value.trim() || null,
+      description: el.eventsDescription.value.trim() || null,
+      location: el.eventsLocation.value.trim() || null,
+      timezone_name: "America/Sao_Paulo",
+      visibility: el.eventsVisibility.value,
+      status: el.eventsStatus.value,
+      start_at: toIsoDateTime(el.eventsStartAt.value),
+      end_at: toIsoDateTime(el.eventsEndAt.value),
+      registration_opens_at: toIsoDateTime(el.eventsRegistrationOpensAt.value),
+      registration_closes_at: toIsoDateTime(el.eventsRegistrationClosesAt.value),
+      capacity: el.eventsCapacity.value ? Number(el.eventsCapacity.value) : null,
+      max_registrations_per_order: Number(el.eventsMaxRegistrationsPerOrder.value || 1),
+      price_per_registration: Number(el.eventsPricePerRegistration.value || 0),
+      currency: (el.eventsCurrency.value || "BRL").trim().toUpperCase(),
+      allow_public_registration: el.eventsAllowPublicRegistration.checked,
+      require_payment: el.eventsRequirePayment.checked,
+      is_active: el.eventsIsActive.checked,
+    };
+  }
+
+  async function submitEventForm(event) {
+    event.preventDefault();
+    if (!hasPermission("events_events_create") && !hasPermission("events_events_edit")) {
+      setMessage("Acesso negado para salvar eventos.", true);
+      return;
+    }
+    const payload = readFormPayload();
+    const editingId = Number(el.eventsFormId.value || 0);
+    const isEditing = editingId > 0;
+
+    if (isEditing && !hasPermission("events_events_edit")) {
+      setMessage("Acesso negado para editar eventos.", true);
+      return;
+    }
+    if (!isEditing && !hasPermission("events_events_create")) {
+      setMessage("Acesso negado para criar eventos.", true);
+      return;
+    }
+
+    try {
+      const response = await fetchJson(
+        isEditing ? `${eventsEndpoint}/${editingId}` : `${eventsEndpoint}/`,
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: buildHeaders(true),
+          body: JSON.stringify(payload),
+        },
+        isEditing ? "Falha ao atualizar evento." : "Falha ao criar evento.",
+      );
+      state.selectedEventId = response.id;
+      await loadEvents();
+      fillEventForm(response);
+      setMessage(isEditing ? "Evento atualizado com sucesso." : "Evento criado com sucesso.");
+    } catch (error) {
+      setMessage(error.message, true);
+    }
+  }
+
+  async function deleteSelectedEvent() {
+    if (!state.selectedEventId) return;
+    if (!hasPermission("events_events_delete")) {
+      setMessage("Acesso negado para excluir eventos.", true);
+      return;
+    }
+    const confirmed = window.confirm("Deseja realmente excluir este evento?");
+    if (!confirmed) return;
+
+    try {
+      await fetchJson(`${eventsEndpoint}/${state.selectedEventId}`, { method: "DELETE", headers: buildHeaders(false) }, "Falha ao excluir evento.");
+      state.selectedEventId = null;
+      resetEventForm();
+      await loadEvents();
+      await refreshCurrentView();
+      setMessage("Evento excluido com sucesso.");
+    } catch (error) {
+      setMessage(error.message, true);
+    }
+  }
+
+  async function confirmPayment(paymentId) {
+    if (!hasPermission("events_payments_manage")) {
+      setMessage("Acesso negado para confirmar pagamentos.", true);
+      return;
+    }
+    try {
+      await fetchJson(`${eventsEndpoint}/payments/${paymentId}/confirm`, { method: "POST", headers: buildHeaders(false) }, "Falha ao confirmar pagamento.");
+      await Promise.all([loadPayments(), loadRegistrations(), loadAnalytics(), loadNotifications()]);
+      setMessage("Pagamento confirmado e refletido no evento.");
+    } catch (error) {
+      setMessage(error.message, true);
+    }
+  }
+
+  async function openEventsModule() {
+    loadPermissionState();
+    applyModuleVisibility();
+
+    if (!hasEventsModuleAccess()) {
+      throw new Error("Acesso negado ao modulo Eventos.");
+    }
+
+    const fallbackView = getFirstAllowedView();
+    if (!fallbackView) {
+      throw new Error("Sua role nao possui permissao de visualizacao no modulo Eventos.");
+    }
+
+    setActiveModule("events");
+    setView(fallbackView);
+    await loadEvents();
+    if (state.selectedEventId) {
+      await refreshCurrentView();
+    }
+  }
+
+  function bindEvents() {
+    if (eventsBound) return;
+    eventsBound = true;
+
+    loadPermissionState();
+    applyModuleVisibility();
+
+    if (el.eventsBtn) {
+      el.eventsBtn.addEventListener("click", () => {
+        openEventsModule().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsNavEventsBtn) el.eventsNavEventsBtn.addEventListener("click", () => setView("agenda"));
+    if (el.eventsNavRegistrationsBtn) {
+      el.eventsNavRegistrationsBtn.addEventListener("click", () => {
+        setView("registrations");
+        loadRegistrations().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsNavPaymentsBtn) {
+      el.eventsNavPaymentsBtn.addEventListener("click", () => {
+        setView("payments");
+        loadPayments().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsNavAnalyticsBtn) {
+      el.eventsNavAnalyticsBtn.addEventListener("click", () => {
+        setView("analytics");
+        loadAnalytics().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsNavNotificationsBtn) {
+      el.eventsNavNotificationsBtn.addEventListener("click", () => {
+        setView("notifications");
+        loadNotifications().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsRefreshBtn) el.eventsRefreshBtn.addEventListener("click", () => loadEvents().catch((error) => setMessage(error.message, true)));
+    if (el.eventsRegistrationsRefreshBtn) el.eventsRegistrationsRefreshBtn.addEventListener("click", () => loadRegistrations().catch((error) => setMessage(error.message, true)));
+    if (el.eventsPaymentsRefreshBtn) el.eventsPaymentsRefreshBtn.addEventListener("click", () => loadPayments().catch((error) => setMessage(error.message, true)));
+    if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
+    if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
+    if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
+    if (el.eventsFormResetBtn) el.eventsFormResetBtn.addEventListener("click", resetEventForm);
+    if (el.eventsDeleteBtn) el.eventsDeleteBtn.addEventListener("click", () => deleteSelectedEvent().catch((error) => setMessage(error.message, true)));
+
+    document.addEventListener("click", (event) => {
+      const selectButton = event.target.closest && event.target.closest("[data-event-select]");
+      if (selectButton) {
+        selectEvent(Number(selectButton.getAttribute("data-event-select"))).catch((error) => setMessage(error.message, true));
+        return;
+      }
+
+      const editButton = event.target.closest && event.target.closest("[data-event-edit]");
+      if (editButton) {
+        selectEvent(Number(editButton.getAttribute("data-event-edit")), true).catch((error) => setMessage(error.message, true));
+        return;
+      }
+
+      const paymentButton = event.target.closest && event.target.closest("[data-payment-confirm]");
+      if (paymentButton) {
+        confirmPayment(Number(paymentButton.getAttribute("data-payment-confirm"))).catch((error) => setMessage(error.message, true));
+      }
+    });
+  }
+
+  window.openEventsModule = () => openEventsModule().catch((error) => setMessage(error.message, true));
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindEvents);
+  } else {
+    bindEvents();
+  }
+})();

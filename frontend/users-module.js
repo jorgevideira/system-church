@@ -11,6 +11,7 @@
     finance: "Financeiro",
     cells: "Células",
     school: "Escola Bíblica",
+    events: "Eventos",
     users: "Configurações",
   };
 
@@ -22,7 +23,7 @@
     manage: "Gerenciar",
   };
 
-  const MODULE_ORDER = ["finance", "cells", "school", "users"];
+  const MODULE_ORDER = ["finance", "cells", "school", "events", "users"];
   const CATEGORY_ORDER = ["view", "create", "edit", "delete", "manage"];
 
   const PERMISSION_BLUEPRINT = [
@@ -137,6 +138,27 @@
         { name: "school_attendance_manage", category: "manage", description: "Registrar e salvar chamada." },
       ] },
     ] },
+    { module: "events", groups: [
+      { label: "Agenda", permissions: [
+        { name: "events_events_view", category: "view", description: "Visualizar agenda de eventos." },
+        { name: "events_events_create", category: "create", description: "Cadastrar eventos." },
+        { name: "events_events_edit", category: "edit", description: "Editar eventos." },
+        { name: "events_events_delete", category: "delete", description: "Excluir eventos." },
+      ] },
+      { label: "Inscricoes", permissions: [
+        { name: "events_registrations_view", category: "view", description: "Visualizar inscricoes dos eventos." },
+      ] },
+      { label: "Pagamentos", permissions: [
+        { name: "events_payments_view", category: "view", description: "Visualizar pagamentos dos eventos." },
+        { name: "events_payments_manage", category: "manage", description: "Confirmar e acompanhar pagamentos dos eventos." },
+      ] },
+      { label: "Analytics", permissions: [
+        { name: "events_analytics_view", category: "view", description: "Visualizar analytics dos eventos." },
+      ] },
+      { label: "Notificacoes", permissions: [
+        { name: "events_notifications_view", category: "view", description: "Visualizar notificacoes dos eventos." },
+      ] },
+    ] },
     { module: "users", groups: [
       { label: "Usuarios", permissions: [
         { name: "users_users_view", category: "view", description: "Visualizar usuarios." },
@@ -166,11 +188,13 @@
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
     schoolBtn: document.getElementById("moduleBibleSchoolBtn"),
+    eventsBtn: document.getElementById("moduleEventsBtn"),
     usersBtn: document.getElementById("moduleUsersBtn"),
 
     financeModule: document.getElementById("financeModule"),
     cellsModule: document.getElementById("cellsModule"),
     schoolModule: document.getElementById("bibleSchoolModule"),
+    eventsModule: document.getElementById("eventsModule"),
     usersModule: document.getElementById("usersModule"),
 
     usersNavUsersBtn: document.getElementById("usersNavUsersBtn"),
@@ -396,16 +420,19 @@
     const isFinance = moduleName === "finance";
     const isCells = moduleName === "cells";
     const isSchool = moduleName === "school";
+    const isEvents = moduleName === "events";
     const isUsers = moduleName === "users";
 
     if (el.financeBtn) el.financeBtn.classList.toggle("active", isFinance);
     if (el.cellsBtn) el.cellsBtn.classList.toggle("active", isCells);
     if (el.schoolBtn) el.schoolBtn.classList.toggle("active", isSchool);
+    if (el.eventsBtn) el.eventsBtn.classList.toggle("active", isEvents);
     if (el.usersBtn) el.usersBtn.classList.toggle("active", isUsers);
 
     if (el.financeModule) el.financeModule.classList.toggle("hide", !isFinance);
     if (el.cellsModule) el.cellsModule.classList.toggle("hide", !isCells);
     if (el.schoolModule) el.schoolModule.classList.toggle("hide", !isSchool);
+    if (el.eventsModule) el.eventsModule.classList.toggle("hide", !isEvents);
     if (el.usersModule) el.usersModule.classList.toggle("hide", !isUsers);
   }
 
@@ -951,7 +978,6 @@
     if (el.financeBtn) el.financeBtn.addEventListener("click", () => setActiveModule("finance"));
     if (el.cellsBtn) el.cellsBtn.addEventListener("click", () => setActiveModule("cells"));
     if (el.schoolBtn) el.schoolBtn.addEventListener("click", () => setActiveModule("school"));
-
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.addEventListener("click", () => setUsersView("users"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.addEventListener("click", () => openRolesView().catch((error) => setRolesMessage(error.message, true)));
 
@@ -1026,6 +1052,7 @@
   }
 
   window.openUsersModule = () => openUsersModule().catch((error) => setMessage(error.message, true));
+  window.setTopModule = setActiveModule;
   window.usersOpenCreateUserModal = () => openUserForm("create", null);
   window.usersEditUser = (userId) => openEditUser(Number(userId));
   window.usersDeleteUser = (userId) => openDeleteModal(Number(userId));
