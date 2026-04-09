@@ -1715,7 +1715,7 @@ th {
 .ui-toast-stack {
   position: fixed;
   right: 1rem;
-  bottom: 1rem;
+  top: 1rem;
   z-index: 50;
   display: grid;
   gap: 0.7rem;
@@ -1773,6 +1773,8 @@ th {
 
 .modal-card {
   width: min(760px, 96vw);
+  max-height: min(92vh, 980px);
+  overflow: auto;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -1862,6 +1864,12 @@ th {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+  position: sticky;
+  bottom: -1rem;
+  z-index: 2;
+  padding-top: 0.9rem;
+  padding-bottom: 0.2rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.94) 22%, rgba(255,255,255,0.99));
 }
 
 .modal-duplicates-list {
