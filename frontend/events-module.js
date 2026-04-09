@@ -539,11 +539,15 @@
     setMessage("");
   }
 
-  function populatePaymentAccountOptions() {
+function populatePaymentAccountOptions() {
     if (!el.eventsPaymentAccountId) return;
     const options = ['<option value="">Configuração padrão da igreja</option>'];
     state.paymentAccounts.forEach((account) => {
-      options.push(`<option value="${account.id}">${escapeHtml(account.label)} (${escapeHtml(account.provider)})</option>`);
+      const environment = account.environment === "sandbox" ? "sandbox" : "produção";
+      const readiness = account.live_ready ? "pronta" : "pendente";
+      options.push(
+        `<option value="${account.id}">${escapeHtml(account.label)} (${escapeHtml(account.provider)} · ${escapeHtml(environment)} · ${escapeHtml(readiness)})</option>`
+      );
     });
     el.eventsPaymentAccountId.innerHTML = options.join("");
   }

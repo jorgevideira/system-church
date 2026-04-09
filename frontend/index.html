@@ -2233,6 +2233,7 @@
                 <span class="tiny">Cadastre contas para escolher no evento qual recebedor usar</span>
               </div>
               <p id="usersPaymentAccountsMessage" class="message"></p>
+              <div id="usersPaymentAccountGuide" class="payment-account-guide"></div>
               <form id="usersPaymentAccountForm" class="stack">
                 <input id="usersPaymentAccountId" type="hidden">
                 <div class="events-form-row">
@@ -2256,6 +2257,7 @@
                 <label>Descrição
                   <input id="usersPaymentAccountDescription" type="text" maxlength="255" placeholder="Opcional">
                 </label>
+                <div id="usersPaymentAccountReadiness" class="payment-account-readiness"></div>
                 <div class="events-form-row">
                   <label class="inline-check">
                     <input id="usersPaymentAccountSupportsPix" type="checkbox" checked>
@@ -2274,16 +2276,16 @@
                     Conta ativa
                   </label>
                 </div>
-                <label>Public key / chave pública
+                <label id="usersPaymentAccountPublicKeyLabel">Public key / chave pública
                   <input id="usersPaymentAccountPublicKey" type="text" maxlength="255" placeholder="Opcional">
                 </label>
-                <label>Access token
+                <label id="usersPaymentAccountAccessTokenLabel">Access token
                   <input id="usersPaymentAccountAccessToken" type="password" maxlength="255" placeholder="Opcional">
                 </label>
-                <label>Webhook secret
+                <label id="usersPaymentAccountWebhookSecretLabel">Webhook secret
                   <input id="usersPaymentAccountWebhookSecret" type="password" maxlength="255" placeholder="Opcional">
                 </label>
-                <label>Integrator ID / App ID
+                <label id="usersPaymentAccountIntegratorIdLabel">Integrator ID / App ID
                   <input id="usersPaymentAccountIntegratorId" type="text" maxlength="255" placeholder="Opcional">
                 </label>
                 <div class="modal-actions">

@@ -334,19 +334,25 @@
     usersChurchPaymentWebhookStatus: document.getElementById("usersChurchPaymentWebhookStatus"),
     usersChurchPaymentLiveStatus: document.getElementById("usersChurchPaymentLiveStatus"),
     usersPaymentAccountsMessage: document.getElementById("usersPaymentAccountsMessage"),
+    usersPaymentAccountGuide: document.getElementById("usersPaymentAccountGuide"),
     usersPaymentAccountForm: document.getElementById("usersPaymentAccountForm"),
     usersPaymentAccountId: document.getElementById("usersPaymentAccountId"),
     usersPaymentAccountLabel: document.getElementById("usersPaymentAccountLabel"),
     usersPaymentAccountProvider: document.getElementById("usersPaymentAccountProvider"),
     usersPaymentAccountEnvironment: document.getElementById("usersPaymentAccountEnvironment"),
     usersPaymentAccountDescription: document.getElementById("usersPaymentAccountDescription"),
+    usersPaymentAccountReadiness: document.getElementById("usersPaymentAccountReadiness"),
     usersPaymentAccountSupportsPix: document.getElementById("usersPaymentAccountSupportsPix"),
     usersPaymentAccountSupportsCard: document.getElementById("usersPaymentAccountSupportsCard"),
     usersPaymentAccountIsDefault: document.getElementById("usersPaymentAccountIsDefault"),
     usersPaymentAccountIsActive: document.getElementById("usersPaymentAccountIsActive"),
+    usersPaymentAccountPublicKeyLabel: document.getElementById("usersPaymentAccountPublicKeyLabel"),
     usersPaymentAccountPublicKey: document.getElementById("usersPaymentAccountPublicKey"),
+    usersPaymentAccountAccessTokenLabel: document.getElementById("usersPaymentAccountAccessTokenLabel"),
     usersPaymentAccountAccessToken: document.getElementById("usersPaymentAccountAccessToken"),
+    usersPaymentAccountWebhookSecretLabel: document.getElementById("usersPaymentAccountWebhookSecretLabel"),
     usersPaymentAccountWebhookSecret: document.getElementById("usersPaymentAccountWebhookSecret"),
+    usersPaymentAccountIntegratorIdLabel: document.getElementById("usersPaymentAccountIntegratorIdLabel"),
     usersPaymentAccountIntegratorId: document.getElementById("usersPaymentAccountIntegratorId"),
     usersPaymentAccountResetBtn: document.getElementById("usersPaymentAccountResetBtn"),
     usersPaymentAccountsBody: document.getElementById("usersPaymentAccountsBody"),
@@ -1108,7 +1114,142 @@
     if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
     if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = true;
     if (el.usersPaymentAccountIsActive) el.usersPaymentAccountIsActive.checked = true;
+    syncPaymentAccountProviderFields();
     setPaymentAccountsMessage("", false);
+  }
+
+  function getPaymentAccountDraft() {
+    const editingId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+    const existingAccount = editingId > 0 ? state.paymentAccounts.find((account) => account.id === editingId) : null;
+    return {
+      provider: el.usersPaymentAccountProvider ? el.usersPaymentAccountProvider.value : "mercadopago",
+      environment: el.usersPaymentAccountEnvironment ? el.usersPaymentAccountEnvironment.value : "production",
+      publicKey: el.usersPaymentAccountPublicKey ? el.usersPaymentAccountPublicKey.value.trim() : "",
+      accessToken: el.usersPaymentAccountAccessToken && el.usersPaymentAccountAccessToken.value.trim()
+        ? el.usersPaymentAccountAccessToken.value.trim()
+        : (existingAccount && existingAccount.access_token_configured ? "__configured__" : ""),
+      webhookSecret: el.usersPaymentAccountWebhookSecret && el.usersPaymentAccountWebhookSecret.value.trim()
+        ? el.usersPaymentAccountWebhookSecret.value.trim()
+        : (existingAccount && existingAccount.webhook_secret_configured ? "__configured__" : ""),
+      integratorId: el.usersPaymentAccountIntegratorId ? el.usersPaymentAccountIntegratorId.value.trim() : "",
+    };
+  }
+
+  function renderPaymentAccountGuide() {
+    if (!el.usersPaymentAccountGuide) return;
+    const draft = getPaymentAccountDraft();
+    const providerLabel = draft.provider === "mercadopago"
+      ? "Mercado Pago"
+      : draft.provider === "pagbank"
+        ? "PagBank"
+        : "Interno";
+    let title = `${providerLabel} pronto para configurar`;
+    let summary = "Use esta conta quando quiser receber de forma real no evento.";
+    let requirements = [];
+
+    if (draft.provider === "mercadopago") {
+      requirements = [
+        "Preencha Public key e Access token da conta recebedora.",
+        "Use Sandbox para testes e Produção para checkout real.",
+        "Em produção, configure também o Webhook secret.",
+      ];
+    } else if (draft.provider === "pagbank") {
+      title = "PagBank com checkout por link";
+      summary = "A conta usa Access token como credencial principal e pode operar em sandbox ou produção.";
+      requirements = [
+        "Preencha o Access token da conta PagBank.",
+        "Escolha o ambiente correto antes de publicar.",
+        "Deixe o webhook público acessível para confirmação automática.",
+      ];
+    } else {
+      title = "Conta interna de teste";
+      summary = "Use este modo para validar o fluxo sem gateway real.";
+      requirements = [
+        "Gera checkout interno com PIX simulado.",
+        "Ideal para testes locais e demonstrações.",
+      ];
+    }
+
+    el.usersPaymentAccountGuide.innerHTML = `
+      <div class="payment-account-guide-card">
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(summary)}</p>
+        <div class="payment-account-guide-meta">
+          <span class="payment-guide-chip">${escapeHtml(providerLabel)}</span>
+          <span class="payment-guide-chip">${draft.environment === "sandbox" ? "Sandbox" : "Produção"}</span>
+        </div>
+        <ul class="payment-guide-list">
+          ${requirements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </div>
+    `;
+  }
+
+  function renderPaymentAccountReadiness() {
+    if (!el.usersPaymentAccountReadiness) return;
+    const draft = getPaymentAccountDraft();
+    let checks = [];
+    if (draft.provider === "mercadopago") {
+      checks = [
+        { label: "Public key", ok: Boolean(draft.publicKey) },
+        { label: "Access token", ok: Boolean(draft.accessToken) },
+        { label: "Webhook secret", ok: draft.environment === "sandbox" || Boolean(draft.webhookSecret) },
+      ];
+    } else if (draft.provider === "pagbank") {
+      checks = [
+        { label: "Access token", ok: Boolean(draft.accessToken) },
+        { label: "Ambiente", ok: Boolean(draft.environment) },
+      ];
+    } else {
+      checks = [{ label: "Conta interna pronta", ok: true }];
+    }
+    const ready = checks.every((item) => item.ok);
+    el.usersPaymentAccountReadiness.innerHTML = `
+      <div class="payment-readiness-head">
+        <strong>${ready ? "Conta pronta para uso" : "Faltam dados para checkout real"}</strong>
+        <span class="payment-readiness-status ${ready ? "is-ready" : "is-pending"}">${ready ? "Pronta" : "Pendente"}</span>
+      </div>
+      <div class="payment-readiness-list">
+        ${checks.map((item) => `
+          <span class="payment-readiness-item ${item.ok ? "is-ok" : "is-missing"}">
+            ${item.ok ? "OK" : "Pendente"} · ${escapeHtml(item.label)}
+          </span>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function syncPaymentAccountProviderFields() {
+    const provider = el.usersPaymentAccountProvider ? el.usersPaymentAccountProvider.value : "mercadopago";
+    const isMercadoPago = provider === "mercadopago";
+    const isPagBank = provider === "pagbank";
+    const isInternal = provider === "internal";
+
+    if (el.usersPaymentAccountEnvironment) el.usersPaymentAccountEnvironment.disabled = isInternal;
+    if (el.usersPaymentAccountPublicKeyLabel) el.usersPaymentAccountPublicKeyLabel.classList.toggle("hide", !isMercadoPago);
+    if (el.usersPaymentAccountWebhookSecretLabel) el.usersPaymentAccountWebhookSecretLabel.classList.toggle("hide", !isMercadoPago);
+    if (el.usersPaymentAccountIntegratorIdLabel) {
+      el.usersPaymentAccountIntegratorIdLabel.classList.toggle("hide", isInternal);
+      el.usersPaymentAccountIntegratorIdLabel.firstChild.textContent = isMercadoPago ? "Integrator ID" : "App ID / referência interna";
+    }
+    if (el.usersPaymentAccountAccessTokenLabel) {
+      el.usersPaymentAccountAccessTokenLabel.firstChild.textContent = isPagBank ? "Access token PagBank" : "Access token";
+    }
+    if (el.usersPaymentAccountPublicKey) {
+      el.usersPaymentAccountPublicKey.placeholder = isMercadoPago ? "APP_USR-... ou TEST-..." : "Não necessário para este provider";
+    }
+    if (el.usersPaymentAccountWebhookSecret) {
+      el.usersPaymentAccountWebhookSecret.placeholder = isMercadoPago ? "Opcional, recomendado em produção" : "Não necessário para este provider";
+    }
+    if (el.usersPaymentAccountIntegratorId) {
+      el.usersPaymentAccountIntegratorId.placeholder = isInternal ? "Não utilizado" : "Opcional";
+    }
+    if (isInternal) {
+      if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
+      if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = false;
+    }
+    renderPaymentAccountGuide();
+    renderPaymentAccountReadiness();
   }
 
   function renderPaymentAccounts() {
@@ -1135,6 +1276,8 @@
   async function loadPaymentAccounts() {
     state.paymentAccounts = await fetchJson(paymentAccountsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar contas de pagamento.");
     renderPaymentAccounts();
+    renderPaymentAccountGuide();
+    renderPaymentAccountReadiness();
   }
 
   function editPaymentAccount(accountId) {
@@ -1153,6 +1296,7 @@
     if (el.usersPaymentAccountAccessToken) el.usersPaymentAccountAccessToken.value = "";
     if (el.usersPaymentAccountWebhookSecret) el.usersPaymentAccountWebhookSecret.value = "";
     if (el.usersPaymentAccountIntegratorId) el.usersPaymentAccountIntegratorId.value = account.integrator_id || account.app_id || "";
+    syncPaymentAccountProviderFields();
     setPaymentAccountsMessage(`Editando conta: ${account.label}`, false);
   }
 
@@ -1878,6 +2022,7 @@
     await loadTenantProfile();
     await loadTenantPaymentSettings();
     await loadPaymentAccounts();
+    resetPaymentAccountForm();
     await loadPublicEventsForChurch();
     setChurchMessage("", false);
     setChurchPaymentsMessage("", false);
@@ -2194,6 +2339,25 @@
         deletePaymentAccount(Number(deleteButton.getAttribute("data-payment-account-delete"))).catch((error) => setPaymentAccountsMessage(error.message, true));
       }
     });
+
+    if (el.usersPaymentAccountProvider) {
+      el.usersPaymentAccountProvider.addEventListener("change", syncPaymentAccountProviderFields);
+    }
+    if (el.usersPaymentAccountEnvironment) {
+      el.usersPaymentAccountEnvironment.addEventListener("change", syncPaymentAccountProviderFields);
+    }
+    if (el.usersPaymentAccountPublicKey) {
+      el.usersPaymentAccountPublicKey.addEventListener("input", renderPaymentAccountReadiness);
+    }
+    if (el.usersPaymentAccountAccessToken) {
+      el.usersPaymentAccountAccessToken.addEventListener("input", renderPaymentAccountReadiness);
+    }
+    if (el.usersPaymentAccountWebhookSecret) {
+      el.usersPaymentAccountWebhookSecret.addEventListener("input", renderPaymentAccountReadiness);
+    }
+    if (el.usersPaymentAccountIntegratorId) {
+      el.usersPaymentAccountIntegratorId.addEventListener("input", renderPaymentAccountGuide);
+    }
 
     if (el.usersAddBtn) {
       el.usersAddBtn.setAttribute("onclick", "window.usersOpenCreateUserModal && window.usersOpenCreateUserModal()");

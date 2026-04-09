@@ -2458,3 +2458,70 @@ th {
   color: #24415e;
 }
 
+.payment-account-guide-card,
+.payment-account-readiness {
+  border: 1px solid rgba(28, 61, 90, 0.12);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(240,247,255,0.92));
+  box-shadow: 0 10px 24px rgba(22, 45, 74, 0.06);
+}
+
+.payment-account-guide-card p {
+  margin: 6px 0 10px;
+  color: #4d6278;
+}
+
+.payment-account-guide-meta,
+.payment-readiness-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-guide-chip,
+.payment-readiness-item,
+.payment-readiness-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.payment-guide-chip {
+  background: rgba(12, 107, 196, 0.1);
+  color: #0c5aa6;
+}
+
+.payment-guide-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: #32465a;
+}
+
+.payment-guide-list li + li {
+  margin-top: 6px;
+}
+
+.payment-readiness-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.payment-readiness-status.is-ready,
+.payment-readiness-item.is-ok {
+  background: rgba(11, 140, 89, 0.12);
+  color: #0b7d51;
+}
+
+.payment-readiness-status.is-pending,
+.payment-readiness-item.is-missing {
+  background: rgba(184, 82, 17, 0.12);
+  color: #a44d12;
+}
