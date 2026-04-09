@@ -342,6 +342,7 @@
     usersPaymentAccountEnvironment: document.getElementById("usersPaymentAccountEnvironment"),
     usersPaymentAccountDescription: document.getElementById("usersPaymentAccountDescription"),
     usersPaymentAccountReadiness: document.getElementById("usersPaymentAccountReadiness"),
+    usersPaymentAccountOAuthBox: document.getElementById("usersPaymentAccountOAuthBox"),
     usersPaymentAccountSupportsPix: document.getElementById("usersPaymentAccountSupportsPix"),
     usersPaymentAccountSupportsCard: document.getElementById("usersPaymentAccountSupportsCard"),
     usersPaymentAccountIsDefault: document.getElementById("usersPaymentAccountIsDefault"),
@@ -354,6 +355,7 @@
     usersPaymentAccountWebhookSecret: document.getElementById("usersPaymentAccountWebhookSecret"),
     usersPaymentAccountIntegratorIdLabel: document.getElementById("usersPaymentAccountIntegratorIdLabel"),
     usersPaymentAccountIntegratorId: document.getElementById("usersPaymentAccountIntegratorId"),
+    usersPaymentAccountOAuthBtn: document.getElementById("usersPaymentAccountOAuthBtn"),
     usersPaymentAccountResetBtn: document.getElementById("usersPaymentAccountResetBtn"),
     usersPaymentAccountsBody: document.getElementById("usersPaymentAccountsBody"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
@@ -1220,6 +1222,42 @@
     `;
   }
 
+  async function startMercadoPagoOAuth() {
+    const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+    if (!accountId) {
+      setPaymentAccountsMessage("Salve a conta antes de conectar por OAuth.", true);
+      return;
+    }
+    const account = state.paymentAccounts.find((item) => item.id === accountId);
+    if (!account || account.provider !== "mercadopago") {
+      setPaymentAccountsMessage("OAuth está disponível apenas para contas Mercado Pago.", true);
+      return;
+    }
+    const response = await fetchJson(
+      `${paymentAccountsEndpoint}${accountId}/oauth/mercadopago/start`,
+      { method: "POST", headers: buildHeaders(false) },
+      "Falha ao iniciar OAuth do Mercado Pago."
+    );
+    const popup = window.open(response.authorize_url, "mercadopago-oauth", "width=640,height=820");
+    if (!popup) {
+      setPaymentAccountsMessage("O navegador bloqueou a janela de autorização. Libere popups e tente novamente.", true);
+      return;
+    }
+    setPaymentAccountsMessage("Janela de autorização aberta. Conclua a conexão no Mercado Pago.", false);
+    const watcher = window.setInterval(async () => {
+      if (!popup.closed) return;
+      window.clearInterval(watcher);
+      await loadPaymentAccounts();
+      const refreshed = state.paymentAccounts.find((item) => item.id === accountId);
+      setPaymentAccountsMessage(
+        refreshed && refreshed.oauth_connected
+          ? "Conta Mercado Pago conectada com sucesso por OAuth."
+          : "A conexão OAuth foi encerrada. Confira o status da conta.",
+        false,
+      );
+    }, 1200);
+  }
+
   function syncPaymentAccountProviderFields() {
     const provider = el.usersPaymentAccountProvider ? el.usersPaymentAccountProvider.value : "mercadopago";
     const isMercadoPago = provider === "mercadopago";
@@ -1245,6 +1283,12 @@
     if (el.usersPaymentAccountIntegratorId) {
       el.usersPaymentAccountIntegratorId.placeholder = isInternal ? "Não utilizado" : "Opcional";
     }
+    if (el.usersPaymentAccountOAuthBox) {
+      el.usersPaymentAccountOAuthBox.classList.toggle("hide", !isMercadoPago);
+    }
+    if (el.usersPaymentAccountOAuthBtn) {
+      el.usersPaymentAccountOAuthBtn.disabled = !isMercadoPago;
+    }
     if (isInternal) {
       if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
       if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = false;
@@ -1265,7 +1309,7 @@
         <td>${escapeHtml(account.provider)}<br><span class="tiny">${escapeHtml(account.environment || "production")}</span></td>
         <td>${account.supports_pix ? "PIX" : ""}${account.supports_pix && account.supports_card ? " / " : ""}${account.supports_card ? "Cartão" : ""}</td>
         <td>${account.is_active ? "Ativa" : "Inativa"}${account.is_default ? " · Padrão" : ""}</td>
-        <td>${account.live_ready ? "Sim" : "Não"}</td>
+        <td>${account.live_ready ? "Sim" : "Não"}${account.oauth_connected ? '<br><span class="tiny">OAuth conectado</span>' : ""}</td>
         <td>
           <button class="btn ghost btn-mini" type="button" data-payment-account-edit="${account.id}">Editar</button>
           <button class="btn ghost btn-mini" type="button" data-payment-account-delete="${account.id}">Excluir</button>
@@ -2359,6 +2403,18 @@
     if (el.usersPaymentAccountIntegratorId) {
       el.usersPaymentAccountIntegratorId.addEventListener("input", renderPaymentAccountGuide);
     }
+    if (el.usersPaymentAccountOAuthBtn) {
+      el.usersPaymentAccountOAuthBtn.addEventListener("click", () => {
+        startMercadoPagoOAuth().catch((error) => setPaymentAccountsMessage(error.message, true));
+      });
+    }
+
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "mercadopago-oauth") return;
+      loadPaymentAccounts()
+        .then(() => setPaymentAccountsMessage("Retorno do OAuth recebido. Status da conta atualizado.", false))
+        .catch((error) => setPaymentAccountsMessage(error.message, true));
+    });
 
     if (el.usersAddBtn) {
       el.usersAddBtn.setAttribute("onclick", "window.usersOpenCreateUserModal && window.usersOpenCreateUserModal()");

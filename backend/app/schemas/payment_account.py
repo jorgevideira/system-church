@@ -100,8 +100,16 @@ class PaymentAccountResponse(BaseModel):
     app_id: Optional[str] = None
     access_token_configured: bool = False
     live_ready: bool = False
+    oauth_connected: bool = False
+    oauth_provider_user_id: Optional[str] = None
+    oauth_updated_at: Optional[datetime] = None
+    oauth_last_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class PaymentAccountOAuthStartResponse(BaseModel):
+    authorize_url: str
 
 
 class PaymentAccountSummaryResponse(BaseModel):

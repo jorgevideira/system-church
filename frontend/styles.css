@@ -2459,12 +2459,20 @@ th {
 }
 
 .payment-account-guide-card,
-.payment-account-readiness {
+.payment-account-readiness,
+.payment-account-oauth-box {
   border: 1px solid rgba(28, 61, 90, 0.12);
   border-radius: 18px;
   padding: 14px 16px;
   background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(240,247,255,0.92));
   box-shadow: 0 10px 24px rgba(22, 45, 74, 0.06);
+}
+
+.payment-account-oauth-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .payment-account-guide-card p {

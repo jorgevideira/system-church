@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     MERCADOPAGO_PUBLIC_KEY: str | None = None
     MERCADOPAGO_WEBHOOK_SECRET: str | None = None
     MERCADOPAGO_INTEGRATOR_ID: str | None = None
+    MERCADOPAGO_OAUTH_CLIENT_ID: str | None = None
+    MERCADOPAGO_OAUTH_CLIENT_SECRET: str | None = None
+    MERCADOPAGO_OAUTH_REDIRECT_URI: str | None = None
 
     # Notifications
     SMTP_HOST: str | None = None

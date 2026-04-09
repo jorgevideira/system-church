@@ -53,6 +53,10 @@ def _build_response(account: PaymentAccount) -> PaymentAccountResponse:
         app_id=(config.get("app_id") or None),
         access_token_configured=bool(access_token),
         live_ready=live_ready,
+        oauth_connected=bool(config.get("oauth_connected")),
+        oauth_provider_user_id=(config.get("oauth_provider_user_id") or None),
+        oauth_updated_at=config.get("oauth_updated_at"),
+        oauth_last_error=(config.get("oauth_last_error") or None),
         created_at=account.created_at,
         updated_at=account.updated_at,
     )
@@ -204,3 +208,45 @@ def get_account_environment(account: PaymentAccount | None) -> str:
     if environment in {"sandbox", "production"}:
         return environment
     return "production"
+
+
+def update_oauth_metadata(
+    db: Session,
+    account: PaymentAccount,
+    *,
+    connected: bool,
+    provider_user_id: str | None = None,
+    refresh_token: str | None = None,
+    public_key: str | None = None,
+    account_email: str | None = None,
+    last_error: str | None = None,
+    state: str | None = None,
+) -> PaymentAccount:
+    from datetime import datetime, timezone
+
+    config = dict(account.config_json or {})
+    secrets = dict(account.secrets_json or {})
+    config["oauth_connected"] = bool(connected)
+    config["oauth_provider_user_id"] = provider_user_id or None
+    config["oauth_updated_at"] = datetime.now(timezone.utc).isoformat()
+    config["oauth_last_error"] = last_error or None
+    config["oauth_state"] = state or None
+    if public_key:
+        config["public_key"] = public_key.strip()
+    if account_email:
+        config["account_email"] = account_email.strip()
+    if refresh_token is not None:
+        secrets["refresh_token"] = secret_service.encrypt_value(refresh_token)
+    account.config_json = config
+    account.secrets_json = secrets
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+def get_account_refresh_token(account: PaymentAccount | None) -> str | None:
+    if account is None:
+        return None
+    secrets = account.secrets_json or {}
+    token = str(secret_service.decrypt_value(secrets.get("refresh_token")) or "").strip()
+    return token or None
