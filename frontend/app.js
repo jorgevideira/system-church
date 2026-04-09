@@ -207,6 +207,7 @@ const el = {
   dashBudgetRef: document.getElementById("dashBudgetRef"),
   dashBudgetAmount: document.getElementById("dashBudgetAmount"),
   dashBudgetMessage: document.getElementById("dashBudgetMessage"),
+  openDashBudgetModalBtn: document.getElementById("openDashBudgetModalBtn"),
   dashBudgetList: document.getElementById("dashBudgetList"),
   dashAlertsList: document.getElementById("dashAlertsList"),
   dashResetFiltersBtn: document.getElementById("dashResetFiltersBtn"),
@@ -234,6 +235,7 @@ const el = {
   dashProjectionNote: document.getElementById("dashProjectionNote"),
   dashSixMonthComparison: document.getElementById("dashSixMonthComparison"),
   transactionForm: document.getElementById("transactionForm"),
+  openTransactionModalBtn: document.getElementById("openTransactionModalBtn"),
   uploadForm: document.getElementById("uploadForm"),
   txTableBody: document.getElementById("txTableBody"),
   txDescription: document.getElementById("txDescription"),
@@ -257,6 +259,7 @@ const el = {
   txType: document.getElementById("txType"),
   txBankName: document.getElementById("txBankName"),
   payableForm: document.getElementById("payableForm"),
+  openPayableModalBtn: document.getElementById("openPayableModalBtn"),
   payableDescription: document.getElementById("payableDescription"),
   payableAmount: document.getElementById("payableAmount"),
   payableDueDate: document.getElementById("payableDueDate"),
@@ -294,6 +297,7 @@ const el = {
   editPayableAttachmentCurrentName: document.getElementById("editPayableAttachmentCurrentName"),
   editPayableRemoveCurrentAttachmentBtn: document.getElementById("editPayableRemoveCurrentAttachmentBtn"),
   receivableForm: document.getElementById("receivableForm"),
+  openReceivableModalBtn: document.getElementById("openReceivableModalBtn"),
   receivableDescription: document.getElementById("receivableDescription"),
   receivableAmount: document.getElementById("receivableAmount"),
   receivableDueDate: document.getElementById("receivableDueDate"),
@@ -318,12 +322,14 @@ const el = {
   txExpenseProfile: document.getElementById("txExpenseProfile"),
   txMinistry: document.getElementById("txMinistry"),
   categoryForm: document.getElementById("categoryForm"),
+  openCategoryModalBtn: document.getElementById("openCategoryModalBtn"),
   categoryName: document.getElementById("categoryName"),
   categoryType: document.getElementById("categoryType"),
   categoryDescription: document.getElementById("categoryDescription"),
   categoryCancelEditBtn: document.getElementById("categoryCancelEditBtn"),
   categoryTableBody: document.getElementById("categoryTableBody"),
   ministryForm: document.getElementById("ministryForm"),
+  openMinistryModalBtn: document.getElementById("openMinistryModalBtn"),
   ministryName: document.getElementById("ministryName"),
   ministryDescription: document.getElementById("ministryDescription"),
   ministryCancelEditBtn: document.getElementById("ministryCancelEditBtn"),
@@ -384,10 +390,18 @@ const el = {
   payablePaidAtCloseBtn: document.getElementById("payablePaidAtCloseBtn"),
   payablePaidAtCancelBtn: document.getElementById("payablePaidAtCancelBtn"),
   payablePaidAtConfirmBtn: document.getElementById("payablePaidAtConfirmBtn"),
+  sharedFormModal: document.getElementById("sharedFormModal"),
+  sharedFormModalTitle: document.getElementById("sharedFormModalTitle"),
+  sharedFormModalEyebrow: document.getElementById("sharedFormModalEyebrow"),
+  sharedFormModalHint: document.getElementById("sharedFormModalHint"),
+  sharedFormModalBody: document.getElementById("sharedFormModalBody"),
+  sharedFormModalCloseBtn: document.getElementById("sharedFormModalCloseBtn"),
+  uiToastStack: document.getElementById("uiToastStack"),
 };
 
 let payablePaidAtResolver = null;
 let confirmModalResolver = null;
+let activeSharedFormModal = null;
 
 function brl(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -555,7 +569,97 @@ async function previewPayableAttachment(payableId) {
 function setMessage(node, text, isError = false) {
   node.textContent = text;
   node.style.color = isError ? "#b42318" : "#5f6b6d";
+  if (text && !shouldSuppressUiAlert(text)) {
+    showUiAlert(text, isError ? "error" : "success");
+  }
 }
+
+function shouldSuppressUiAlert(text) {
+  const normalized = String(text || "").trim().toLowerCase();
+  if (!normalized) return true;
+  return /^(carregando|salvando|atualizando|criando|gerando|enviando|testando|abrindo|processando|editando)\b/.test(normalized);
+}
+
+function showUiAlert(message, type = "info") {
+  if (!el.uiToastStack || !message || shouldSuppressUiAlert(message)) {
+    return;
+  }
+  const toast = document.createElement("article");
+  toast.className = `ui-toast is-${type}`;
+  const title = type === "error" ? "Algo precisa de atenção" : type === "success" ? "Tudo certo" : "Aviso";
+  toast.innerHTML = `
+    <strong>${title}</strong>
+    <p>${escapeHtml(message)}</p>
+  `;
+  el.uiToastStack.appendChild(toast);
+  window.setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(10px)";
+    window.setTimeout(() => toast.remove(), 180);
+  }, 3600);
+}
+
+function restoreSharedFormModalContent() {
+  if (!activeSharedFormModal || !el.sharedFormModalBody) return;
+  const { form, messageNode, parent, nextSibling } = activeSharedFormModal;
+  if (messageNode && messageNode.parentElement === el.sharedFormModalBody) {
+    if (nextSibling && nextSibling.parentNode === parent) {
+      parent.insertBefore(messageNode, nextSibling);
+    } else {
+      parent.appendChild(messageNode);
+    }
+  }
+  if (form && form.parentElement === el.sharedFormModalBody) {
+    if (nextSibling && nextSibling.parentNode === parent) {
+      parent.insertBefore(form, nextSibling);
+    } else {
+      parent.appendChild(form);
+    }
+    form.classList.add("hide");
+  }
+  activeSharedFormModal = null;
+  el.sharedFormModalBody.innerHTML = "";
+}
+
+function closeSharedFormModal() {
+  if (!el.sharedFormModal) return;
+  restoreSharedFormModalContent();
+  el.sharedFormModal.classList.add("hide");
+  if (el.sharedFormModalTitle) el.sharedFormModalTitle.textContent = "Editar";
+  if (el.sharedFormModalEyebrow) el.sharedFormModalEyebrow.textContent = "Editor";
+  if (el.sharedFormModalHint) el.sharedFormModalHint.textContent = "Preencha os dados e salve para continuar.";
+}
+
+function openSharedFormModal(config) {
+  if (!el.sharedFormModal || !el.sharedFormModalBody || !config || !config.form) return;
+  restoreSharedFormModalContent();
+  const parent = config.form.parentElement;
+  const nextSibling = config.form.nextSibling;
+  activeSharedFormModal = {
+    form: config.form,
+    messageNode: config.messageNode || null,
+    parent,
+    nextSibling,
+  };
+  if (el.sharedFormModalTitle) el.sharedFormModalTitle.textContent = config.title || "Editar";
+  if (el.sharedFormModalEyebrow) el.sharedFormModalEyebrow.textContent = config.eyebrow || "Editor";
+  if (el.sharedFormModalHint) el.sharedFormModalHint.textContent = config.hint || "Preencha os dados e salve para continuar.";
+  config.form.classList.remove("hide");
+  el.sharedFormModalBody.appendChild(config.form);
+  if (config.messageNode) {
+    el.sharedFormModalBody.appendChild(config.messageNode);
+  }
+  el.sharedFormModal.classList.remove("hide");
+  const firstFocusable = config.form.querySelector("input, textarea, select, button");
+  window.setTimeout(() => {
+    if (firstFocusable instanceof HTMLElement) firstFocusable.focus();
+  }, 0);
+}
+
+window.showUiAlert = showUiAlert;
+window.openUiConfirm = openConfirmModal;
+window.openSharedFormModal = openSharedFormModal;
+window.closeSharedFormModal = closeSharedFormModal;
 
 function showApp(isAuthed) {
   el.loginScreen.classList.toggle("hide", isAuthed);
@@ -2619,7 +2723,8 @@ function isAnyModalOpen() {
     || !el.editTransactionModal.classList.contains("hide")
     || !el.editPayableModal.classList.contains("hide")
     || !el.uploadResultModal.classList.contains("hide")
-    || !el.payablePaidAtModal.classList.contains("hide");
+    || !el.payablePaidAtModal.classList.contains("hide")
+    || (el.sharedFormModal && !el.sharedFormModal.classList.contains("hide"));
 }
 
 function closePayablePaidAtModal(selectedPayload = null) {
@@ -2674,6 +2779,16 @@ function clearCategoryForm() {
   state.editingCategoryId = null;
   el.categoryForm.reset();
   el.categoryType.value = "expense";
+}
+
+function openDashboardBudgetModal() {
+  openSharedFormModal({
+    form: el.dashBudgetForm,
+    messageNode: el.dashBudgetMessage,
+    title: "Nova meta mensal",
+    eyebrow: "Financeiro",
+    hint: "Defina metas por categoria ou ministério para acompanhar o orçamento.",
+  });
 }
 
 function openConfirmModal(message, confirmLabel = "Confirmar") {
@@ -2800,6 +2915,65 @@ function syncMinistryField(typeSelect, ministrySelect) {
 function clearMinistryForm() {
   state.editingMinistryId = null;
   el.ministryForm.reset();
+}
+
+function openTransactionCreateModal() {
+  el.transactionForm.reset();
+  el.txCategoryId.value = "";
+  el.txCategoryInput.value = "";
+  syncExpenseProfileField(el.txType, el.txExpenseProfile);
+  syncMinistryField(el.txType, el.txMinistry);
+  openSharedFormModal({
+    form: el.transactionForm,
+    messageNode: el.txMessage,
+    title: "Novo lançamento",
+    eyebrow: "Financeiro",
+    hint: "Cadastre uma entrada ou saída e organize por categoria, banco e ministério.",
+  });
+}
+
+function openCategoryCreateModal() {
+  clearCategoryForm();
+  openSharedFormModal({
+    form: el.categoryForm,
+    messageNode: el.categoryMessage,
+    title: "Nova categoria",
+    eyebrow: "Financeiro",
+    hint: "Crie categorias para manter relatórios e lançamentos mais organizados.",
+  });
+}
+
+function openPayableCreateModal() {
+  clearPayableForm();
+  openSharedFormModal({
+    form: el.payableForm,
+    messageNode: el.payableMessage,
+    title: "Nova conta a pagar",
+    eyebrow: "Financeiro",
+    hint: "Cadastre vencimentos, recorrência e boleto em uma experiência única.",
+  });
+}
+
+function openReceivableCreateModal() {
+  clearReceivableForm();
+  openSharedFormModal({
+    form: el.receivableForm,
+    messageNode: el.receivableMessage,
+    title: "Nova conta a receber",
+    eyebrow: "Financeiro",
+    hint: "Cadastre receitas futuras e acompanhe confirmação de recebimento.",
+  });
+}
+
+function openMinistryCreateModal() {
+  clearMinistryForm();
+  openSharedFormModal({
+    form: el.ministryForm,
+    messageNode: el.ministryMessage,
+    title: "Novo ministério",
+    eyebrow: "Financeiro",
+    hint: "Crie ministérios para segmentar o financeiro e seus relatórios.",
+  });
 }
 
 function renderMinistryTable() {
@@ -3314,6 +3488,13 @@ function openEditReceivable(receivable) {
   el.receivableRecurringType.value = receivable.recurrence_type || "";
   el.receivableNotes.value = receivable.notes || "";
   el.receivableSaveBtn.textContent = "Salvar alteracoes";
+  openSharedFormModal({
+    form: el.receivableForm,
+    messageNode: el.receivableMessage,
+    title: "Editar conta a receber",
+    eyebrow: "Financeiro",
+    hint: "Atualize vencimento, valor, categoria e recorrência sem sair da tela.",
+  });
 }
 
 function renderReceivablesKpi() {
@@ -4109,6 +4290,9 @@ el.dashResetFiltersBtn.addEventListener("click", () => {
 });
 
 el.dashBudgetType.addEventListener("change", populateBudgetReferenceOptions);
+if (el.openDashBudgetModalBtn) {
+  el.openDashBudgetModalBtn.addEventListener("click", openDashboardBudgetModal);
+}
 el.dashLineMetric.addEventListener("change", () => {
   el.dashLineChart.classList.add("metric-transition");
   renderLineChart(state.dashboardTrendRows);
@@ -4142,6 +4326,7 @@ el.dashBudgetForm.addEventListener("submit", async (event) => {
     el.dashBudgetAmount.value = "";
     await loadBudgets();
     renderDashboard();
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.dashBudgetMessage, error.message, true);
   }
@@ -4191,6 +4376,7 @@ el.payableForm.addEventListener("submit", async (event) => {
     clearPayableForm();
     await Promise.all([loadPayables(), loadPayablesAlertsSummary(), loadTransactions(), loadReports()]);
     renderDashboard();
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.payableMessage, error.message, true);
   }
@@ -4199,6 +4385,7 @@ el.payableForm.addEventListener("submit", async (event) => {
 el.payableCancelEditBtn.addEventListener("click", () => {
   clearPayableForm();
   setMessage(el.payableMessage, "");
+  closeSharedFormModal();
 });
 
 el.editPayableForm.addEventListener("submit", async (event) => {
@@ -4409,6 +4596,7 @@ el.receivableForm.addEventListener("submit", async (event) => {
     clearReceivableForm();
     await Promise.all([loadReceivables(), loadReceivablesAlertsSummary(), loadTransactions(), loadReports()]);
     renderDashboard();
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.receivableMessage, error.message, true);
   }
@@ -4417,6 +4605,7 @@ el.receivableForm.addEventListener("submit", async (event) => {
 el.receivableCancelEditBtn.addEventListener("click", () => {
   clearReceivableForm();
   setMessage(el.receivableMessage, "");
+  closeSharedFormModal();
 });
 
 const debouncedReceivableSearch = debounce(() => {
@@ -4517,6 +4706,7 @@ el.transactionForm.addEventListener("submit", async (event) => {
     syncExpenseProfileField(el.txType, el.txExpenseProfile);
     syncMinistryField(el.txType, el.txMinistry);
     await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.txMessage, error.message, true);
   }
@@ -4534,6 +4724,10 @@ el.txAddTypedCategoryBtn.addEventListener("click", async () => {
     setMessage(el.txMessage, error.message, true);
   }
 });
+
+if (el.openTransactionModalBtn) {
+  el.openTransactionModalBtn.addEventListener("click", openTransactionCreateModal);
+}
 
 el.txCategoryInput.addEventListener("input", syncTransactionCategoryFromInput);
 el.txCategoryInput.addEventListener("change", syncTransactionCategoryFromInput);
@@ -4614,6 +4808,7 @@ el.categoryForm.addEventListener("submit", async (event) => {
 
     clearCategoryForm();
     await loadCategories();
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.categoryMessage, error.message, true);
   }
@@ -4622,6 +4817,7 @@ el.categoryForm.addEventListener("submit", async (event) => {
 el.categoryCancelEditBtn.addEventListener("click", () => {
   clearCategoryForm();
   setMessage(el.categoryMessage, "");
+  closeSharedFormModal();
 });
 
 el.categoryTableBody.addEventListener("click", async (event) => {
@@ -4642,6 +4838,13 @@ el.categoryTableBody.addEventListener("click", async (event) => {
     el.categoryType.value = cat.type || "expense";
     el.categoryDescription.value = cat.description || "";
     setMessage(el.categoryMessage, `Editando categoria: ${cat.name}`);
+    openSharedFormModal({
+      form: el.categoryForm,
+      messageNode: el.categoryMessage,
+      title: `Editar categoria`,
+      eyebrow: "Financeiro",
+      hint: "Ajuste nome, tipo e descrição da categoria.",
+    });
     return;
   }
 
@@ -4696,6 +4899,7 @@ el.ministryForm.addEventListener("submit", async (event) => {
 
     clearMinistryForm();
     await loadMinistries();
+    closeSharedFormModal();
   } catch (error) {
     setMessage(el.ministryMessage, error.message, true);
   }
@@ -4704,7 +4908,24 @@ el.ministryForm.addEventListener("submit", async (event) => {
 el.ministryCancelEditBtn.addEventListener("click", () => {
   clearMinistryForm();
   setMessage(el.ministryMessage, "");
+  closeSharedFormModal();
 });
+
+if (el.openCategoryModalBtn) {
+  el.openCategoryModalBtn.addEventListener("click", openCategoryCreateModal);
+}
+
+if (el.openPayableModalBtn) {
+  el.openPayableModalBtn.addEventListener("click", openPayableCreateModal);
+}
+
+if (el.openReceivableModalBtn) {
+  el.openReceivableModalBtn.addEventListener("click", openReceivableCreateModal);
+}
+
+if (el.openMinistryModalBtn) {
+  el.openMinistryModalBtn.addEventListener("click", openMinistryCreateModal);
+}
 
 el.ministryTableBody.addEventListener("click", async (event) => {
   const target = event.target;
@@ -4723,6 +4944,13 @@ el.ministryTableBody.addEventListener("click", async (event) => {
     el.ministryName.value = ministry.name;
     el.ministryDescription.value = ministry.description || "";
     setMessage(el.ministryMessage, `Editando ministerio: ${ministry.name}`);
+    openSharedFormModal({
+      form: el.ministryForm,
+      messageNode: el.ministryMessage,
+      title: "Editar ministério",
+      eyebrow: "Financeiro",
+      hint: "Atualize o ministério sem sair da listagem.",
+    });
     return;
   }
 
@@ -4784,6 +5012,18 @@ el.editTransactionModal.addEventListener("click", (event) => {
   }
 });
 
+if (el.sharedFormModalCloseBtn) {
+  el.sharedFormModalCloseBtn.addEventListener("click", closeSharedFormModal);
+}
+
+if (el.sharedFormModal) {
+  el.sharedFormModal.addEventListener("click", (event) => {
+    if (event.target === el.sharedFormModal) {
+      closeSharedFormModal();
+    }
+  });
+}
+
 document.addEventListener("keydown", (event) => {
   const key = String(event.key || "").toLowerCase();
 
@@ -4797,8 +5037,7 @@ document.addEventListener("keydown", (event) => {
     && !el.transactionsView.classList.contains("hide")
   ) {
     event.preventDefault();
-    el.txDescription.focus();
-    el.txDescription.select();
+    openTransactionCreateModal();
     return;
   }
 
@@ -4863,6 +5102,11 @@ document.addEventListener("keydown", (event) => {
 
   if (!el.payablePaidAtModal.classList.contains("hide")) {
     closePayablePaidAtModal(null);
+    return;
+  }
+
+  if (el.sharedFormModal && !el.sharedFormModal.classList.contains("hide")) {
+    closeSharedFormModal();
     return;
   }
 

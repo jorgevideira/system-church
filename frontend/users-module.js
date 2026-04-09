@@ -217,6 +217,8 @@
     usersNavChurchBtn: document.getElementById("usersNavChurchBtn"),
     usersNavAppearanceBtn: document.getElementById("usersNavAppearanceBtn"),
     usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
+    openChurchProfileModalBtn: document.getElementById("openChurchProfileModalBtn"),
+    openPaymentAccountModalBtn: document.getElementById("openPaymentAccountModalBtn"),
     usersUsersView: document.getElementById("usersUsersView"),
     usersRolesView: document.getElementById("usersRolesView"),
     usersChurchView: document.getElementById("usersChurchView"),
@@ -460,66 +462,77 @@
     if (!el.usersMessage) return;
     el.usersMessage.textContent = message || "";
     el.usersMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setRolesMessage(message, isError) {
     if (!el.rolesMessage) return;
     el.rolesMessage.textContent = message || "";
     el.rolesMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setFormMessage(message, isError) {
     if (!el.usersFormMessage) return;
     el.usersFormMessage.textContent = message || "";
     el.usersFormMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setRoleMessage(message, isError) {
     if (!el.usersRoleMessage) return;
     el.usersRoleMessage.textContent = message || "";
     el.usersRoleMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setInviteMessage(message, isError) {
     if (!el.usersInviteMessage) return;
     el.usersInviteMessage.textContent = message || "";
     el.usersInviteMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setLinkInviteMessage(message, isError) {
     if (!el.usersLinkInviteMessage) return;
     el.usersLinkInviteMessage.textContent = message || "";
     el.usersLinkInviteMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setPermissionMessage(message, isError) {
     if (!el.usersPermissionMessage) return;
     el.usersPermissionMessage.textContent = message || "";
     el.usersPermissionMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setChurchMessage(message, isError) {
     if (!el.usersChurchMessage) return;
     el.usersChurchMessage.textContent = message || "";
     el.usersChurchMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setChurchCreateMessage(message, isError) {
     if (!el.usersChurchCreateMessage) return;
     el.usersChurchCreateMessage.textContent = message || "";
     el.usersChurchCreateMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setChurchPaymentsMessage(message, isError) {
     if (!el.usersChurchPaymentsMessage) return;
     el.usersChurchPaymentsMessage.textContent = message || "";
     el.usersChurchPaymentsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setPaymentAccountsMessage(message, isError) {
     if (!el.usersPaymentAccountsMessage) return;
     el.usersPaymentAccountsMessage.textContent = message || "";
     el.usersPaymentAccountsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function normalizeHexColor(value, fallback) {
@@ -1414,6 +1427,7 @@
     if (el.usersPaymentAccountIntegratorId) el.usersPaymentAccountIntegratorId.value = account.integrator_id || account.app_id || "";
     syncPaymentAccountProviderFields();
     setPaymentAccountsMessage(`Editando conta: ${account.label}`, false);
+    openPaymentAccountModal();
   }
 
   async function submitPaymentAccountForm(event) {
@@ -1444,6 +1458,7 @@
       await loadPaymentAccounts();
       resetPaymentAccountForm();
       setPaymentAccountsMessage("Conta de pagamento salva com sucesso.", false);
+      if (window.closeSharedFormModal) window.closeSharedFormModal();
     } catch (error) {
       setPaymentAccountsMessage(error instanceof Error ? error.message : "Falha ao salvar conta de pagamento.", true);
     }
@@ -2144,6 +2159,28 @@
     setChurchPaymentsMessage("", false);
   }
 
+  function openChurchProfileModal() {
+    if (!window.openSharedFormModal || !el.usersChurchForm) return;
+    window.openSharedFormModal({
+      form: el.usersChurchForm,
+      messageNode: el.usersChurchMessage,
+      title: "Editar perfil da igreja",
+      eyebrow: "Configurações",
+      hint: "Atualize identidade, contatos, links públicos e pagamentos da igreja em um só lugar.",
+    });
+  }
+
+  function openPaymentAccountModal() {
+    if (!window.openSharedFormModal || !el.usersPaymentAccountForm) return;
+    window.openSharedFormModal({
+      form: el.usersPaymentAccountForm,
+      messageNode: el.usersPaymentAccountsMessage,
+      title: "Conta de pagamento",
+      eyebrow: "Pagamentos",
+      hint: "Cadastre a conta que vai receber PIX e cartão dos eventos.",
+    });
+  }
+
   async function submitChurchForm(event) {
     event.preventDefault();
     if (!state.isAdmin) {
@@ -2183,6 +2220,7 @@
       await loadPublicEventsForChurch();
       updateChurchPreview();
       setChurchMessage("Perfil da igreja atualizado com sucesso.", false);
+      if (window.closeSharedFormModal) window.closeSharedFormModal();
     } catch (error) {
       setChurchMessage(error instanceof Error ? error.message : "Falha ao salvar perfil da igreja.", true);
     }
@@ -2288,6 +2326,13 @@
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView("church").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.addEventListener("click", () => openChurchView("appearance").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
+    if (el.openChurchProfileModalBtn) el.openChurchProfileModalBtn.addEventListener("click", openChurchProfileModal);
+    if (el.openPaymentAccountModalBtn) {
+      el.openPaymentAccountModalBtn.addEventListener("click", () => {
+        resetPaymentAccountForm();
+        openPaymentAccountModal();
+      });
+    }
 
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
     if (el.usersInviteBtn) el.usersInviteBtn.addEventListener("click", openInviteModal);
@@ -2304,7 +2349,12 @@
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchPaymentsForm) el.usersChurchPaymentsForm.addEventListener("submit", submitChurchPaymentsForm);
     if (el.usersPaymentAccountForm) el.usersPaymentAccountForm.addEventListener("submit", submitPaymentAccountForm);
-    if (el.usersPaymentAccountResetBtn) el.usersPaymentAccountResetBtn.addEventListener("click", resetPaymentAccountForm);
+    if (el.usersPaymentAccountResetBtn) {
+      el.usersPaymentAccountResetBtn.addEventListener("click", () => {
+        resetPaymentAccountForm();
+        if (window.closeSharedFormModal) window.closeSharedFormModal();
+      });
+    }
     if (el.usersChurchRefreshBtn) {
       el.usersChurchRefreshBtn.addEventListener("click", () => {
         Promise.all([loadTenantProfile(), loadTenantPaymentSettings(), loadPublicEventsForChurch()])

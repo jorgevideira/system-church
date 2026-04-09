@@ -446,8 +446,11 @@
             </article>
 
             <article class="dashboard-card">
-              <h4>Orcamento Mensal</h4>
-              <form id="dashBudgetForm" class="dash-budget-form">
+              <div class="section-title compact-section-title">
+                <h4>Orcamento Mensal</h4>
+                <button id="openDashBudgetModalBtn" class="btn ghost btn-mini" type="button">Nova meta</button>
+              </div>
+              <form id="dashBudgetForm" class="dash-budget-form hide">
                 <label>Tipo
                   <select id="dashBudgetType">
                     <option value="category">Categoria</option>
@@ -475,8 +478,13 @@
         </section>
 
         <section class="panel view hide" id="transactionsView">
-          <h3>Entradas e Saidas</h3>
-          <form id="transactionForm" class="grid-form">
+          <div class="section-title">
+            <h3>Entradas e Saidas</h3>
+            <div class="module-actions">
+              <button id="openTransactionModalBtn" class="btn" type="button">Novo lançamento</button>
+            </div>
+          </div>
+          <form id="transactionForm" class="grid-form hide">
             <label>Descrição
               <input type="text" id="txDescription" required>
             </label>
@@ -611,8 +619,13 @@
         </section>
 
         <section class="panel view hide" id="categoriesView">
-          <h3>Gestao de Categorias</h3>
-          <form id="categoryForm" class="grid-form">
+          <div class="section-title">
+            <h3>Gestao de Categorias</h3>
+            <div class="module-actions">
+              <button id="openCategoryModalBtn" class="btn" type="button">Nova categoria</button>
+            </div>
+          </div>
+          <form id="categoryForm" class="grid-form hide">
             <label>Nome
               <input type="text" id="categoryName" placeholder="Ex: Aluguel, Dizimos" required>
             </label>
@@ -650,8 +663,13 @@
         </section>
 
         <section class="panel view hide" id="payablesView">
-          <h3>Contas a Pagar</h3>
-          <form id="payableForm" class="grid-form">
+          <div class="section-title">
+            <h3>Contas a Pagar</h3>
+            <div class="module-actions">
+              <button id="openPayableModalBtn" class="btn" type="button">Nova conta</button>
+            </div>
+          </div>
+          <form id="payableForm" class="grid-form hide">
             <label>Descrição
               <input type="text" id="payableDescription" required>
             </label>
@@ -755,8 +773,13 @@
         </section>
 
         <section class="panel view hide" id="receivablesView">
-          <h3>Contas a Receber</h3>
-          <form id="receivableForm" class="grid-form">
+          <div class="section-title">
+            <h3>Contas a Receber</h3>
+            <div class="module-actions">
+              <button id="openReceivableModalBtn" class="btn" type="button">Nova conta</button>
+            </div>
+          </div>
+          <form id="receivableForm" class="grid-form hide">
             <label>Descrição
               <input type="text" id="receivableDescription" required>
             </label>
@@ -846,8 +869,13 @@
         </section>
 
         <section class="panel view hide" id="ministriesView">
-          <h3>Gestao de Ministérios</h3>
-          <form id="ministryForm" class="grid-form">
+          <div class="section-title">
+            <h3>Gestao de Ministérios</h3>
+            <div class="module-actions">
+              <button id="openMinistryModalBtn" class="btn" type="button">Novo ministério</button>
+            </div>
+          </div>
+          <form id="ministryForm" class="grid-form hide">
             <label>Nome
               <input type="text" id="ministryName" placeholder="Ex: Louvor, Jovens, Infantil" required>
             </label>
@@ -2034,12 +2062,13 @@
           <div class="section-title">
             <h3>Perfil da Igreja</h3>
             <div class="module-actions">
+              <button id="openChurchProfileModalBtn" class="btn" type="button">Editar perfil</button>
               <button id="usersChurchCreateBtn" class="btn ghost" type="button">Nova igreja</button>
               <button id="usersChurchRefreshBtn" class="btn ghost" type="button">Atualizar</button>
             </div>
           </div>
           <p id="usersChurchMessage" class="message"></p>
-          <form id="usersChurchForm" class="stack">
+          <form id="usersChurchForm" class="stack hide">
             <div id="usersChurchGeneralSection" class="settings-anchor"></div>
             <label>Nome interno
               <input id="usersChurchName" type="text" maxlength="255" required>
@@ -2244,11 +2273,14 @@
             <section class="dashboard-card">
               <div class="section-title">
                 <h4>Contas de pagamento</h4>
-                <span class="tiny">Cadastre contas para escolher no evento qual recebedor usar</span>
+                <div class="module-actions">
+                  <span class="tiny">Cadastre contas para escolher no evento qual recebedor usar</span>
+                  <button id="openPaymentAccountModalBtn" class="btn ghost btn-mini" type="button">Nova conta</button>
+                </div>
               </div>
               <p id="usersPaymentAccountsMessage" class="message"></p>
               <div id="usersPaymentAccountGuide" class="payment-account-guide"></div>
-              <form id="usersPaymentAccountForm" class="stack">
+              <form id="usersPaymentAccountForm" class="stack hide">
                 <input id="usersPaymentAccountId" type="hidden">
                 <div class="events-form-row">
                   <label>Nome da conta
@@ -2391,6 +2423,22 @@
       </div>
     </div>
   </div>
+
+  <div id="sharedFormModal" class="modal-overlay hide">
+    <div class="modal-card shared-form-modal-card">
+      <div class="modal-header">
+        <div>
+          <p id="sharedFormModalEyebrow" class="eyebrow modal-eyebrow">Editor</p>
+          <h3 id="sharedFormModalTitle">Editar</h3>
+        </div>
+        <button id="sharedFormModalCloseBtn" class="btn ghost btn-mini" type="button">Fechar</button>
+      </div>
+      <p id="sharedFormModalHint" class="tiny shared-form-modal-hint">Preencha os dados e salve para continuar.</p>
+      <div id="sharedFormModalBody" class="shared-form-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="uiToastStack" class="ui-toast-stack" aria-live="polite" aria-atomic="true"></div>
 
   <div id="usersRoleModal" class="modal-overlay hide">
 
@@ -2548,8 +2596,11 @@
 
           <div class="events-admin-grid">
             <div class="panel events-form-panel">
-              <h4 id="eventsFormTitle">Novo evento</h4>
-              <form id="eventsForm" class="stack">
+              <div class="section-title compact-section-title">
+                <h4 id="eventsFormTitle">Novo evento</h4>
+                <button id="openEventsFormModalBtn" class="btn" type="button">Novo evento</button>
+              </div>
+              <form id="eventsForm" class="stack hide">
                 <input type="hidden" id="eventsFormId">
                 <label>Título
                   <input type="text" id="eventsTitle" required maxlength="255">

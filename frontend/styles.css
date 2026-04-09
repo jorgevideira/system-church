@@ -847,6 +847,10 @@ select:focus {
   color: var(--muted);
 }
 
+.compact-section-title {
+  margin-bottom: 0.85rem;
+}
+
 .kpis {
   display: grid;
   gap: 0.75rem;
@@ -1609,6 +1613,95 @@ th {
   place-items: center;
   z-index: 30;
   padding: 1rem;
+}
+
+.shared-form-modal-card {
+  width: min(860px, 96vw);
+  max-height: min(92vh, 980px);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.modal-eyebrow {
+  margin: 0 0 0.25rem;
+}
+
+.shared-form-modal-hint {
+  margin-top: 0.65rem;
+}
+
+.shared-form-modal-body {
+  margin-top: 0.85rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.shared-form-modal-body form {
+  margin-top: 0;
+}
+
+.shared-form-modal-body .message {
+  margin-top: 0.8rem;
+}
+
+.ui-toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 50;
+  display: grid;
+  gap: 0.7rem;
+  width: min(360px, calc(100vw - 2rem));
+}
+
+.ui-toast {
+  border-radius: 18px;
+  border: 1px solid rgba(18, 33, 54, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(12, 27, 46, 0.18);
+  padding: 0.9rem 1rem;
+  backdrop-filter: blur(14px);
+  animation: rise 0.22s ease;
+}
+
+.ui-toast strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  margin-bottom: 0.25rem;
+}
+
+.ui-toast p {
+  margin: 0;
+  color: #43566f;
+  line-height: 1.35;
+}
+
+.ui-toast.is-success {
+  border-color: rgba(10, 143, 114, 0.18);
+  background: linear-gradient(160deg, rgba(243, 255, 251, 0.98), rgba(255, 255, 255, 0.96));
+}
+
+.ui-toast.is-success strong {
+  color: #0d7a60;
+}
+
+.ui-toast.is-error {
+  border-color: rgba(192, 57, 43, 0.18);
+  background: linear-gradient(160deg, rgba(255, 245, 244, 0.98), rgba(255, 255, 255, 0.96));
+}
+
+.ui-toast.is-error strong {
+  color: #a33629;
+}
+
+.ui-toast.is-info {
+  border-color: rgba(21, 101, 192, 0.16);
+  background: linear-gradient(160deg, rgba(240, 247, 255, 0.98), rgba(255, 255, 255, 0.96));
+}
+
+.ui-toast.is-info strong {
+  color: #1d5b9f;
 }
 
 .modal-card {

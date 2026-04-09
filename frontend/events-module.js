@@ -45,6 +45,7 @@
     eventsCalendarGrid: document.getElementById("eventsCalendarGrid"),
     eventsForm: document.getElementById("eventsForm"),
     eventsFormTitle: document.getElementById("eventsFormTitle"),
+    openEventsFormModalBtn: document.getElementById("openEventsFormModalBtn"),
     eventsFormId: document.getElementById("eventsFormId"),
     eventsTitle: document.getElementById("eventsTitle"),
     eventsSlug: document.getElementById("eventsSlug"),
@@ -207,6 +208,20 @@
     if (!el.eventsMessage) return;
     el.eventsMessage.textContent = message || "";
     el.eventsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) {
+      window.showUiAlert(message, isError ? "error" : "success");
+    }
+  }
+
+  function openEventsFormModal(title = "Novo evento") {
+    if (!window.openSharedFormModal || !el.eventsForm) return;
+    window.openSharedFormModal({
+      form: el.eventsForm,
+      messageNode: el.eventsMessage,
+      title,
+      eyebrow: "Eventos",
+      hint: "Configure agenda, inscrições e conta de recebimento em um só fluxo.",
+    });
   }
 
   function escapeHtml(value) {
@@ -466,6 +481,7 @@
     el.eventsIsActive.checked = Boolean(event.is_active);
     if (el.eventsFormTitle) el.eventsFormTitle.textContent = `Editar evento: ${event.title}`;
     if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.toggle("hide", !hasPermission("events_events_delete"));
+    openEventsFormModal(`Editar evento`);
   }
 
   function renderEvents() {
@@ -847,6 +863,7 @@ function populatePaymentAccountOptions() {
       await loadEvents();
       fillEventForm(response);
       setMessage(isEditing ? "Evento atualizado com sucesso." : "Evento criado com sucesso.");
+      if (window.closeSharedFormModal) window.closeSharedFormModal();
     } catch (error) {
       setMessage(error.message, true);
     }
@@ -858,7 +875,9 @@ function populatePaymentAccountOptions() {
       setMessage("Acesso negado para excluir eventos.", true);
       return;
     }
-    const confirmed = window.confirm("Deseja realmente excluir este evento?");
+    const confirmed = window.openUiConfirm
+      ? await window.openUiConfirm("Deseja realmente excluir este evento?", "Excluir evento")
+      : window.confirm("Deseja realmente excluir este evento?");
     if (!confirmed) return;
 
     try {
@@ -989,7 +1008,14 @@ function populatePaymentAccountOptions() {
     if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
     if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
-    if (el.eventsFormResetBtn) el.eventsFormResetBtn.addEventListener("click", resetEventForm);
+    if (el.openEventsFormModalBtn) el.openEventsFormModalBtn.addEventListener("click", () => {
+      resetEventForm();
+      openEventsFormModal("Novo evento");
+    });
+    if (el.eventsFormResetBtn) el.eventsFormResetBtn.addEventListener("click", () => {
+      resetEventForm();
+      if (window.closeSharedFormModal) window.closeSharedFormModal();
+    });
     if (el.eventsDeleteBtn) el.eventsDeleteBtn.addEventListener("click", () => deleteSelectedEvent().catch((error) => setMessage(error.message, true)));
 
     bindFilterInput(el.eventsSearchInput, "eventsSearch", async () => renderEvents());
