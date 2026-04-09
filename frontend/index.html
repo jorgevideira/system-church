@@ -37,7 +37,23 @@
             <input type="email" id="email" value="admin@church.com" required>
           </label>
           <label>Senha
-            <input type="password" id="password" value="admin123" required>
+            <div class="password-field">
+              <input type="password" id="password" value="admin123" required>
+              <button
+                id="toggleLoginPasswordBtn"
+                class="password-toggle-btn"
+                type="button"
+                aria-label="Mostrar senha"
+                aria-pressed="false"
+                title="Mostrar senha"
+              >
+                <span class="password-toggle-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 5C6.6 5 2.27 8.11 1 12c1.27 3.89 5.6 7 11 7s9.73-3.11 11-7c-1.27-3.89-5.6-7-11-7Zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4Zm0-6.72A2.52 2.52 0 1 0 12 14.52a2.52 2.52 0 0 0 0-5.04Z"></path>
+                  </svg>
+                </span>
+              </button>
+            </div>
           </label>
           <button class="btn" type="submit">Entrar no sistema</button>
         </form>

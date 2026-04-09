@@ -194,6 +194,8 @@ const el = {
   tenantOnboardingInviteBtn: document.getElementById("tenantOnboardingInviteBtn"),
   tenantOnboardingPreviewLink: document.getElementById("tenantOnboardingPreviewLink"),
   loginForm: document.getElementById("loginForm"),
+  loginPasswordInput: document.getElementById("password"),
+  toggleLoginPasswordBtn: document.getElementById("toggleLoginPasswordBtn"),
   logoutBtn: document.getElementById("logoutBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
   dashStartDate: document.getElementById("dashStartDate"),
@@ -488,6 +490,17 @@ function errorDetailToText(detail, fallback = "Erro inesperado") {
     return JSON.stringify(detail);
   }
   return String(detail);
+}
+
+function toggleLoginPasswordVisibility() {
+  if (!el.loginPasswordInput || !el.toggleLoginPasswordBtn) {
+    return;
+  }
+  const showing = el.loginPasswordInput.type === "text";
+  el.loginPasswordInput.type = showing ? "password" : "text";
+  el.toggleLoginPasswordBtn.setAttribute("aria-label", showing ? "Mostrar senha" : "Ocultar senha");
+  el.toggleLoginPasswordBtn.setAttribute("title", showing ? "Mostrar senha" : "Ocultar senha");
+  el.toggleLoginPasswordBtn.setAttribute("aria-pressed", String(!showing));
 }
 
 function clearAttachmentPreview() {
@@ -4106,6 +4119,9 @@ el.loginForm.addEventListener("submit", async (event) => {
     setMessage(el.authMessage, error.message, true);
   }
 });
+if (el.toggleLoginPasswordBtn) {
+  el.toggleLoginPasswordBtn.addEventListener("click", toggleLoginPasswordVisibility);
+}
 
 el.logoutBtn.addEventListener("click", () => {
   logout();
