@@ -259,3 +259,19 @@ def set_account_access_token(db: Session, account: PaymentAccount, access_token:
     db.commit()
     db.refresh(account)
     return account
+
+
+def disconnect_oauth_account(db: Session, account: PaymentAccount) -> PaymentAccount:
+    config = dict(account.config_json or {})
+    secrets = dict(account.secrets_json or {})
+    config["oauth_connected"] = False
+    config["oauth_provider_user_id"] = None
+    config["oauth_updated_at"] = None
+    config["oauth_last_error"] = None
+    config["oauth_state"] = None
+    secrets["refresh_token"] = None
+    account.config_json = config
+    account.secrets_json = secrets
+    db.commit()
+    db.refresh(account)
+    return account

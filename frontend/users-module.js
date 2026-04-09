@@ -357,6 +357,7 @@
     usersPaymentAccountIntegratorId: document.getElementById("usersPaymentAccountIntegratorId"),
     usersPaymentAccountOAuthBtn: document.getElementById("usersPaymentAccountOAuthBtn"),
     usersPaymentAccountTestBtn: document.getElementById("usersPaymentAccountTestBtn"),
+    usersPaymentAccountDisconnectBtn: document.getElementById("usersPaymentAccountDisconnectBtn"),
     usersPaymentAccountResetBtn: document.getElementById("usersPaymentAccountResetBtn"),
     usersPaymentAccountsBody: document.getElementById("usersPaymentAccountsBody"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
@@ -1275,6 +1276,27 @@
     setPaymentAccountsMessage(result.message || "Conexão validada com sucesso.", false);
   }
 
+  async function disconnectMercadoPagoOAuth() {
+    const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+    if (!accountId) {
+      setPaymentAccountsMessage("Selecione e salve uma conta antes de desconectar OAuth.", true);
+      return;
+    }
+    const account = state.paymentAccounts.find((item) => item.id === accountId);
+    if (!account || account.provider !== "mercadopago") {
+      setPaymentAccountsMessage("OAuth está disponível apenas para contas Mercado Pago.", true);
+      return;
+    }
+    setPaymentAccountsMessage("Desconectando OAuth da conta...", false);
+    await fetchJson(
+      `${paymentAccountsEndpoint}${accountId}/oauth/mercadopago/disconnect`,
+      { method: "POST", headers: buildHeaders(false) },
+      "Falha ao desconectar OAuth da conta."
+    );
+    await loadPaymentAccounts();
+    setPaymentAccountsMessage("OAuth desconectado da conta com sucesso.", false);
+  }
+
   function syncPaymentAccountProviderFields() {
     const provider = el.usersPaymentAccountProvider ? el.usersPaymentAccountProvider.value : "mercadopago";
     const isMercadoPago = provider === "mercadopago";
@@ -1309,6 +1331,11 @@
     if (el.usersPaymentAccountTestBtn) {
       el.usersPaymentAccountTestBtn.disabled = isInternal;
     }
+    if (el.usersPaymentAccountDisconnectBtn) {
+      const editingId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+      const existingAccount = editingId > 0 ? state.paymentAccounts.find((account) => account.id === editingId) : null;
+      el.usersPaymentAccountDisconnectBtn.disabled = !isMercadoPago || !existingAccount || !existingAccount.oauth_connected;
+    }
     if (isInternal) {
       if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
       if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = false;
@@ -1329,7 +1356,7 @@
         <td>${escapeHtml(account.provider)}<br><span class="tiny">${escapeHtml(account.environment || "production")}</span></td>
         <td>${account.supports_pix ? "PIX" : ""}${account.supports_pix && account.supports_card ? " / " : ""}${account.supports_card ? "Cartão" : ""}</td>
         <td>${account.is_active ? "Ativa" : "Inativa"}${account.is_default ? " · Padrão" : ""}</td>
-        <td>${account.live_ready ? "Sim" : "Não"}${account.oauth_connected ? '<br><span class="tiny">OAuth conectado</span>' : ""}</td>
+        <td>${account.live_ready ? "Sim" : "Não"}${account.oauth_connected ? '<br><span class="tiny">OAuth conectado</span>' : ""}${account.oauth_last_error ? `<br><span class="tiny">Erro: ${escapeHtml(account.oauth_last_error)}</span>` : ""}</td>
         <td>
           <button class="btn ghost btn-mini" type="button" data-payment-account-edit="${account.id}">Editar</button>
           <button class="btn ghost btn-mini" type="button" data-payment-account-delete="${account.id}">Excluir</button>
@@ -2431,6 +2458,11 @@
     if (el.usersPaymentAccountTestBtn) {
       el.usersPaymentAccountTestBtn.addEventListener("click", () => {
         testPaymentAccountConnection().catch((error) => setPaymentAccountsMessage(error.message, true));
+      });
+    }
+    if (el.usersPaymentAccountDisconnectBtn) {
+      el.usersPaymentAccountDisconnectBtn.addEventListener("click", () => {
+        disconnectMercadoPagoOAuth().catch((error) => setPaymentAccountsMessage(error.message, true));
       });
     }
 

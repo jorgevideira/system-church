@@ -163,6 +163,22 @@ def start_mercadopago_oauth(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.post("/{account_id}/oauth/mercadopago/disconnect", response_model=PaymentAccountResponse)
+def disconnect_mercadopago_oauth(
+    account_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> PaymentAccountResponse:
+    account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment account not found")
+    if account.provider != "mercadopago":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth is only available for Mercado Pago accounts")
+    updated = payment_account_service.disconnect_oauth_account(db, account)
+    return payment_account_service.to_response(updated)
+
+
 @router.get("/oauth/mercadopago/callback", response_class=HTMLResponse, include_in_schema=False)
 def mercadopago_oauth_callback(
     code: str | None = Query(default=None),
