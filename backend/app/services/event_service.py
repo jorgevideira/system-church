@@ -11,11 +11,12 @@ from app.db.models.category import Category
 from app.db.models.event import Event
 from app.db.models.event_payment import EventPayment
 from app.db.models.event_registration import EventRegistration
+from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
 from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
-from app.services import event_notification_service, mercadopago_service, tenant_service, transaction_service
+from app.services import event_notification_service, mercadopago_service, payment_account_service, tenant_service, transaction_service
 
 
 def _slugify(value: str) -> str:
@@ -49,25 +50,59 @@ def list_events(db: Session, tenant_id: int, include_inactive: bool = True) -> l
     q = db.query(Event).filter(Event.tenant_id == tenant_id)
     if not include_inactive:
         q = q.filter(Event.is_active.is_(True))
-    return q.order_by(Event.start_at.desc(), Event.id.desc()).all()
+    events = q.order_by(Event.start_at.desc(), Event.id.desc()).all()
+    _attach_payment_account_summary(db, events, tenant_id)
+    return events
 
 
 def get_event(db: Session, event_id: int, tenant_id: int) -> Optional[Event]:
-    return db.query(Event).filter(Event.id == event_id, Event.tenant_id == tenant_id).first()
+    event = db.query(Event).filter(Event.id == event_id, Event.tenant_id == tenant_id).first()
+    if event is not None:
+        _attach_payment_account_summary(db, [event], tenant_id)
+    return event
+
+
+def _attach_payment_account_summary(db: Session, events: list[Event], tenant_id: int) -> None:
+    account_ids = {event.payment_account_id for event in events if getattr(event, "payment_account_id", None)}
+    if not account_ids:
+        return
+    accounts = (
+        db.query(PaymentAccount)
+        .filter(PaymentAccount.tenant_id == tenant_id, PaymentAccount.id.in_(account_ids))
+        .all()
+    )
+    accounts_by_id = {account.id: account for account in accounts}
+    for event in events:
+        account = accounts_by_id.get(event.payment_account_id)
+        setattr(event, "payment_account_provider", account.provider if account else None)
+        setattr(event, "payment_account_label", account.label if account else None)
+
+
+def _resolve_event_payment_account(db: Session, tenant_id: int, payment_account_id: int | None) -> PaymentAccount | None:
+    if payment_account_id is None:
+        return None
+    account = payment_account_service.get_payment_account(db, payment_account_id, tenant_id)
+    if account is None or not account.is_active:
+        raise ValueError("Selected payment account is not available for this church")
+    return account
 
 
 def create_event(db: Session, tenant_id: int, user_id: int, payload: EventCreate) -> Event:
     data = payload.model_dump()
+    _resolve_event_payment_account(db, tenant_id, data.get("payment_account_id"))
     data["slug"] = _build_unique_event_slug(db, tenant_id, payload.title, payload.slug)
     event = Event(**data, tenant_id=tenant_id, created_by_user_id=user_id)
     db.add(event)
     db.commit()
     db.refresh(event)
+    _attach_payment_account_summary(db, [event], tenant_id)
     return event
 
 
 def update_event(db: Session, event: Event, payload: EventUpdate) -> Event:
     changes = payload.model_dump(exclude_unset=True)
+    if "payment_account_id" in changes:
+        _resolve_event_payment_account(db, event.tenant_id, changes.get("payment_account_id"))
     if "slug" in changes or "title" in changes:
         changes["slug"] = _build_unique_event_slug(
             db,
@@ -82,6 +117,7 @@ def update_event(db: Session, event: Event, payload: EventUpdate) -> Event:
         setattr(event, field, value)
     db.commit()
     db.refresh(event)
+    _attach_payment_account_summary(db, [event], event.tenant_id)
     return event
 
 
@@ -130,6 +166,8 @@ def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Op
         )
         .first()
     )
+    if event is not None:
+        _attach_payment_account_summary(db, [event], tenant.id)
     return tenant, event
 
 
@@ -148,6 +186,7 @@ def list_public_events(db: Session, tenant_slug: str) -> tuple[Optional[Tenant],
         .order_by(Event.start_at.asc(), Event.id.asc())
         .all()
     )
+    _attach_payment_account_summary(db, events, tenant.id)
     return tenant, events
 
 
@@ -244,15 +283,23 @@ def create_public_registration(
     db.add(registration)
     db.flush()
 
+    payment_account = _resolve_event_payment_account(db, tenant.id, event.payment_account_id)
     payment = None
     if payment_required:
         checkout_reference = _generate_checkout_reference(event, registration.registration_code)
-        if payment_method == "pix" and not tenant.payment_pix_enabled:
+        account_supports_pix = payment_account.supports_pix if payment_account is not None else tenant.payment_pix_enabled
+        account_supports_card = payment_account.supports_card if payment_account is not None else tenant.payment_card_enabled
+        if payment_method == "pix" and not account_supports_pix:
             raise ValueError("PIX is disabled for this church")
-        if payment_method == "card" and not tenant.payment_card_enabled:
+        if payment_method == "card" and not account_supports_card:
             raise ValueError("Card payments are disabled for this church")
 
-        provider = "mercadopago" if mercadopago_service.is_enabled(tenant) else "internal"
+        provider_name = payment_account.provider if payment_account is not None else tenant_service.get_payment_provider(tenant)
+        provider = provider_name if provider_name in {"mercadopago", "pagbank"} else "internal"
+        if provider == "mercadopago" and not mercadopago_service.is_enabled(tenant, payment_account):
+            provider = "internal"
+        if provider == "pagbank":
+            provider = "internal"
         checkout_url = None
         pix_copy_paste = None
         provider_payload: dict | None = None
@@ -261,6 +308,7 @@ def create_public_registration(
         if provider == "mercadopago":
             preference = mercadopago_service.create_checkout_preference(
                 tenant=tenant,
+                payment_account=payment_account,
                 event_title=event.title,
                 registration_code=registration.registration_code,
                 checkout_reference=checkout_reference,
@@ -286,6 +334,7 @@ def create_public_registration(
             tenant_id=tenant.id,
             event_id=event.id,
             registration_id=registration.id,
+            payment_account_id=payment_account.id if payment_account is not None else None,
             provider=provider,
             payment_method=payment_method or "pix",
             status="pending",
@@ -431,13 +480,18 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
 
 
 def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional[EventPayment]:
-    candidate_tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).order_by(Tenant.id.asc()).all()
-    include_global = tenant_service.get_payment_provider(None) == "mercadopago"
-    for tenant in candidate_tenants + ([None] if include_global else []):
-        if tenant is not None and not mercadopago_service.is_enabled(tenant):
+    candidate_accounts = (
+        db.query(PaymentAccount)
+        .filter(PaymentAccount.is_active.is_(True), PaymentAccount.provider == "mercadopago")
+        .order_by(PaymentAccount.id.asc())
+        .all()
+    )
+    for account in candidate_accounts:
+        tenant = db.query(Tenant).filter(Tenant.id == account.tenant_id, Tenant.is_active.is_(True)).first()
+        if tenant is None or not mercadopago_service.is_enabled(tenant, account):
             continue
         try:
-            payment_data = mercadopago_service.fetch_payment(provider_payment_id, tenant)
+            payment_data = mercadopago_service.fetch_payment(provider_payment_id, tenant, account)
         except Exception:
             continue
         checkout_reference = payment_data.get("external_reference")
@@ -454,4 +508,20 @@ def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional
         updated = apply_payment_webhook(db, webhook_payload)
         if updated is not None:
             return updated
+    if tenant_service.get_payment_provider(None) == "mercadopago" and mercadopago_service.is_enabled(None, None):
+        try:
+            payment_data = mercadopago_service.fetch_payment(provider_payment_id, None, None)
+        except Exception:
+            return None
+        checkout_reference = payment_data.get("external_reference")
+        if not checkout_reference:
+            return None
+        webhook_payload = EventPaymentWebhookPayload(
+            checkout_reference=checkout_reference,
+            status=mercadopago_service.map_payment_status(payment_data.get("status")),
+            provider_reference=str(payment_data.get("id")),
+            paid_at=mercadopago_service.parse_paid_at(payment_data),
+            provider_payload=payment_data,
+        )
+        return apply_payment_webhook(db, webhook_payload)
     return None

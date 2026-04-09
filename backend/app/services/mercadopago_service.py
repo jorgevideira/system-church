@@ -7,23 +7,53 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import settings
+from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
-from app.services import tenant_service
+from app.services import payment_account_service, tenant_service
 
 
 MERCADOPAGO_API_BASE_URL = "https://api.mercadopago.com"
 
 
-def is_enabled(tenant: Tenant | None = None) -> bool:
-    return tenant_service.get_payment_provider(tenant) == "mercadopago" and bool(tenant_service.get_mercadopago_access_token(tenant))
+def _resolve_access_token(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> str | None:
+    token = payment_account_service.get_account_access_token(payment_account)
+    if token:
+        return token
+    return tenant_service.get_mercadopago_access_token(tenant)
 
 
-def _build_headers(tenant: Tenant | None = None) -> dict[str, str]:
+def _resolve_public_key(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> str | None:
+    public_key = payment_account_service.get_account_public_key(payment_account)
+    if public_key:
+        return public_key
+    return tenant_service.get_mercadopago_public_key(tenant)
+
+
+def _resolve_webhook_secret(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> str | None:
+    webhook_secret = payment_account_service.get_account_webhook_secret(payment_account)
+    if webhook_secret:
+        return webhook_secret
+    return tenant_service.get_mercadopago_webhook_secret(tenant)
+
+
+def _resolve_integrator_id(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> str | None:
+    integrator_id = payment_account_service.get_account_integrator_id(payment_account)
+    if integrator_id:
+        return integrator_id
+    return tenant_service.get_mercadopago_integrator_id(tenant)
+
+
+def is_enabled(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> bool:
+    provider = payment_account.provider if payment_account is not None else tenant_service.get_payment_provider(tenant)
+    return provider == "mercadopago" and bool(_resolve_access_token(tenant, payment_account))
+
+
+def _build_headers(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> dict[str, str]:
     headers = {
-        "Authorization": f"Bearer {tenant_service.get_mercadopago_access_token(tenant)}",
+        "Authorization": f"Bearer {_resolve_access_token(tenant, payment_account)}",
         "Content-Type": "application/json",
     }
-    integrator_id = tenant_service.get_mercadopago_integrator_id(tenant)
+    integrator_id = _resolve_integrator_id(tenant, payment_account)
     if integrator_id:
         headers["x-integrator-id"] = integrator_id
     return headers
@@ -31,6 +61,7 @@ def _build_headers(tenant: Tenant | None = None) -> dict[str, str]:
 
 def create_checkout_preference(
     tenant: Tenant,
+    payment_account: PaymentAccount | None,
     *,
     event_title: str,
     registration_code: str,
@@ -41,7 +72,7 @@ def create_checkout_preference(
     attendee_email: str,
     preferred_method: Optional[str],
 ) -> dict[str, Any]:
-    if not is_enabled(tenant):
+    if not is_enabled(tenant, payment_account):
         raise ValueError("Mercado Pago is not configured")
 
     notification_url = f"{settings.APP_BASE_URL}{settings.API_V1_STR}/events/public/payments/webhook"
@@ -91,20 +122,20 @@ def create_checkout_preference(
     with httpx.Client(timeout=20.0) as client:
         response = client.post(
             f"{MERCADOPAGO_API_BASE_URL}/checkout/preferences",
-            headers=_build_headers(tenant),
+            headers=_build_headers(tenant, payment_account),
             json=payload,
         )
         response.raise_for_status()
         return response.json()
 
 
-def fetch_payment(payment_id: str, tenant: Tenant | None = None) -> dict[str, Any]:
-    if not is_enabled(tenant):
+def fetch_payment(payment_id: str, tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> dict[str, Any]:
+    if not is_enabled(tenant, payment_account):
         raise ValueError("Mercado Pago is not configured")
     with httpx.Client(timeout=20.0) as client:
         response = client.get(
             f"{MERCADOPAGO_API_BASE_URL}/v1/payments/{payment_id}",
-            headers=_build_headers(tenant),
+            headers=_build_headers(tenant, payment_account),
         )
         response.raise_for_status()
         return response.json()
@@ -139,12 +170,13 @@ def parse_paid_at(payment_data: dict[str, Any]) -> Optional[datetime]:
 
 def validate_webhook_signature(
     tenant: Tenant | None = None,
+    payment_account: PaymentAccount | None = None,
     *,
     data_id: Optional[str],
     x_signature: Optional[str],
     x_request_id: Optional[str],
 ) -> bool:
-    webhook_secret = tenant_service.get_mercadopago_webhook_secret(tenant)
+    webhook_secret = _resolve_webhook_secret(tenant, payment_account)
     if not webhook_secret:
         return True
     if not data_id or not x_signature or not x_request_id:

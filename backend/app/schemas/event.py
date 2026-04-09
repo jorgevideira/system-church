@@ -14,6 +14,7 @@ EVENT_GATEWAY_PAYMENT_STATUSES = {"pending", "paid", "failed", "expired", "cance
 
 
 class EventBase(BaseModel):
+    payment_account_id: Optional[int] = None
     title: str
     slug: Optional[str] = None
     summary: Optional[str] = None
@@ -76,6 +77,7 @@ class EventCreate(EventBase):
 
 
 class EventUpdate(BaseModel):
+    payment_account_id: Optional[int] = None
     title: Optional[str] = None
     slug: Optional[str] = None
     summary: Optional[str] = None
@@ -101,6 +103,8 @@ class EventResponse(EventBase):
     id: int
     tenant_id: Optional[int] = None
     created_by_user_id: int
+    payment_account_provider: Optional[str] = None
+    payment_account_label: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -110,6 +114,8 @@ class EventResponse(EventBase):
 class PublicEventResponse(EventBase):
     id: int
     slug: str
+    payment_account_provider: Optional[str] = None
+    payment_account_label: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -171,6 +177,7 @@ class EventPaymentResponse(BaseModel):
     tenant_id: Optional[int] = None
     event_id: int
     registration_id: int
+    payment_account_id: Optional[int] = None
     transaction_id: Optional[int] = None
     provider: str
     payment_method: str

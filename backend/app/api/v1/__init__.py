@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
 	events,
 	lost_sheep,
 	ministries,
+	payment_accounts,
 	payables,
 	receivables,
 	reports,
@@ -26,6 +27,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(categories.router, prefix="/categories", tags=["categories"])
 api_router.include_router(ministries.router, prefix="/ministries", tags=["ministries"])
+api_router.include_router(payment_accounts.router, prefix="/payment-accounts", tags=["payment_accounts"])
 api_router.include_router(cells.router, prefix="/cells", tags=["cells"])
 api_router.include_router(bible_school.router, prefix="/bible-school", tags=["bible_school"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])

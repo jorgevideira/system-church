@@ -33,6 +33,7 @@ from app.db.models.event_registration import EventRegistration
 from app.db.models.event_payment import EventPayment
 from app.db.models.event_notification import EventNotification
 from app.db.models.tenant_invitation import TenantInvitation
+from app.db.models.payment_account import PaymentAccount
 
 __all__ = [
     "User",
@@ -71,4 +72,5 @@ __all__ = [
     "EventPayment",
     "EventNotification",
     "TenantInvitation",
+    "PaymentAccount",
 ]

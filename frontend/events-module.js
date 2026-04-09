@@ -1,6 +1,7 @@
 (function () {
   const apiPrefix = "/api/v1";
   const eventsEndpoint = `${apiPrefix}/events`;
+  const paymentAccountsEndpoint = `${apiPrefix}/payment-accounts/`;
   const permissionStorageKey = "currentUserPermissions";
   const isAdminStorageKey = "currentUserIsAdmin";
 
@@ -50,6 +51,7 @@
     eventsSummary: document.getElementById("eventsSummary"),
     eventsDescription: document.getElementById("eventsDescription"),
     eventsLocation: document.getElementById("eventsLocation"),
+    eventsPaymentAccountId: document.getElementById("eventsPaymentAccountId"),
     eventsStartAt: document.getElementById("eventsStartAt"),
     eventsEndAt: document.getElementById("eventsEndAt"),
     eventsRegistrationOpensAt: document.getElementById("eventsRegistrationOpensAt"),
@@ -104,6 +106,7 @@
     payments: [],
     notifications: [],
     analytics: null,
+    paymentAccounts: [],
     permissionSet: new Set(),
     isAdmin: false,
     currentView: "agenda",
@@ -321,6 +324,7 @@
     if (!el.eventsForm) return;
     el.eventsForm.reset();
     el.eventsFormId.value = "";
+    if (el.eventsPaymentAccountId) el.eventsPaymentAccountId.value = "";
     el.eventsMaxRegistrationsPerOrder.value = "1";
     el.eventsPricePerRegistration.value = "0";
     el.eventsCurrency.value = "BRL";
@@ -441,6 +445,7 @@
 
   function fillEventForm(event) {
     el.eventsFormId.value = String(event.id);
+    if (el.eventsPaymentAccountId) el.eventsPaymentAccountId.value = event.payment_account_id != null ? String(event.payment_account_id) : "";
     el.eventsTitle.value = event.title || "";
     el.eventsSlug.value = event.slug || "";
     el.eventsSummary.value = event.summary || "";
@@ -508,6 +513,7 @@
             <span class="event-admin-chip">${escapeHtml(formatDateTime(event.start_at))}</span>
             <span class="event-admin-chip">${escapeHtml(event.location || "Local a definir")}</span>
             <span class="event-admin-chip">${escapeHtml(formatMoney(event.price_per_registration || 0, event.currency || "BRL"))}</span>
+            ${event.payment_account_label ? `<span class="event-admin-chip">${escapeHtml(event.payment_account_label)} · ${escapeHtml(event.payment_account_provider || "conta")}</span>` : ""}
           </div>
           <div class="event-admin-card-actions">
             <button class="btn btn-mini" type="button" data-event-select="${event.id}">Selecionar</button>
@@ -531,6 +537,24 @@
     renderEvents();
     renderCalendar();
     setMessage("");
+  }
+
+  function populatePaymentAccountOptions() {
+    if (!el.eventsPaymentAccountId) return;
+    const options = ['<option value="">Configuração padrão da igreja</option>'];
+    state.paymentAccounts.forEach((account) => {
+      options.push(`<option value="${account.id}">${escapeHtml(account.label)} (${escapeHtml(account.provider)})</option>`);
+    });
+    el.eventsPaymentAccountId.innerHTML = options.join("");
+  }
+
+  async function loadPaymentAccounts() {
+    try {
+      state.paymentAccounts = await fetchJson(paymentAccountsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar contas de pagamento.");
+    } catch (_error) {
+      state.paymentAccounts = [];
+    }
+    populatePaymentAccountOptions();
   }
 
   async function loadRegistrations() {
@@ -763,6 +787,7 @@
 
   function readFormPayload() {
     return {
+      payment_account_id: el.eventsPaymentAccountId && el.eventsPaymentAccountId.value ? Number(el.eventsPaymentAccountId.value) : null,
       title: el.eventsTitle.value.trim(),
       slug: el.eventsSlug.value.trim() || null,
       summary: el.eventsSummary.value.trim() || null,
@@ -873,6 +898,7 @@
 
     setActiveModule("events");
     setView(fallbackView);
+    await loadPaymentAccounts();
     await loadEvents();
     ensureSelectedEvent();
     if (state.selectedEventId || state.currentView !== "agenda") {

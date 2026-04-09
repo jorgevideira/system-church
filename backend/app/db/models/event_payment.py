@@ -29,6 +29,12 @@ class EventPayment(Base):
         nullable=False,
         index=True,
     )
+    payment_account_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("payment_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     transaction_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("transactions.id", ondelete="SET NULL"),

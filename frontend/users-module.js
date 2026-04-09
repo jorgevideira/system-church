@@ -7,6 +7,7 @@
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const tenantLogoUploadEndpoint = `${apiPrefix}/tenants/current/logo`;
   const tenantPaymentsEndpoint = `${apiPrefix}/tenants/current/payments`;
+  const paymentAccountsEndpoint = `${apiPrefix}/payment-accounts/`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
   const publicEventsEndpoint = `${apiPrefix}/events/public/tenants/`;
@@ -332,6 +333,22 @@
     usersChurchPaymentTokenStatus: document.getElementById("usersChurchPaymentTokenStatus"),
     usersChurchPaymentWebhookStatus: document.getElementById("usersChurchPaymentWebhookStatus"),
     usersChurchPaymentLiveStatus: document.getElementById("usersChurchPaymentLiveStatus"),
+    usersPaymentAccountsMessage: document.getElementById("usersPaymentAccountsMessage"),
+    usersPaymentAccountForm: document.getElementById("usersPaymentAccountForm"),
+    usersPaymentAccountId: document.getElementById("usersPaymentAccountId"),
+    usersPaymentAccountLabel: document.getElementById("usersPaymentAccountLabel"),
+    usersPaymentAccountProvider: document.getElementById("usersPaymentAccountProvider"),
+    usersPaymentAccountDescription: document.getElementById("usersPaymentAccountDescription"),
+    usersPaymentAccountSupportsPix: document.getElementById("usersPaymentAccountSupportsPix"),
+    usersPaymentAccountSupportsCard: document.getElementById("usersPaymentAccountSupportsCard"),
+    usersPaymentAccountIsDefault: document.getElementById("usersPaymentAccountIsDefault"),
+    usersPaymentAccountIsActive: document.getElementById("usersPaymentAccountIsActive"),
+    usersPaymentAccountPublicKey: document.getElementById("usersPaymentAccountPublicKey"),
+    usersPaymentAccountAccessToken: document.getElementById("usersPaymentAccountAccessToken"),
+    usersPaymentAccountWebhookSecret: document.getElementById("usersPaymentAccountWebhookSecret"),
+    usersPaymentAccountIntegratorId: document.getElementById("usersPaymentAccountIntegratorId"),
+    usersPaymentAccountResetBtn: document.getElementById("usersPaymentAccountResetBtn"),
+    usersPaymentAccountsBody: document.getElementById("usersPaymentAccountsBody"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
     usersChurchOpenLandingBtn: document.getElementById("usersChurchOpenLandingBtn"),
     usersChurchLandingUrl: document.getElementById("usersChurchLandingUrl"),
@@ -370,6 +387,7 @@
     publicEvents: [],
     tenantProfile: null,
     tenantPaymentSettings: null,
+    paymentAccounts: [],
     permissionSet: new Set(),
     isAdmin: false,
     mode: "create",
@@ -480,6 +498,12 @@
     if (!el.usersChurchPaymentsMessage) return;
     el.usersChurchPaymentsMessage.textContent = message || "";
     el.usersChurchPaymentsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function setPaymentAccountsMessage(message, isError) {
+    if (!el.usersPaymentAccountsMessage) return;
+    el.usersPaymentAccountsMessage.textContent = message || "";
+    el.usersPaymentAccountsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
   }
 
   function normalizeHexColor(value, fallback) {
@@ -1072,6 +1096,100 @@
   async function loadTenantPaymentSettings() {
     state.tenantPaymentSettings = await fetchJson(tenantPaymentsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos da igreja.");
     renderTenantPaymentSettings();
+  }
+
+  function resetPaymentAccountForm() {
+    if (!el.usersPaymentAccountForm) return;
+    el.usersPaymentAccountForm.reset();
+    if (el.usersPaymentAccountId) el.usersPaymentAccountId.value = "";
+    if (el.usersPaymentAccountProvider) el.usersPaymentAccountProvider.value = "mercadopago";
+    if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
+    if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = true;
+    if (el.usersPaymentAccountIsActive) el.usersPaymentAccountIsActive.checked = true;
+    setPaymentAccountsMessage("", false);
+  }
+
+  function renderPaymentAccounts() {
+    if (!el.usersPaymentAccountsBody) return;
+    if (!state.paymentAccounts.length) {
+      el.usersPaymentAccountsBody.innerHTML = '<tr><td colspan="6">Nenhuma conta cadastrada.</td></tr>';
+      return;
+    }
+    el.usersPaymentAccountsBody.innerHTML = state.paymentAccounts.map((account) => `
+      <tr>
+        <td><strong>${escapeHtml(account.label)}</strong><br><span class="tiny">${escapeHtml(account.description || "-")}</span></td>
+        <td>${escapeHtml(account.provider)}</td>
+        <td>${account.supports_pix ? "PIX" : ""}${account.supports_pix && account.supports_card ? " / " : ""}${account.supports_card ? "Cartão" : ""}</td>
+        <td>${account.is_active ? "Ativa" : "Inativa"}${account.is_default ? " · Padrão" : ""}</td>
+        <td>${account.live_ready ? "Sim" : "Não"}</td>
+        <td>
+          <button class="btn ghost btn-mini" type="button" data-payment-account-edit="${account.id}">Editar</button>
+          <button class="btn ghost btn-mini" type="button" data-payment-account-delete="${account.id}">Excluir</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  async function loadPaymentAccounts() {
+    state.paymentAccounts = await fetchJson(paymentAccountsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar contas de pagamento.");
+    renderPaymentAccounts();
+  }
+
+  function editPaymentAccount(accountId) {
+    const account = state.paymentAccounts.find((item) => item.id === accountId);
+    if (!account) return;
+    if (el.usersPaymentAccountId) el.usersPaymentAccountId.value = String(account.id);
+    if (el.usersPaymentAccountLabel) el.usersPaymentAccountLabel.value = account.label || "";
+    if (el.usersPaymentAccountProvider) el.usersPaymentAccountProvider.value = account.provider || "mercadopago";
+    if (el.usersPaymentAccountDescription) el.usersPaymentAccountDescription.value = account.description || "";
+    if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = Boolean(account.supports_pix);
+    if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = Boolean(account.supports_card);
+    if (el.usersPaymentAccountIsDefault) el.usersPaymentAccountIsDefault.checked = Boolean(account.is_default);
+    if (el.usersPaymentAccountIsActive) el.usersPaymentAccountIsActive.checked = Boolean(account.is_active);
+    if (el.usersPaymentAccountPublicKey) el.usersPaymentAccountPublicKey.value = account.public_key || "";
+    if (el.usersPaymentAccountAccessToken) el.usersPaymentAccountAccessToken.value = "";
+    if (el.usersPaymentAccountWebhookSecret) el.usersPaymentAccountWebhookSecret.value = "";
+    if (el.usersPaymentAccountIntegratorId) el.usersPaymentAccountIntegratorId.value = account.integrator_id || account.app_id || "";
+    setPaymentAccountsMessage(`Editando conta: ${account.label}`, false);
+  }
+
+  async function submitPaymentAccountForm(event) {
+    event.preventDefault();
+    const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+    const isEdit = accountId > 0;
+    const payload = {
+      label: el.usersPaymentAccountLabel.value.trim(),
+      provider: el.usersPaymentAccountProvider.value,
+      description: el.usersPaymentAccountDescription.value.trim() || null,
+      supports_pix: Boolean(el.usersPaymentAccountSupportsPix.checked),
+      supports_card: Boolean(el.usersPaymentAccountSupportsCard.checked),
+      is_default: Boolean(el.usersPaymentAccountIsDefault.checked),
+      is_active: Boolean(el.usersPaymentAccountIsActive.checked),
+      public_key: el.usersPaymentAccountPublicKey.value.trim() || null,
+      access_token: el.usersPaymentAccountAccessToken.value.trim() || null,
+      webhook_secret: el.usersPaymentAccountWebhookSecret.value.trim() || null,
+      integrator_id: el.usersPaymentAccountIntegratorId.value.trim() || null,
+    };
+    try {
+      setPaymentAccountsMessage(isEdit ? "Salvando conta..." : "Criando conta...", false);
+      await fetchJson(
+        isEdit ? `${paymentAccountsEndpoint}${accountId}` : paymentAccountsEndpoint,
+        { method: isEdit ? "PUT" : "POST", headers: buildHeaders(true), body: JSON.stringify(payload) },
+        isEdit ? "Falha ao salvar conta de pagamento." : "Falha ao criar conta de pagamento."
+      );
+      await loadPaymentAccounts();
+      resetPaymentAccountForm();
+      setPaymentAccountsMessage("Conta de pagamento salva com sucesso.", false);
+    } catch (error) {
+      setPaymentAccountsMessage(error instanceof Error ? error.message : "Falha ao salvar conta de pagamento.", true);
+    }
+  }
+
+  async function deletePaymentAccount(accountId) {
+    await fetchJson(`${paymentAccountsEndpoint}${accountId}`, { method: "DELETE", headers: buildHeaders(false) }, "Falha ao excluir conta de pagamento.");
+    await loadPaymentAccounts();
+    resetPaymentAccountForm();
+    setPaymentAccountsMessage("Conta de pagamento excluída com sucesso.", false);
   }
 
   async function loadInvitations() {
@@ -1730,6 +1848,7 @@
     if (state.isAdmin) {
       await loadTenantProfile();
       await loadTenantPaymentSettings();
+      await loadPaymentAccounts();
       await loadPublicEventsForChurch();
     }
   }
@@ -1754,6 +1873,7 @@
     setUsersView("church");
     await loadTenantProfile();
     await loadTenantPaymentSettings();
+    await loadPaymentAccounts();
     await loadPublicEventsForChurch();
     setChurchMessage("", false);
     setChurchPaymentsMessage("", false);
@@ -1916,6 +2036,8 @@
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchPaymentsForm) el.usersChurchPaymentsForm.addEventListener("submit", submitChurchPaymentsForm);
+    if (el.usersPaymentAccountForm) el.usersPaymentAccountForm.addEventListener("submit", submitPaymentAccountForm);
+    if (el.usersPaymentAccountResetBtn) el.usersPaymentAccountResetBtn.addEventListener("click", resetPaymentAccountForm);
     if (el.usersChurchRefreshBtn) {
       el.usersChurchRefreshBtn.addEventListener("click", () => {
         Promise.all([loadTenantProfile(), loadTenantPaymentSettings(), loadPublicEventsForChurch()])
@@ -2054,6 +2176,18 @@
       const deleteButton = event.target.closest && event.target.closest("[data-user-delete]");
       if (deleteButton) {
         openDeleteModal(parseInt(deleteButton.getAttribute("data-user-delete"), 10));
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const editButton = event.target.closest && event.target.closest("[data-payment-account-edit]");
+      if (editButton) {
+        editPaymentAccount(Number(editButton.getAttribute("data-payment-account-edit")));
+        return;
+      }
+      const deleteButton = event.target.closest && event.target.closest("[data-payment-account-delete]");
+      if (deleteButton) {
+        deletePaymentAccount(Number(deleteButton.getAttribute("data-payment-account-delete"))).catch((error) => setPaymentAccountsMessage(error.message, true));
       }
     });
 

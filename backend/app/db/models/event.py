@@ -24,6 +24,12 @@ class Event(Base):
         nullable=False,
         index=True,
     )
+    payment_account_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("payment_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     slug: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
