@@ -2475,6 +2475,36 @@ th {
   gap: 16px;
 }
 
+.settings-anchor {
+  position: relative;
+  top: -12px;
+}
+
+.settings-advanced-block {
+  border: 1px dashed rgba(28, 61, 90, 0.18);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(247, 250, 252, 0.85);
+}
+
+.settings-advanced-block summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #284761;
+  margin-bottom: 12px;
+}
+
+.settings-advanced-block[open] summary {
+  margin-bottom: 14px;
+}
+
+.payment-simple-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .payment-account-guide-card p {
   margin: 6px 0 10px;
   color: #4d6278;

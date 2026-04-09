@@ -1973,6 +1973,8 @@
         <button id="usersNavUsersBtn" class="nav-btn active" type="button">Usuários</button>
         <button id="usersNavRolesBtn" class="nav-btn" type="button">Roles</button>
         <button id="usersNavChurchBtn" class="nav-btn" type="button">Igreja</button>
+        <button id="usersNavAppearanceBtn" class="nav-btn" type="button">Aparência</button>
+        <button id="usersNavPaymentsBtn" class="nav-btn" type="button">Pagamentos</button>
       </aside>
       <section class="users-content-stack">
         <section class="panel view show" id="usersUsersView">
@@ -2038,6 +2040,7 @@
           </div>
           <p id="usersChurchMessage" class="message"></p>
           <form id="usersChurchForm" class="stack">
+            <div id="usersChurchGeneralSection" class="settings-anchor"></div>
             <label>Nome interno
               <input id="usersChurchName" type="text" maxlength="255" required>
             </label>
@@ -2050,6 +2053,7 @@
             <label>Descrição pública
               <textarea id="usersChurchPublicDescription" rows="4" maxlength="500" placeholder="Mensagem curta para a vitrine pública"></textarea>
             </label>
+            <div id="usersChurchAppearanceSection" class="settings-anchor"></div>
             <div class="events-form-row">
               <label>Cor principal
                 <div class="color-input-group">
@@ -2163,10 +2167,19 @@
             <section class="dashboard-card">
               <div class="section-title">
                 <h4>Pagamentos</h4>
-                <span class="tiny">Configure o recebedor real de PIX e cartão desta igreja</span>
+                <span class="tiny">Fluxo simples: conecte a conta, teste e escolha no evento</span>
               </div>
+              <div id="usersChurchPaymentsSection" class="settings-anchor"></div>
               <p id="usersChurchPaymentsMessage" class="message"></p>
-              <form id="usersChurchPaymentsForm" class="stack">
+              <div class="payment-simple-steps">
+                <span class="payment-guide-chip">1. Cadastre a conta</span>
+                <span class="payment-guide-chip">2. Conecte por OAuth</span>
+                <span class="payment-guide-chip">3. Teste a conexão</span>
+                <span class="payment-guide-chip">4. Escolha no evento</span>
+              </div>
+              <details class="settings-advanced-block">
+                <summary>Configuração avançada da igreja</summary>
+                <form id="usersChurchPaymentsForm" class="stack">
                 <div class="events-form-row">
                   <label>Modo do checkout
                     <select id="usersChurchPaymentProvider">
@@ -2225,7 +2238,8 @@
                 <div class="modal-actions">
                   <button class="btn" type="submit">Salvar pagamentos</button>
                 </div>
-              </form>
+                </form>
+              </details>
             </section>
             <section class="dashboard-card">
               <div class="section-title">
@@ -2287,18 +2301,21 @@
                     Conta ativa
                   </label>
                 </div>
-                <label id="usersPaymentAccountPublicKeyLabel">Public key / chave pública
-                  <input id="usersPaymentAccountPublicKey" type="text" maxlength="255" placeholder="Opcional">
-                </label>
-                <label id="usersPaymentAccountAccessTokenLabel">Access token
-                  <input id="usersPaymentAccountAccessToken" type="password" maxlength="255" placeholder="Opcional">
-                </label>
-                <label id="usersPaymentAccountWebhookSecretLabel">Webhook secret
-                  <input id="usersPaymentAccountWebhookSecret" type="password" maxlength="255" placeholder="Opcional">
-                </label>
-                <label id="usersPaymentAccountIntegratorIdLabel">Integrator ID / App ID
-                  <input id="usersPaymentAccountIntegratorId" type="text" maxlength="255" placeholder="Opcional">
-                </label>
+                <details class="settings-advanced-block">
+                  <summary>Configuração avançada da conta</summary>
+                  <label id="usersPaymentAccountPublicKeyLabel">Public key / chave pública
+                    <input id="usersPaymentAccountPublicKey" type="text" maxlength="255" placeholder="Opcional">
+                  </label>
+                  <label id="usersPaymentAccountAccessTokenLabel">Access token
+                    <input id="usersPaymentAccountAccessToken" type="password" maxlength="255" placeholder="Opcional">
+                  </label>
+                  <label id="usersPaymentAccountWebhookSecretLabel">Webhook secret
+                    <input id="usersPaymentAccountWebhookSecret" type="password" maxlength="255" placeholder="Opcional">
+                  </label>
+                  <label id="usersPaymentAccountIntegratorIdLabel">Integrator ID / App ID
+                    <input id="usersPaymentAccountIntegratorId" type="text" maxlength="255" placeholder="Opcional">
+                  </label>
+                </details>
                 <div class="modal-actions">
                   <button id="usersPaymentAccountResetBtn" class="btn ghost" type="button">Limpar</button>
                   <button class="btn" type="submit">Salvar conta</button>

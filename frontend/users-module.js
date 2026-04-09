@@ -215,6 +215,8 @@
     usersNavUsersBtn: document.getElementById("usersNavUsersBtn"),
     usersNavRolesBtn: document.getElementById("usersNavRolesBtn"),
     usersNavChurchBtn: document.getElementById("usersNavChurchBtn"),
+    usersNavAppearanceBtn: document.getElementById("usersNavAppearanceBtn"),
+    usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
     usersUsersView: document.getElementById("usersUsersView"),
     usersRolesView: document.getElementById("usersRolesView"),
     usersChurchView: document.getElementById("usersChurchView"),
@@ -300,6 +302,9 @@
     usersChurchRefreshBtn: document.getElementById("usersChurchRefreshBtn"),
     usersChurchCreateBtn: document.getElementById("usersChurchCreateBtn"),
     usersChurchForm: document.getElementById("usersChurchForm"),
+    usersChurchGeneralSection: document.getElementById("usersChurchGeneralSection"),
+    usersChurchAppearanceSection: document.getElementById("usersChurchAppearanceSection"),
+    usersChurchPaymentsSection: document.getElementById("usersChurchPaymentsSection"),
     usersChurchName: document.getElementById("usersChurchName"),
     usersChurchSlug: document.getElementById("usersChurchSlug"),
     usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
@@ -972,6 +977,8 @@
       users: "users_users_view",
       roles: "users_roles_view",
       church: "users_roles_view",
+      appearance: "users_roles_view",
+      payments: "users_roles_view",
     };
 
     const requiredPermission = viewPermissions[viewName];
@@ -987,14 +994,29 @@
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
-    const isChurchView = viewName === "church";
+    const isChurchView = ["church", "appearance", "payments"].includes(viewName);
+    const isAppearanceView = viewName === "appearance";
+    const isPaymentsView = viewName === "payments";
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("active", isUsersView);
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
-    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("active", isChurchView);
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("active", viewName === "church");
+    if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("active", isAppearanceView);
+    if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("active", isPaymentsView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
     if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
+
+    const targetSection = isAppearanceView
+      ? el.usersChurchAppearanceSection
+      : isPaymentsView
+        ? el.usersChurchPaymentsSection
+        : el.usersChurchGeneralSection;
+    if (isChurchView && targetSection) {
+      window.setTimeout(() => {
+        targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 30);
+    }
   }
 
   function loadPermissionState() {
@@ -1040,6 +1062,8 @@
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("hide", !hasPermission("users_users_view"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
+    if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("hide", !state.isAdmin);
+    if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.classList.toggle("hide", !hasPermission("users_users_create"));
@@ -2104,13 +2128,13 @@
     await loadRoles();
   }
 
-  async function openChurchView() {
+  async function openChurchView(viewName = "church") {
     if (!state.isAdmin) {
       setChurchMessage("Acesso negado: somente administradores podem editar a igreja.", true);
       return;
     }
 
-    setUsersView("church");
+    setUsersView(viewName);
     await loadTenantProfile();
     await loadTenantPaymentSettings();
     await loadPaymentAccounts();
@@ -2261,7 +2285,9 @@
     if (el.schoolBtn) el.schoolBtn.addEventListener("click", () => setActiveModule("school"));
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.addEventListener("click", () => setUsersView("users"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.addEventListener("click", () => openRolesView().catch((error) => setRolesMessage(error.message, true)));
-    if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView().catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView("church").catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.addEventListener("click", () => openChurchView("appearance").catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
 
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
     if (el.usersInviteBtn) el.usersInviteBtn.addEventListener("click", openInviteModal);
