@@ -56,3 +56,32 @@ def exchange_code(code: str) -> dict[str, Any]:
         )
         response.raise_for_status()
         return response.json()
+
+
+def refresh_access_token(refresh_token: str) -> dict[str, Any]:
+    if not is_enabled():
+        raise ValueError("Mercado Pago OAuth is not configured")
+    payload = {
+        "client_id": settings.MERCADOPAGO_OAUTH_CLIENT_ID,
+        "client_secret": settings.MERCADOPAGO_OAUTH_CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    }
+    with httpx.Client(timeout=20.0) as client:
+        response = client.post(
+            f"{MERCADOPAGO_API_BASE_URL}/oauth/token",
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+def fetch_user_profile(access_token: str) -> dict[str, Any]:
+    with httpx.Client(timeout=20.0) as client:
+        response = client.get(
+            f"{MERCADOPAGO_API_BASE_URL}/users/me",
+            headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+        )
+        response.raise_for_status()
+        return response.json()

@@ -112,6 +112,13 @@ class PaymentAccountOAuthStartResponse(BaseModel):
     authorize_url: str
 
 
+class PaymentAccountConnectionTestResponse(BaseModel):
+    ok: bool
+    message: str
+    provider_user_id: Optional[str] = None
+    account_email: Optional[str] = None
+
+
 class PaymentAccountSummaryResponse(BaseModel):
     id: int
     provider: str

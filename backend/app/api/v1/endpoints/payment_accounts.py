@@ -9,6 +9,7 @@ from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.payment_account import (
+    PaymentAccountConnectionTestResponse,
     PaymentAccountCreate,
     PaymentAccountOAuthStartResponse,
     PaymentAccountResponse,
@@ -71,6 +72,75 @@ def delete_payment_account(
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment account not found")
     payment_account_service.delete_payment_account(db, account)
+
+
+@router.post("/{account_id}/test-connection", response_model=PaymentAccountConnectionTestResponse)
+def test_payment_account_connection(
+    account_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> PaymentAccountConnectionTestResponse:
+    account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment account not found")
+
+    if account.provider != "mercadopago":
+        return PaymentAccountConnectionTestResponse(
+            ok=bool(payment_account_service.get_account_access_token(account)),
+            message="Teste detalhado ainda disponível apenas para Mercado Pago.",
+        )
+
+    access_token = payment_account_service.get_account_access_token(account)
+    if not access_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Configure a conta primeiro por OAuth ou token manual.")
+
+    refreshed = False
+    try:
+        profile = mercadopago_oauth_service.fetch_user_profile(access_token)
+    except Exception:
+        refresh_token = payment_account_service.get_account_refresh_token(account)
+        if not refresh_token:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A conta não respondeu e não há refresh token disponível.")
+        try:
+            refreshed_payload = mercadopago_oauth_service.refresh_access_token(refresh_token)
+            new_access_token = refreshed_payload.get("access_token")
+            new_refresh_token = refreshed_payload.get("refresh_token")
+            if new_access_token:
+                payment_account_service.set_account_access_token(db, account, str(new_access_token))
+            payment_account_service.update_oauth_metadata(
+                db,
+                account,
+                connected=True,
+                provider_user_id=str(refreshed_payload.get("user_id")) if refreshed_payload.get("user_id") is not None else None,
+                refresh_token=str(new_refresh_token) if new_refresh_token is not None else None,
+                public_key=str(refreshed_payload.get("public_key")) if refreshed_payload.get("public_key") else None,
+                last_error=None,
+                state=None,
+            )
+            profile = mercadopago_oauth_service.fetch_user_profile(str(new_access_token or access_token))
+            refreshed = True
+        except Exception as exc:
+            payment_account_service.update_oauth_metadata(db, account, connected=False, last_error=str(exc), state=None)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falha ao validar a conta com Mercado Pago.") from exc
+
+    provider_user_id = str(profile.get("id")) if profile.get("id") is not None else None
+    account_email = profile.get("email")
+    payment_account_service.update_oauth_metadata(
+        db,
+        account,
+        connected=bool((account.config_json or {}).get("oauth_connected")),
+        provider_user_id=provider_user_id,
+        account_email=str(account_email) if account_email else None,
+        last_error=None,
+        state=None,
+    )
+    return PaymentAccountConnectionTestResponse(
+        ok=True,
+        message="Conexão validada com sucesso." + (" Token renovado automaticamente." if refreshed else ""),
+        provider_user_id=provider_user_id,
+        account_email=str(account_email) if account_email else None,
+    )
 
 
 @router.post("/{account_id}/oauth/mercadopago/start", response_model=PaymentAccountOAuthStartResponse)

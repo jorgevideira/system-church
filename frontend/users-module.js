@@ -356,6 +356,7 @@
     usersPaymentAccountIntegratorIdLabel: document.getElementById("usersPaymentAccountIntegratorIdLabel"),
     usersPaymentAccountIntegratorId: document.getElementById("usersPaymentAccountIntegratorId"),
     usersPaymentAccountOAuthBtn: document.getElementById("usersPaymentAccountOAuthBtn"),
+    usersPaymentAccountTestBtn: document.getElementById("usersPaymentAccountTestBtn"),
     usersPaymentAccountResetBtn: document.getElementById("usersPaymentAccountResetBtn"),
     usersPaymentAccountsBody: document.getElementById("usersPaymentAccountsBody"),
     usersChurchPreviewBtn: document.getElementById("usersChurchPreviewBtn"),
@@ -1258,6 +1259,22 @@
     }, 1200);
   }
 
+  async function testPaymentAccountConnection() {
+    const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
+    if (!accountId) {
+      setPaymentAccountsMessage("Salve a conta antes de testar a conexão.", true);
+      return;
+    }
+    setPaymentAccountsMessage("Testando conexão da conta...", false);
+    const result = await fetchJson(
+      `${paymentAccountsEndpoint}${accountId}/test-connection`,
+      { method: "POST", headers: buildHeaders(false) },
+      "Falha ao testar conexão da conta."
+    );
+    await loadPaymentAccounts();
+    setPaymentAccountsMessage(result.message || "Conexão validada com sucesso.", false);
+  }
+
   function syncPaymentAccountProviderFields() {
     const provider = el.usersPaymentAccountProvider ? el.usersPaymentAccountProvider.value : "mercadopago";
     const isMercadoPago = provider === "mercadopago";
@@ -1288,6 +1305,9 @@
     }
     if (el.usersPaymentAccountOAuthBtn) {
       el.usersPaymentAccountOAuthBtn.disabled = !isMercadoPago;
+    }
+    if (el.usersPaymentAccountTestBtn) {
+      el.usersPaymentAccountTestBtn.disabled = isInternal;
     }
     if (isInternal) {
       if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
@@ -2406,6 +2426,11 @@
     if (el.usersPaymentAccountOAuthBtn) {
       el.usersPaymentAccountOAuthBtn.addEventListener("click", () => {
         startMercadoPagoOAuth().catch((error) => setPaymentAccountsMessage(error.message, true));
+      });
+    }
+    if (el.usersPaymentAccountTestBtn) {
+      el.usersPaymentAccountTestBtn.addEventListener("click", () => {
+        testPaymentAccountConnection().catch((error) => setPaymentAccountsMessage(error.message, true));
       });
     }
 

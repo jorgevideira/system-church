@@ -250,3 +250,12 @@ def get_account_refresh_token(account: PaymentAccount | None) -> str | None:
     secrets = account.secrets_json or {}
     token = str(secret_service.decrypt_value(secrets.get("refresh_token")) or "").strip()
     return token or None
+
+
+def set_account_access_token(db: Session, account: PaymentAccount, access_token: str | None) -> PaymentAccount:
+    secrets = dict(account.secrets_json or {})
+    secrets["access_token"] = secret_service.encrypt_value(access_token)
+    account.secrets_json = secrets
+    db.commit()
+    db.refresh(account)
+    return account
