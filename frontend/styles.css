@@ -93,9 +93,12 @@ h1, h2, h3, h4 {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .password-field input {
+  width: 100%;
+  min-width: 0;
   padding-right: 3rem;
 }
 
