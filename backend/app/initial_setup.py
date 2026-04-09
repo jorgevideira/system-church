@@ -33,6 +33,37 @@ def ensure_runtime_schema_updates() -> None:
     if "transactions" not in tables:
         return
 
+    if "categories" in tables:
+        category_columns = {col["name"] for col in inspector.get_columns("categories")}
+
+        if "color" not in category_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE categories ADD COLUMN color VARCHAR(7)"))
+            logger.info("Schema update applied: categories.color added.")
+
+        if "icon" not in category_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE categories ADD COLUMN icon VARCHAR(50)"))
+            logger.info("Schema update applied: categories.icon added.")
+
+        if "is_active" not in category_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE categories ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+            logger.info("Schema update applied: categories.is_active added.")
+
+        if "is_system" not in category_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE categories ADD COLUMN is_system BOOLEAN NOT NULL DEFAULT FALSE"))
+            logger.info("Schema update applied: categories.is_system added.")
+
+    if "ministries" in tables:
+        ministry_columns = {col["name"] for col in inspector.get_columns("ministries")}
+
+        if "is_active" not in ministry_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE ministries ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+            logger.info("Schema update applied: ministries.is_active added.")
+
     transaction_columns = {col["name"] for col in inspector.get_columns("transactions")}
     if "source_bank_name" not in transaction_columns:
         with engine.begin() as conn:
