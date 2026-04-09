@@ -824,11 +824,15 @@ function getLoginTenantSlug() {
   return String(querySlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
 }
 
-function resolveBrandingAssetUrl(value) {
+function resolveBrandingAssetUrl(value, cacheKey = "") {
   const raw = String(value || "").trim();
   if (!raw) return "";
   try {
-    return new URL(raw, window.location.origin).toString();
+    const url = new URL(raw, window.location.origin);
+    if (cacheKey) {
+      url.searchParams.set("v", String(cacheKey));
+    }
+    return url.toString();
   } catch (_error) {
     return raw;
   }
@@ -888,7 +892,7 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
     el.loginBrandSupport.textContent = getSupportLabel(branding);
   }
   if (el.loginBrandLogo) {
-    const logoUrl = resolveBrandingAssetUrl(branding.logo_url);
+    const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
     el.loginBrandLogo.classList.toggle("hide", !logoUrl);
     if (logoUrl) {
       el.loginBrandLogo.src = logoUrl;
@@ -996,7 +1000,7 @@ function applyTenantBranding(branding = {}) {
   ];
   logos.forEach((logoNode) => {
     if (!logoNode) return;
-    const logoUrl = resolveBrandingAssetUrl(branding.logo_url);
+    const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
     logoNode.classList.toggle("hide", !logoUrl);
     if (logoUrl) {
       logoNode.src = logoUrl;

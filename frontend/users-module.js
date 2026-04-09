@@ -682,6 +682,20 @@
     }
   }
 
+  function resolveAssetUrlWithCache(value, cacheKey = "") {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+      const url = new URL(raw, window.location.origin);
+      if (cacheKey) {
+        url.searchParams.set("v", String(cacheKey));
+      }
+      return url.toString();
+    } catch (_error) {
+      return raw;
+    }
+  }
+
   function clearDraftLogoPreview() {
     if (state.churchDraftLogoPreviewUrl) {
       URL.revokeObjectURL(state.churchDraftLogoPreviewUrl);
@@ -764,6 +778,7 @@
       state.tenantProfile = tenant;
       if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
       clearDraftLogoPreview();
+      renderChurchOverviewPanels();
       if (window.applyTenantBranding) {
         window.applyTenantBranding(tenant);
       }
@@ -798,7 +813,10 @@
     const supportEmail = (el.usersChurchSupportEmail && el.usersChurchSupportEmail.value.trim()) || "";
     const supportWhatsapp = (el.usersChurchSupportWhatsapp && el.usersChurchSupportWhatsapp.value.trim()) || "";
     const logoUrl = state.churchDraftLogoPreviewUrl || ((el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()) || "");
-    const resolvedLogoUrl = resolveAssetUrl(logoUrl);
+    const cacheKey = state.tenantProfile && !state.churchDraftLogoPreviewUrl ? state.tenantProfile.updated_at || "" : "";
+    const resolvedLogoUrl = state.churchDraftLogoPreviewUrl
+      ? resolveAssetUrl(logoUrl)
+      : resolveAssetUrlWithCache(logoUrl, cacheKey);
     const primaryColor = normalizeHexColor(el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value, "#1565C0");
     const secondaryColor = normalizeHexColor(el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value, "#0A8F72");
     const supportParts = [supportEmail, supportWhatsapp].filter(Boolean);
@@ -1180,7 +1198,7 @@
     if (el.usersAppearancePreviewLogo) {
       const hasLogo = Boolean(tenant.logo_url);
       el.usersAppearancePreviewLogo.classList.toggle("hide", !hasLogo);
-      el.usersAppearancePreviewLogo.src = hasLogo ? tenant.logo_url : "";
+      el.usersAppearancePreviewLogo.src = hasLogo ? resolveAssetUrlWithCache(tenant.logo_url, tenant.updated_at || "") : "";
     }
   }
 
