@@ -34,7 +34,8 @@ def ensure_runtime_schema_updates() -> None:
         return
 
     if "categories" in tables:
-        category_columns = {col["name"] for col in inspector.get_columns("categories")}
+        category_column_defs = {col["name"]: col for col in inspector.get_columns("categories")}
+        category_columns = set(category_column_defs)
 
         if "color" not in category_columns:
             with engine.begin() as conn:
@@ -56,13 +57,24 @@ def ensure_runtime_schema_updates() -> None:
                 conn.execute(text("ALTER TABLE categories ADD COLUMN is_system BOOLEAN NOT NULL DEFAULT FALSE"))
             logger.info("Schema update applied: categories.is_system added.")
 
+        if "user_id" in category_columns and category_column_defs["user_id"].get("nullable") is False:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL"))
+            logger.info("Schema update applied: categories.user_id is now nullable for tenant-based records.")
+
     if "ministries" in tables:
-        ministry_columns = {col["name"] for col in inspector.get_columns("ministries")}
+        ministry_column_defs = {col["name"]: col for col in inspector.get_columns("ministries")}
+        ministry_columns = set(ministry_column_defs)
 
         if "is_active" not in ministry_columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE ministries ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"))
             logger.info("Schema update applied: ministries.is_active added.")
+
+        if "user_id" in ministry_columns and ministry_column_defs["user_id"].get("nullable") is False:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE ministries ALTER COLUMN user_id DROP NOT NULL"))
+            logger.info("Schema update applied: ministries.user_id is now nullable for tenant-based records.")
 
     transaction_columns = {col["name"] for col in inspector.get_columns("transactions")}
     if "source_bank_name" not in transaction_columns:
