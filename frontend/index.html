@@ -2284,11 +2284,18 @@
                 </div>
               </section>
             </section>
-            <section id="usersChurchPaymentsGroup" class="stack">
-              <section class="dashboard-card">
+            <div class="modal-actions sticky-form-actions">
+              <button class="btn" type="submit">Salvar perfil da igreja</button>
+            </div>
+          </form>
+          <section id="usersPaymentsManagementSection" class="stack hide">
+            <section class="dashboard-card">
               <div class="section-title">
                 <h4>Pagamentos</h4>
-                <span class="tiny">Fluxo simples: conecte a conta, teste e escolha no evento</span>
+                <div class="module-actions">
+                  <span class="tiny">Fluxo simples: conecte a conta, teste e escolha no evento</span>
+                  <button id="openChurchPaymentsModalBtn" class="btn ghost btn-mini" type="button">Editar checkout</button>
+                </div>
               </div>
               <div id="usersChurchPaymentsSection" class="settings-anchor"></div>
               <p id="usersChurchPaymentsMessage" class="message"></p>
@@ -2298,9 +2305,7 @@
                 <span class="payment-guide-chip">3. Teste a conexão</span>
                 <span class="payment-guide-chip">4. Escolha no evento</span>
               </div>
-              <details class="settings-advanced-block">
-                <summary>Configuração avançada da igreja</summary>
-                <form id="usersChurchPaymentsForm" class="stack">
+              <form id="usersChurchPaymentsForm" class="stack hide">
                 <div class="events-form-row">
                   <label>Modo do checkout
                     <select id="usersChurchPaymentProvider">
@@ -2359,8 +2364,7 @@
                 <div class="modal-actions">
                   <button class="btn" type="submit">Salvar pagamentos</button>
                 </div>
-                </form>
-              </details>
+              </form>
             </section>
             <section class="dashboard-card">
               <div class="section-title">
@@ -2453,12 +2457,8 @@
                   <tbody id="usersPaymentAccountsBody"><tr><td colspan="6">Nenhuma conta cadastrada.</td></tr></tbody>
                 </table>
               </div>
-              </section>
             </section>
-            <div class="modal-actions sticky-form-actions">
-              <button class="btn" type="submit">Salvar perfil da igreja</button>
-            </div>
-          </form>
+          </section>
         </section>
       </section>
     </div>

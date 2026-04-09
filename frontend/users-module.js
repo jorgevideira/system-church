@@ -218,10 +218,12 @@
     usersNavAppearanceBtn: document.getElementById("usersNavAppearanceBtn"),
     usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
     openChurchProfileModalBtn: document.getElementById("openChurchProfileModalBtn"),
+    openChurchPaymentsModalBtn: document.getElementById("openChurchPaymentsModalBtn"),
     openPaymentAccountModalBtn: document.getElementById("openPaymentAccountModalBtn"),
     usersUsersView: document.getElementById("usersUsersView"),
     usersRolesView: document.getElementById("usersRolesView"),
     usersChurchView: document.getElementById("usersChurchView"),
+    usersPaymentsManagementSection: document.getElementById("usersPaymentsManagementSection"),
     usersChurchOverviewSection: document.getElementById("usersChurchOverviewSection"),
     usersAppearanceOverviewSection: document.getElementById("usersAppearanceOverviewSection"),
     usersPaymentsOverviewSection: document.getElementById("usersPaymentsOverviewSection"),
@@ -312,7 +314,6 @@
     usersChurchPaymentsSection: document.getElementById("usersChurchPaymentsSection"),
     usersChurchGeneralGroup: document.getElementById("usersChurchGeneralGroup"),
     usersChurchAppearanceGroup: document.getElementById("usersChurchAppearanceGroup"),
-    usersChurchPaymentsGroup: document.getElementById("usersChurchPaymentsGroup"),
     usersChurchName: document.getElementById("usersChurchName"),
     usersChurchSlug: document.getElementById("usersChurchSlug"),
     usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
@@ -1044,6 +1045,7 @@
     if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
     if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
     if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
+    if (el.usersPaymentsManagementSection) el.usersPaymentsManagementSection.classList.toggle("hide", !isPaymentsView);
     applyChurchFormFocus(viewName);
 
     const targetSection = isAppearanceView
@@ -1064,7 +1066,6 @@
     const isChurchView = ["church", "appearance", "payments"].includes(viewName);
     if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
     if (el.usersChurchAppearanceGroup) el.usersChurchAppearanceGroup.classList.toggle("hide", !isChurchView || !isAppearanceView);
-    if (el.usersChurchPaymentsGroup) el.usersChurchPaymentsGroup.classList.toggle("hide", !isChurchView || !isPaymentsView);
   }
 
   function loadPermissionState() {
@@ -2229,30 +2230,29 @@
   }
 
   function openChurchProfileModal(viewName = state.currentView || "church") {
-    if (!window.openSharedFormModal || !el.usersChurchForm) return;
-    applyChurchFormFocus(viewName);
-    const title = viewName === "appearance"
-      ? "Editar aparência"
-      : viewName === "payments"
-        ? "Configurar pagamentos"
-        : "Editar perfil da igreja";
+    const isPaymentsView = viewName === "payments";
+    const targetForm = isPaymentsView ? el.usersChurchPaymentsForm : el.usersChurchForm;
+    const targetMessage = isPaymentsView ? el.usersChurchPaymentsMessage : el.usersChurchMessage;
+    if (!window.openSharedFormModal || !targetForm) return;
+    if (!isPaymentsView) applyChurchFormFocus(viewName);
+    const title = viewName === "appearance" ? "Editar aparência" : isPaymentsView ? "Configurar pagamentos" : "Editar perfil da igreja";
     const hint = viewName === "appearance"
       ? "Ajuste cores, logo e preview da marca da igreja."
-      : viewName === "payments"
-        ? "Revise o checkout da igreja e as contas usadas nos eventos."
+      : isPaymentsView
+        ? "Revise o checkout da igreja, meios aceitos e prontidão para uso real."
         : "Atualize dados principais, contato e links públicos da igreja.";
     window.openSharedFormModal({
-      form: el.usersChurchForm,
-      messageNode: el.usersChurchMessage,
+      form: targetForm,
+      messageNode: targetMessage,
       title,
       eyebrow: "Configurações",
       hint,
     });
-    const targetSection = viewName === "appearance"
+    const targetSection = isPaymentsView
+      ? el.usersChurchPaymentsSection
+      : viewName === "appearance"
       ? el.usersChurchAppearanceSection
-      : viewName === "payments"
-        ? el.usersChurchPaymentsSection
-        : el.usersChurchGeneralSection;
+      : el.usersChurchGeneralSection;
     if (targetSection) {
       window.setTimeout(() => {
         targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2418,6 +2418,9 @@
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
     if (el.openChurchProfileModalBtn) {
       el.openChurchProfileModalBtn.addEventListener("click", () => openChurchProfileModal(state.currentView || "church"));
+    }
+    if (el.openChurchPaymentsModalBtn) {
+      el.openChurchPaymentsModalBtn.addEventListener("click", () => openChurchProfileModal("payments"));
     }
     if (el.openPaymentAccountModalBtn) {
       el.openPaymentAccountModalBtn.addEventListener("click", () => {
