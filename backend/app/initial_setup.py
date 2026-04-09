@@ -4,6 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.core.constants import DEFAULT_CATEGORIES
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.base import Base
 from app.db.models.category import Category
@@ -79,15 +80,15 @@ def ensure_runtime_schema_updates() -> None:
 
 def create_default_admin(db: Session) -> None:
     """Create the default admin user if it does not already exist."""
-    email = "admin@church.com"
+    email = settings.FIRST_SUPERUSER.strip().lower()
     if db.query(User).filter(User.email == email).first():
         logger.info("Admin user already exists, skipping creation.")
         return
     admin = User(
         email=email,
-        full_name="System Administrator",
+        full_name=(settings.FIRST_SUPERUSER_NAME or "System Administrator").strip() or "System Administrator",
         role="admin",
-        hashed_password=get_password_hash("admin123"),
+        hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
         is_active=True,
     )
     db.add(admin)

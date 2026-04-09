@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     APP_BASE_URL: str = "http://localhost:8000"
     PUBLIC_APP_URL: str = "http://localhost"
 
+    # Bootstrap admin
+    FIRST_SUPERUSER: str = "admin@church.com"
+    FIRST_SUPERUSER_PASSWORD: str = "admin123"
+    FIRST_SUPERUSER_NAME: str = "System Administrator"
+
     # Payments
     PAYMENT_PROVIDER: str = "internal"
     MERCADOPAGO_ACCESS_TOKEN: str | None = None
