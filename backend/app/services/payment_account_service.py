@@ -2,13 +2,14 @@ from sqlalchemy.orm import Session
 
 from app.db.models.payment_account import PaymentAccount
 from app.schemas.payment_account import PaymentAccountCreate, PaymentAccountResponse, PaymentAccountUpdate
+from app.services import secret_service
 
 
 def _normalize_public_config(payload: PaymentAccountCreate | PaymentAccountUpdate) -> dict:
     return {
         "environment": getattr(payload, "environment", None) or None,
         "public_key": getattr(payload, "public_key", None) or None,
-        "webhook_secret": getattr(payload, "webhook_secret", None) or None,
+        "webhook_secret": secret_service.encrypt_value(getattr(payload, "webhook_secret", None)),
         "integrator_id": getattr(payload, "integrator_id", None) or None,
         "account_email": getattr(payload, "account_email", None) or None,
         "app_id": getattr(payload, "app_id", None) or None,
@@ -17,15 +18,15 @@ def _normalize_public_config(payload: PaymentAccountCreate | PaymentAccountUpdat
 
 def _normalize_secrets(payload: PaymentAccountCreate | PaymentAccountUpdate) -> dict:
     return {
-        "access_token": getattr(payload, "access_token", None) or None,
+        "access_token": secret_service.encrypt_value(getattr(payload, "access_token", None)),
     }
 
 
 def _build_response(account: PaymentAccount) -> PaymentAccountResponse:
     config = account.config_json or {}
     secrets = account.secrets_json or {}
-    access_token = str(secrets.get("access_token") or "").strip()
-    webhook_secret = str(config.get("webhook_secret") or "").strip()
+    access_token = str(secret_service.decrypt_value(secrets.get("access_token")) or "").strip()
+    webhook_secret = str(secret_service.decrypt_value(config.get("webhook_secret")) or "").strip()
     public_key = str(config.get("public_key") or "").strip()
     environment = get_account_environment(account)
     if account.provider == "mercadopago":
@@ -136,14 +137,15 @@ def update_payment_account(db: Session, account: PaymentAccount, payload: Paymen
     config = dict(account.config_json or {})
     for key in ("environment", "public_key", "webhook_secret", "integrator_id", "account_email", "app_id"):
         if key in changes:
-            config[key] = (changes[key] or "").strip() or None
+            value = (changes[key] or "").strip() or None
+            config[key] = secret_service.encrypt_value(value) if key == "webhook_secret" else value
     if payload.clear_webhook_secret:
         config["webhook_secret"] = None
     account.config_json = config
 
     secrets = dict(account.secrets_json or {})
     if "access_token" in changes:
-        secrets["access_token"] = (changes["access_token"] or "").strip() or None
+        secrets["access_token"] = secret_service.encrypt_value((changes["access_token"] or "").strip() or None)
     if payload.clear_access_token:
         secrets["access_token"] = None
     account.secrets_json = secrets
@@ -166,7 +168,7 @@ def get_account_access_token(account: PaymentAccount | None) -> str | None:
     if account is None:
         return None
     secrets = account.secrets_json or {}
-    token = str(secrets.get("access_token") or "").strip()
+    token = str(secret_service.decrypt_value(secrets.get("access_token")) or "").strip()
     return token or None
 
 
@@ -182,7 +184,7 @@ def get_account_webhook_secret(account: PaymentAccount | None) -> str | None:
     if account is None:
         return None
     config = account.config_json or {}
-    webhook_secret = str(config.get("webhook_secret") or "").strip()
+    webhook_secret = str(secret_service.decrypt_value(config.get("webhook_secret")) or "").strip()
     return webhook_secret or None
 
 

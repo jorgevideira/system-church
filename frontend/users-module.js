@@ -1174,6 +1174,7 @@
       <div class="payment-account-guide-card">
         <strong>${escapeHtml(title)}</strong>
         <p>${escapeHtml(summary)}</p>
+        <p class="payment-account-security-note">OAuth é a opção mais segura para produto SaaS; o modo por token manual continua disponível como fallback operacional.</p>
         <div class="payment-account-guide-meta">
           <span class="payment-guide-chip">${escapeHtml(providerLabel)}</span>
           <span class="payment-guide-chip">${draft.environment === "sandbox" ? "Sandbox" : "Produção"}</span>

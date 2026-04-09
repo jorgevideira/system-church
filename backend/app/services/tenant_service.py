@@ -13,6 +13,7 @@ from app.db.models.user import User
 from app.schemas.tenant import TenantCreate
 from app.schemas.tenant import TenantPaymentSettingsResponse, TenantPaymentSettingsUpdate
 from app.schemas.tenant import TenantUpdate
+from app.services import secret_service
 
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -57,7 +58,7 @@ def get_payment_provider(tenant: Tenant | None) -> str:
 
 def get_mercadopago_access_token(tenant: Tenant | None) -> str | None:
     if tenant is not None and tenant.mercadopago_access_token:
-        return tenant.mercadopago_access_token.strip()
+        return secret_service.decrypt_value(tenant.mercadopago_access_token)
     return settings.MERCADOPAGO_ACCESS_TOKEN
 
 
@@ -69,7 +70,7 @@ def get_mercadopago_public_key(tenant: Tenant | None) -> str | None:
 
 def get_mercadopago_webhook_secret(tenant: Tenant | None) -> str | None:
     if tenant is not None and tenant.mercadopago_webhook_secret:
-        return tenant.mercadopago_webhook_secret.strip()
+        return secret_service.decrypt_value(tenant.mercadopago_webhook_secret)
     return settings.MERCADOPAGO_WEBHOOK_SECRET
 
 
@@ -199,11 +200,11 @@ def update_tenant_payment_settings(db: Session, tenant: Tenant, payload: TenantP
     if payload.clear_mercadopago_access_token:
         tenant.mercadopago_access_token = None
     elif payload.mercadopago_access_token is not None:
-        tenant.mercadopago_access_token = payload.mercadopago_access_token.strip() or None
+        tenant.mercadopago_access_token = secret_service.encrypt_value(payload.mercadopago_access_token.strip() or None)
     if payload.clear_mercadopago_webhook_secret:
         tenant.mercadopago_webhook_secret = None
     elif payload.mercadopago_webhook_secret is not None:
-        tenant.mercadopago_webhook_secret = payload.mercadopago_webhook_secret.strip() or None
+        tenant.mercadopago_webhook_secret = secret_service.encrypt_value(payload.mercadopago_webhook_secret.strip() or None)
 
     db.commit()
     db.refresh(tenant)

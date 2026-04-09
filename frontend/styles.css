@@ -2472,6 +2472,12 @@ th {
   color: #4d6278;
 }
 
+.payment-account-security-note {
+  margin-top: -2px;
+  font-size: 12px;
+  color: #7b4f00;
+}
+
 .payment-account-guide-meta,
 .payment-readiness-list {
   display: flex;
