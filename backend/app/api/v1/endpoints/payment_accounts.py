@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
 from app.db.models.payment_account import PaymentAccount
@@ -257,6 +258,7 @@ def mercadopago_oauth_callback(
         public_key = token_payload.get("public_key")
         matched_account.secrets_json = dict(matched_account.secrets_json or {})
         matched_account.secrets_json["access_token"] = secret_service.encrypt_value(access_token)
+        flag_modified(matched_account, "secrets_json")
         payment_account_service.update_oauth_metadata(
             db,
             matched_account,

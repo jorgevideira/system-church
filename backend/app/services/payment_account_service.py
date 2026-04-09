@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.models.payment_account import PaymentAccount
 from app.schemas.payment_account import PaymentAccountCreate, PaymentAccountResponse, PaymentAccountUpdate
@@ -117,6 +118,8 @@ def create_payment_account(db: Session, tenant_id: int, payload: PaymentAccountC
         secrets_json=_normalize_secrets(payload),
     )
     db.add(account)
+    flag_modified(account, "config_json")
+    flag_modified(account, "secrets_json")
     db.commit()
     db.refresh(account)
     return account
@@ -146,6 +149,7 @@ def update_payment_account(db: Session, account: PaymentAccount, payload: Paymen
     if payload.clear_webhook_secret:
         config["webhook_secret"] = None
     account.config_json = config
+    flag_modified(account, "config_json")
 
     secrets = dict(account.secrets_json or {})
     if "access_token" in changes:
@@ -153,6 +157,7 @@ def update_payment_account(db: Session, account: PaymentAccount, payload: Paymen
     if payload.clear_access_token:
         secrets["access_token"] = None
     account.secrets_json = secrets
+    flag_modified(account, "secrets_json")
 
     db.commit()
     db.refresh(account)
@@ -239,6 +244,8 @@ def update_oauth_metadata(
         secrets["refresh_token"] = secret_service.encrypt_value(refresh_token)
     account.config_json = config
     account.secrets_json = secrets
+    flag_modified(account, "config_json")
+    flag_modified(account, "secrets_json")
     db.commit()
     db.refresh(account)
     return account
@@ -256,6 +263,7 @@ def set_account_access_token(db: Session, account: PaymentAccount, access_token:
     secrets = dict(account.secrets_json or {})
     secrets["access_token"] = secret_service.encrypt_value(access_token)
     account.secrets_json = secrets
+    flag_modified(account, "secrets_json")
     db.commit()
     db.refresh(account)
     return account
@@ -272,6 +280,8 @@ def disconnect_oauth_account(db: Session, account: PaymentAccount) -> PaymentAcc
     secrets["refresh_token"] = None
     account.config_json = config
     account.secrets_json = secrets
+    flag_modified(account, "config_json")
+    flag_modified(account, "secrets_json")
     db.commit()
     db.refresh(account)
     return account
