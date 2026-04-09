@@ -17,20 +17,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("tenants", sa.Column("public_display_name", sa.String(length=255), nullable=True))
-    op.add_column("tenants", sa.Column("public_description", sa.String(length=500), nullable=True))
-    op.add_column("tenants", sa.Column("primary_color", sa.String(length=20), nullable=True))
-    op.add_column("tenants", sa.Column("secondary_color", sa.String(length=20), nullable=True))
-    op.add_column("tenants", sa.Column("logo_url", sa.String(length=500), nullable=True))
-    op.add_column("tenants", sa.Column("support_email", sa.String(length=255), nullable=True))
-    op.add_column("tenants", sa.Column("support_whatsapp", sa.String(length=50), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("tenants")}
+
+    columns = [
+        ("public_display_name", sa.String(length=255)),
+        ("public_description", sa.String(length=500)),
+        ("primary_color", sa.String(length=20)),
+        ("secondary_color", sa.String(length=20)),
+        ("logo_url", sa.String(length=500)),
+        ("support_email", sa.String(length=255)),
+        ("support_whatsapp", sa.String(length=50)),
+    ]
+
+    for column_name, column_type in columns:
+        if column_name not in existing_columns:
+            op.add_column("tenants", sa.Column(column_name, column_type, nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("tenants", "support_whatsapp")
-    op.drop_column("tenants", "support_email")
-    op.drop_column("tenants", "logo_url")
-    op.drop_column("tenants", "secondary_color")
-    op.drop_column("tenants", "primary_color")
-    op.drop_column("tenants", "public_description")
-    op.drop_column("tenants", "public_display_name")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column["name"] for column in inspector.get_columns("tenants")}
+
+    for column_name in [
+        "support_whatsapp",
+        "support_email",
+        "logo_url",
+        "secondary_color",
+        "primary_color",
+        "public_description",
+        "public_display_name",
+    ]:
+        if column_name in existing_columns:
+            op.drop_column("tenants", column_name)
