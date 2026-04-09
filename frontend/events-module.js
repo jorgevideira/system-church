@@ -884,6 +884,7 @@ function populatePaymentAccountOptions() {
       await fetchJson(`${eventsEndpoint}/${state.selectedEventId}`, { method: "DELETE", headers: buildHeaders(false) }, "Falha ao excluir evento.");
       state.selectedEventId = null;
       resetEventForm();
+      if (window.closeSharedFormModal) window.closeSharedFormModal();
       await loadEvents();
       await refreshCurrentView();
       setMessage("Evento excluido com sucesso.");
