@@ -310,6 +310,9 @@
     usersChurchGeneralSection: document.getElementById("usersChurchGeneralSection"),
     usersChurchAppearanceSection: document.getElementById("usersChurchAppearanceSection"),
     usersChurchPaymentsSection: document.getElementById("usersChurchPaymentsSection"),
+    usersChurchGeneralGroup: document.getElementById("usersChurchGeneralGroup"),
+    usersChurchAppearanceGroup: document.getElementById("usersChurchAppearanceGroup"),
+    usersChurchPaymentsGroup: document.getElementById("usersChurchPaymentsGroup"),
     usersChurchName: document.getElementById("usersChurchName"),
     usersChurchSlug: document.getElementById("usersChurchSlug"),
     usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
@@ -1041,6 +1044,7 @@
     if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
     if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
     if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
+    applyChurchFormFocus(viewName);
 
     const targetSection = isAppearanceView
       ? el.usersChurchAppearanceSection
@@ -1052,6 +1056,15 @@
         targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 30);
     }
+  }
+
+  function applyChurchFormFocus(viewName) {
+    const isAppearanceView = viewName === "appearance";
+    const isPaymentsView = viewName === "payments";
+    const isChurchView = ["church", "appearance", "payments"].includes(viewName);
+    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
+    if (el.usersChurchAppearanceGroup) el.usersChurchAppearanceGroup.classList.toggle("hide", !isChurchView || !isAppearanceView);
+    if (el.usersChurchPaymentsGroup) el.usersChurchPaymentsGroup.classList.toggle("hide", !isChurchView || !isPaymentsView);
   }
 
   function loadPermissionState() {
@@ -2215,15 +2228,36 @@
     setChurchPaymentsMessage("", false);
   }
 
-  function openChurchProfileModal() {
+  function openChurchProfileModal(viewName = state.currentView || "church") {
     if (!window.openSharedFormModal || !el.usersChurchForm) return;
+    applyChurchFormFocus(viewName);
+    const title = viewName === "appearance"
+      ? "Editar aparência"
+      : viewName === "payments"
+        ? "Configurar pagamentos"
+        : "Editar perfil da igreja";
+    const hint = viewName === "appearance"
+      ? "Ajuste cores, logo e preview da marca da igreja."
+      : viewName === "payments"
+        ? "Revise o checkout da igreja e as contas usadas nos eventos."
+        : "Atualize dados principais, contato e links públicos da igreja.";
     window.openSharedFormModal({
       form: el.usersChurchForm,
       messageNode: el.usersChurchMessage,
-      title: "Editar perfil da igreja",
+      title,
       eyebrow: "Configurações",
-      hint: "Atualize identidade, contatos, links públicos e pagamentos da igreja em um só lugar.",
+      hint,
     });
+    const targetSection = viewName === "appearance"
+      ? el.usersChurchAppearanceSection
+      : viewName === "payments"
+        ? el.usersChurchPaymentsSection
+        : el.usersChurchGeneralSection;
+    if (targetSection) {
+      window.setTimeout(() => {
+        targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+    }
   }
 
   function openPaymentAccountModal() {
@@ -2382,7 +2416,9 @@
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView("church").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.addEventListener("click", () => openChurchView("appearance").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
-    if (el.openChurchProfileModalBtn) el.openChurchProfileModalBtn.addEventListener("click", openChurchProfileModal);
+    if (el.openChurchProfileModalBtn) {
+      el.openChurchProfileModalBtn.addEventListener("click", () => openChurchProfileModal(state.currentView || "church"));
+    }
     if (el.openPaymentAccountModalBtn) {
       el.openPaymentAccountModalBtn.addEventListener("click", () => {
         resetPaymentAccountForm();
