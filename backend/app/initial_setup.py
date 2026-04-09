@@ -18,9 +18,9 @@ def ensure_runtime_schema_updates() -> None:
     """Apply small forward-compatible schema updates for existing databases."""
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
-
-    Tenant.__table__.create(bind=engine, checkfirst=True)
-    TenantMembership.__table__.create(bind=engine, checkfirst=True)
+    if "alembic_version" not in tables:
+        logger.info("Alembic version table not found yet; skipping runtime schema updates until migrations are applied.")
+        return
 
     if "users" in tables:
         user_columns = {col["name"] for col in inspector.get_columns("users")}
@@ -169,6 +169,13 @@ def setup(db: Session) -> None:
     
     # Only run runtime schema updates if needed (for backward compatibility)
     ensure_runtime_schema_updates()
+
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    required_tables = {"users", "tenants", "tenant_memberships", "categories"}
+    if not required_tables.issubset(tables):
+        logger.info("Core tables are not ready yet; skipping initial data setup until migrations are applied.")
+        return
     
     # Create default data
     create_default_admin(db)
