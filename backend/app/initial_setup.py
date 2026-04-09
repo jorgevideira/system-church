@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.db.models.category import Category
 from app.db.models.tenant import Tenant
 from app.db.models.tenant_membership import TenantMembership
+from app.db.models.transaction_attachment import TransactionAttachment
 from app.db.models.user import User
 from app.db.session import engine
 from app.utils.logger import logger
@@ -77,6 +78,11 @@ def ensure_runtime_schema_updates() -> None:
             logger.info("Schema update applied: ministries.user_id is now nullable for tenant-based records.")
 
     transaction_columns = {col["name"] for col in inspector.get_columns("transactions")}
+    if "tenant_id" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN tenant_id INTEGER"))
+        logger.info("Schema update applied: transactions.tenant_id added.")
+
     if "source_bank_name" not in transaction_columns:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN source_bank_name VARCHAR(120)"))
@@ -91,6 +97,50 @@ def ensure_runtime_schema_updates() -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN ministry_id INTEGER"))
         logger.info("Schema update applied: transactions.ministry_id added.")
+
+    if "bank_account_id" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN bank_account_id INTEGER"))
+        logger.info("Schema update applied: transactions.bank_account_id added.")
+
+    if "statement_file_id" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN statement_file_id INTEGER"))
+        logger.info("Schema update applied: transactions.statement_file_id added.")
+
+    if "status" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'confirmed'"))
+        logger.info("Schema update applied: transactions.status added.")
+
+    if "ai_category_suggestion" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN ai_category_suggestion VARCHAR(100)"))
+        logger.info("Schema update applied: transactions.ai_category_suggestion added.")
+
+    if "ai_confidence" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN ai_confidence DOUBLE PRECISION"))
+        logger.info("Schema update applied: transactions.ai_confidence added.")
+
+    if "ai_suggested_category_id" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN ai_suggested_category_id INTEGER"))
+        logger.info("Schema update applied: transactions.ai_suggested_category_id added.")
+
+    if "reference" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN reference VARCHAR(255)"))
+        logger.info("Schema update applied: transactions.reference added.")
+
+    if "dedup_hash" not in transaction_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN dedup_hash VARCHAR(64)"))
+        logger.info("Schema update applied: transactions.dedup_hash added.")
+
+    if "transaction_attachments" not in tables:
+        TransactionAttachment.__table__.create(bind=engine, checkfirst=True)
+        logger.info("Schema update applied: transaction_attachments table created.")
 
     if "payables" in tables:
         payable_columns = {col["name"] for col in inspector.get_columns("payables")}
