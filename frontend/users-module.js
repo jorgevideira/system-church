@@ -222,6 +222,9 @@
     usersUsersView: document.getElementById("usersUsersView"),
     usersRolesView: document.getElementById("usersRolesView"),
     usersChurchView: document.getElementById("usersChurchView"),
+    usersChurchOverviewSection: document.getElementById("usersChurchOverviewSection"),
+    usersAppearanceOverviewSection: document.getElementById("usersAppearanceOverviewSection"),
+    usersPaymentsOverviewSection: document.getElementById("usersPaymentsOverviewSection"),
 
     usersMessage: document.getElementById("usersMessage"),
     rolesMessage: document.getElementById("rolesMessage"),
@@ -325,6 +328,21 @@
     usersChurchWhatsappCountry: document.getElementById("usersChurchWhatsappCountry"),
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
+    usersChurchOverviewName: document.getElementById("usersChurchOverviewName"),
+    usersChurchOverviewSlug: document.getElementById("usersChurchOverviewSlug"),
+    usersChurchOverviewContact: document.getElementById("usersChurchOverviewContact"),
+    usersChurchOverviewStatus: document.getElementById("usersChurchOverviewStatus"),
+    usersAppearancePrimaryLabel: document.getElementById("usersAppearancePrimaryLabel"),
+    usersAppearanceSecondaryLabel: document.getElementById("usersAppearanceSecondaryLabel"),
+    usersAppearancePrimarySwatch: document.getElementById("usersAppearancePrimarySwatch"),
+    usersAppearanceSecondarySwatch: document.getElementById("usersAppearanceSecondarySwatch"),
+    usersAppearancePreviewLogo: document.getElementById("usersAppearancePreviewLogo"),
+    usersAppearancePreviewTitle: document.getElementById("usersAppearancePreviewTitle"),
+    usersAppearancePreviewSummary: document.getElementById("usersAppearancePreviewSummary"),
+    usersPaymentsOverviewMode: document.getElementById("usersPaymentsOverviewMode"),
+    usersPaymentsOverviewPix: document.getElementById("usersPaymentsOverviewPix"),
+    usersPaymentsOverviewCard: document.getElementById("usersPaymentsOverviewCard"),
+    usersPaymentsOverviewCount: document.getElementById("usersPaymentsOverviewCount"),
     usersChurchPaymentsMessage: document.getElementById("usersChurchPaymentsMessage"),
     usersChurchPaymentsForm: document.getElementById("usersChurchPaymentsForm"),
     usersChurchPaymentProvider: document.getElementById("usersChurchPaymentProvider"),
@@ -341,6 +359,7 @@
     usersChurchPaymentWebhookStatus: document.getElementById("usersChurchPaymentWebhookStatus"),
     usersChurchPaymentLiveStatus: document.getElementById("usersChurchPaymentLiveStatus"),
     usersPaymentAccountsMessage: document.getElementById("usersPaymentAccountsMessage"),
+    usersPaymentAccountsOverviewBody: document.getElementById("usersPaymentAccountsOverviewBody"),
     usersPaymentAccountGuide: document.getElementById("usersPaymentAccountGuide"),
     usersPaymentAccountForm: document.getElementById("usersPaymentAccountForm"),
     usersPaymentAccountId: document.getElementById("usersPaymentAccountId"),
@@ -1019,6 +1038,9 @@
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
     if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
+    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
+    if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
+    if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
 
     const targetSection = isAppearanceView
       ? el.usersChurchAppearanceSection
@@ -1119,7 +1141,33 @@
     clearDraftLogoPreview();
     syncWhatsappField({ fromCountry: true });
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
+    renderChurchOverviewPanels();
     updateChurchPreview();
+  }
+
+  function renderChurchOverviewPanels() {
+    const tenant = state.tenantProfile || {};
+    const publicName = tenant.public_display_name || tenant.name || "-";
+    const supportParts = [tenant.support_email, tenant.support_whatsapp].filter(Boolean);
+    const primary = normalizeHexColor(tenant.primary_color, "#1565C0");
+    const secondary = normalizeHexColor(tenant.secondary_color, "#0A8F72");
+
+    if (el.usersChurchOverviewName) el.usersChurchOverviewName.textContent = publicName;
+    if (el.usersChurchOverviewSlug) el.usersChurchOverviewSlug.textContent = tenant.slug || "-";
+    if (el.usersChurchOverviewContact) el.usersChurchOverviewContact.textContent = supportParts.length ? supportParts.join(" · ") : "Sem contato";
+    if (el.usersChurchOverviewStatus) el.usersChurchOverviewStatus.textContent = tenant.is_active === false ? "Inativa" : "Ativa";
+
+    if (el.usersAppearancePrimaryLabel) el.usersAppearancePrimaryLabel.textContent = primary;
+    if (el.usersAppearanceSecondaryLabel) el.usersAppearanceSecondaryLabel.textContent = secondary;
+    if (el.usersAppearancePrimarySwatch) el.usersAppearancePrimarySwatch.style.background = primary;
+    if (el.usersAppearanceSecondarySwatch) el.usersAppearanceSecondarySwatch.style.background = secondary;
+    if (el.usersAppearancePreviewTitle) el.usersAppearancePreviewTitle.textContent = publicName;
+    if (el.usersAppearancePreviewSummary) el.usersAppearancePreviewSummary.textContent = tenant.public_description || "A identidade visual da igreja aparecerá aqui para login, landing e eventos.";
+    if (el.usersAppearancePreviewLogo) {
+      const hasLogo = Boolean(tenant.logo_url);
+      el.usersAppearancePreviewLogo.classList.toggle("hide", !hasLogo);
+      el.usersAppearancePreviewLogo.src = hasLogo ? tenant.logo_url : "";
+    }
   }
 
   function renderTenantPaymentSettings() {
@@ -1138,6 +1186,15 @@
     if (el.usersChurchPaymentLiveStatus) el.usersChurchPaymentLiveStatus.textContent = paymentSettings.mercadopago_live_ready ? "Ativo" : "Desligado";
     if (el.usersChurchPaymentModeStatus) {
       el.usersChurchPaymentModeStatus.value = paymentSettings.checkout_mode === "live" ? "Checkout real ativo" : "Checkout interno";
+    }
+    if (el.usersPaymentsOverviewMode) {
+      el.usersPaymentsOverviewMode.textContent = paymentSettings.checkout_mode === "live" ? "Checkout real" : "Interno de teste";
+    }
+    if (el.usersPaymentsOverviewPix) {
+      el.usersPaymentsOverviewPix.textContent = paymentSettings.payment_pix_enabled !== false ? "Ativo" : "Desligado";
+    }
+    if (el.usersPaymentsOverviewCard) {
+      el.usersPaymentsOverviewCard.textContent = paymentSettings.payment_card_enabled !== false ? "Ativo" : "Desligado";
     }
   }
 
@@ -1382,12 +1439,8 @@
   }
 
   function renderPaymentAccounts() {
-    if (!el.usersPaymentAccountsBody) return;
-    if (!state.paymentAccounts.length) {
-      el.usersPaymentAccountsBody.innerHTML = '<tr><td colspan="6">Nenhuma conta cadastrada.</td></tr>';
-      return;
-    }
-    el.usersPaymentAccountsBody.innerHTML = state.paymentAccounts.map((account) => `
+    const emptyMarkup = '<tr><td colspan="6">Nenhuma conta cadastrada.</td></tr>';
+    const markup = !state.paymentAccounts.length ? emptyMarkup : state.paymentAccounts.map((account) => `
       <tr>
         <td><strong>${escapeHtml(account.label)}</strong><br><span class="tiny">${escapeHtml(account.description || "-")}</span></td>
         <td>${escapeHtml(account.provider)}<br><span class="tiny">${escapeHtml(account.environment || "production")}</span></td>
@@ -1400,6 +1453,9 @@
         </td>
       </tr>
     `).join("");
+    if (el.usersPaymentAccountsBody) el.usersPaymentAccountsBody.innerHTML = markup;
+    if (el.usersPaymentAccountsOverviewBody) el.usersPaymentAccountsOverviewBody.innerHTML = markup;
+    if (el.usersPaymentsOverviewCount) el.usersPaymentsOverviewCount.textContent = String(state.paymentAccounts.length);
   }
 
   async function loadPaymentAccounts() {

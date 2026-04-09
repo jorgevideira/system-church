@@ -2068,6 +2068,93 @@
             </div>
           </div>
           <p id="usersChurchMessage" class="message"></p>
+          <section id="usersChurchOverviewSection" class="dashboard-card settings-overview-panel">
+            <div class="section-title">
+              <h4>Dados da igreja</h4>
+              <span class="tiny">Informações principais da operação</span>
+            </div>
+            <div class="stats-grid settings-overview-grid">
+              <article class="stat-card">
+                <div class="stat-label">Nome público</div>
+                <div id="usersChurchOverviewName" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Slug</div>
+                <div id="usersChurchOverviewSlug" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Contato</div>
+                <div id="usersChurchOverviewContact" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Status</div>
+                <div id="usersChurchOverviewStatus" class="settings-overview-value">-</div>
+              </article>
+            </div>
+          </section>
+          <section id="usersAppearanceOverviewSection" class="dashboard-card settings-overview-panel hide">
+            <div class="section-title">
+              <h4>Aparência da igreja</h4>
+              <span class="tiny">Identidade visual aplicada no login e nas páginas públicas</span>
+            </div>
+            <div class="settings-appearance-summary">
+              <div class="settings-color-summary">
+                <div class="settings-color-chip">
+                  <span>Cor principal</span>
+                  <strong id="usersAppearancePrimaryLabel">#1565C0</strong>
+                  <i id="usersAppearancePrimarySwatch"></i>
+                </div>
+                <div class="settings-color-chip">
+                  <span>Cor secundária</span>
+                  <strong id="usersAppearanceSecondaryLabel">#0A8F72</strong>
+                  <i id="usersAppearanceSecondarySwatch"></i>
+                </div>
+              </div>
+              <div class="tenant-preview-card settings-preview-card">
+                <div class="tenant-preview-shell">
+                  <img id="usersAppearancePreviewLogo" class="public-brand-logo hide" alt="Logo preview da igreja">
+                  <p class="eyebrow tenant-preview-eyebrow">Preview da marca</p>
+                  <h4 id="usersAppearancePreviewTitle">Sua igreja</h4>
+                  <p id="usersAppearancePreviewSummary" class="tenant-preview-summary">A identidade visual aparecerá aqui.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section id="usersPaymentsOverviewSection" class="dashboard-card settings-overview-panel hide">
+            <div class="section-title">
+              <h4>Pagamentos</h4>
+              <div class="module-actions">
+                <span class="tiny">Contas disponíveis para receber eventos</span>
+                <button id="openPaymentAccountModalBtn" class="btn ghost btn-mini" type="button">Nova conta</button>
+              </div>
+            </div>
+            <div class="stats-grid settings-overview-grid">
+              <article class="stat-card">
+                <div class="stat-label">Modo</div>
+                <div id="usersPaymentsOverviewMode" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">PIX</div>
+                <div id="usersPaymentsOverviewPix" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Cartão</div>
+                <div id="usersPaymentsOverviewCard" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Contas</div>
+                <div id="usersPaymentsOverviewCount" class="settings-overview-value">0</div>
+              </article>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>Conta</th><th>Provider</th><th>Meios</th><th>Status</th><th>Pronta</th><th>Ações</th></tr>
+                </thead>
+                <tbody id="usersPaymentAccountsOverviewBody"><tr><td colspan="6">Nenhuma conta cadastrada.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
           <form id="usersChurchForm" class="stack hide">
             <div id="usersChurchGeneralSection" class="settings-anchor"></div>
             <label>Nome interno

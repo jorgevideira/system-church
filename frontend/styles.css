@@ -966,6 +966,64 @@ select:focus {
   color: #e74c3c;
 }
 
+.settings-overview-panel {
+  margin-bottom: 1rem;
+}
+
+.settings-overview-grid {
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+}
+
+.settings-overview-value {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.settings-appearance-summary {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(300px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-color-summary {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.settings-color-chip {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  background: linear-gradient(170deg, #ffffff, #f8fbff);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.settings-color-chip span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.settings-color-chip strong {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.settings-color-chip i {
+  display: block;
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(18, 33, 54, 0.08);
+}
+
+.settings-preview-card {
+  align-self: stretch;
+}
+
 .dash-card-head {
   display: flex;
   align-items: center;
@@ -2661,4 +2719,10 @@ th {
 .payment-readiness-item.is-missing {
   background: rgba(184, 82, 17, 0.12);
   color: #a44d12;
+}
+
+@media (max-width: 720px) {
+  .settings-appearance-summary {
+    grid-template-columns: 1fr;
+  }
 }
