@@ -452,10 +452,10 @@ function errorDetailToText(detail, fallback = "Erro inesperado") {
     return fallback;
   }
   if (typeof detail === "string") {
-    return detail;
+    return detail.trim() || fallback;
   }
   if (Array.isArray(detail)) {
-    return detail
+    const text = detail
       .map((item) => {
         if (typeof item === "string") {
           return item;
@@ -467,11 +467,23 @@ function errorDetailToText(detail, fallback = "Erro inesperado") {
         }
         return String(item);
       })
-      .join("; ");
+      .join("; ")
+      .trim();
+    return text || fallback;
   }
   if (typeof detail === "object") {
     if (typeof detail.msg === "string") {
-      return detail.msg;
+      return detail.msg.trim() || fallback;
+    }
+    if (typeof detail.detail === "string") {
+      return detail.detail.trim() || fallback;
+    }
+    if (typeof detail.message === "string") {
+      return detail.message.trim() || fallback;
+    }
+    const entries = Object.entries(detail);
+    if (!entries.length) {
+      return fallback;
     }
     return JSON.stringify(detail);
   }
@@ -3572,8 +3584,14 @@ async function login(email, password) {
   });
 
   if (!response.ok) {
+    const fallback =
+      response.status === 401
+        ? "E-mail ou senha inválidos"
+        : response.status === 400
+          ? "Não foi possível concluir o login"
+          : "Falha no login";
     const body = await response.json().catch(() => ({}));
-    throw new Error(errorDetailToText(body.detail ?? body, "Falha no login"));
+    throw new Error(errorDetailToText(body.detail ?? body, fallback));
   }
 
   const data = await response.json();
