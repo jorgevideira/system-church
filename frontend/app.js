@@ -498,6 +498,7 @@ function toggleLoginPasswordVisibility() {
   }
   const showing = el.loginPasswordInput.type === "text";
   el.loginPasswordInput.type = showing ? "password" : "text";
+  el.toggleLoginPasswordBtn.classList.toggle("is-visible", !showing);
   el.toggleLoginPasswordBtn.setAttribute("aria-label", showing ? "Mostrar senha" : "Ocultar senha");
   el.toggleLoginPasswordBtn.setAttribute("title", showing ? "Mostrar senha" : "Ocultar senha");
   el.toggleLoginPasswordBtn.setAttribute("aria-pressed", String(!showing));
