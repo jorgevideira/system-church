@@ -16,7 +16,14 @@ from app.db.models.tenant import Tenant
 from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
-from app.services import event_notification_service, mercadopago_service, payment_account_service, tenant_service, transaction_service
+from app.services import (
+    event_notification_service,
+    mercadopago_service,
+    pagbank_service,
+    payment_account_service,
+    tenant_service,
+    transaction_service,
+)
 
 
 def _slugify(value: str) -> str:
@@ -298,7 +305,7 @@ def create_public_registration(
         provider = provider_name if provider_name in {"mercadopago", "pagbank"} else "internal"
         if provider == "mercadopago" and not mercadopago_service.is_enabled(tenant, payment_account):
             provider = "internal"
-        if provider == "pagbank":
+        if provider == "pagbank" and not pagbank_service.is_enabled(tenant, payment_account):
             provider = "internal"
         checkout_url = None
         pix_copy_paste = None
@@ -322,12 +329,30 @@ def create_public_registration(
             provider_payload = preference
             pix_copy_paste = None
             expires_at = None
+        elif provider == "pagbank":
+            checkout = pagbank_service.create_checkout(
+                tenant=tenant,
+                payment_account=payment_account,
+                event_title=event.title,
+                registration_code=registration.registration_code,
+                checkout_reference=checkout_reference,
+                amount=total_amount,
+                quantity=payload.quantity,
+                attendee_name=payload.attendee_name,
+                attendee_email=str(payload.attendee_email),
+                attendee_phone=payload.attendee_phone,
+                preferred_method=payment_method,
+            )
+            checkout_url = pagbank_service.get_checkout_link(checkout, "PAY")
+            provider_payload = checkout
+            pix_copy_paste = None
+            expires_at = None
         else:
             checkout_url = _build_internal_checkout_url(checkout_reference)
             pix_copy_paste = _build_pix_copy_paste(checkout_reference, total_amount) if payment_method == "pix" else None
             provider_payload = {
                 "mode": "gateway_ready",
-                "message": "Set PAYMENT_PROVIDER=mercadopago and credentials to enable live checkout.",
+                "message": "Configure a live payment account to enable real checkout.",
             }
 
         payment = EventPayment(
@@ -525,3 +550,11 @@ def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional
         )
         return apply_payment_webhook(db, webhook_payload)
     return None
+
+
+def apply_pagbank_webhook(db: Session, payload_json: dict) -> Optional[EventPayment]:
+    webhook_payload = pagbank_service.build_webhook_payload(payload_json)
+    if webhook_payload is None:
+        return None
+    payload = EventPaymentWebhookPayload(**webhook_payload)
+    return apply_payment_webhook(db, payload)

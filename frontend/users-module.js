@@ -338,6 +338,7 @@
     usersPaymentAccountId: document.getElementById("usersPaymentAccountId"),
     usersPaymentAccountLabel: document.getElementById("usersPaymentAccountLabel"),
     usersPaymentAccountProvider: document.getElementById("usersPaymentAccountProvider"),
+    usersPaymentAccountEnvironment: document.getElementById("usersPaymentAccountEnvironment"),
     usersPaymentAccountDescription: document.getElementById("usersPaymentAccountDescription"),
     usersPaymentAccountSupportsPix: document.getElementById("usersPaymentAccountSupportsPix"),
     usersPaymentAccountSupportsCard: document.getElementById("usersPaymentAccountSupportsCard"),
@@ -1103,6 +1104,7 @@
     el.usersPaymentAccountForm.reset();
     if (el.usersPaymentAccountId) el.usersPaymentAccountId.value = "";
     if (el.usersPaymentAccountProvider) el.usersPaymentAccountProvider.value = "mercadopago";
+    if (el.usersPaymentAccountEnvironment) el.usersPaymentAccountEnvironment.value = "production";
     if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
     if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = true;
     if (el.usersPaymentAccountIsActive) el.usersPaymentAccountIsActive.checked = true;
@@ -1118,7 +1120,7 @@
     el.usersPaymentAccountsBody.innerHTML = state.paymentAccounts.map((account) => `
       <tr>
         <td><strong>${escapeHtml(account.label)}</strong><br><span class="tiny">${escapeHtml(account.description || "-")}</span></td>
-        <td>${escapeHtml(account.provider)}</td>
+        <td>${escapeHtml(account.provider)}<br><span class="tiny">${escapeHtml(account.environment || "production")}</span></td>
         <td>${account.supports_pix ? "PIX" : ""}${account.supports_pix && account.supports_card ? " / " : ""}${account.supports_card ? "Cartão" : ""}</td>
         <td>${account.is_active ? "Ativa" : "Inativa"}${account.is_default ? " · Padrão" : ""}</td>
         <td>${account.live_ready ? "Sim" : "Não"}</td>
@@ -1141,6 +1143,7 @@
     if (el.usersPaymentAccountId) el.usersPaymentAccountId.value = String(account.id);
     if (el.usersPaymentAccountLabel) el.usersPaymentAccountLabel.value = account.label || "";
     if (el.usersPaymentAccountProvider) el.usersPaymentAccountProvider.value = account.provider || "mercadopago";
+    if (el.usersPaymentAccountEnvironment) el.usersPaymentAccountEnvironment.value = account.environment || "production";
     if (el.usersPaymentAccountDescription) el.usersPaymentAccountDescription.value = account.description || "";
     if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = Boolean(account.supports_pix);
     if (el.usersPaymentAccountSupportsCard) el.usersPaymentAccountSupportsCard.checked = Boolean(account.supports_card);
@@ -1160,6 +1163,7 @@
     const payload = {
       label: el.usersPaymentAccountLabel.value.trim(),
       provider: el.usersPaymentAccountProvider.value,
+      environment: el.usersPaymentAccountEnvironment ? el.usersPaymentAccountEnvironment.value : "production",
       description: el.usersPaymentAccountDescription.value.trim() || null,
       supports_pix: Boolean(el.usersPaymentAccountSupportsPix.checked),
       supports_card: Boolean(el.usersPaymentAccountSupportsCard.checked),

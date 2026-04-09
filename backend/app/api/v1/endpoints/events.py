@@ -250,10 +250,11 @@ async def event_payment_webhook(
         or (payload_json.get("data") or {}).get("id")
         or payload_json.get("id")
     )
+    is_pagbank_payload = bool(payload_json.get("charges")) or bool(payload_json.get("reference_id"))
     x_signature = request.headers.get("x-signature")
     x_request_id = request.headers.get("x-request-id")
 
-    if provider_payment_id:
+    if provider_payment_id and not is_pagbank_payload:
         if mercadopago_service.is_enabled() and not mercadopago_service.validate_webhook_signature(
             data_id=str(provider_payment_id),
             x_signature=x_signature,
@@ -261,6 +262,8 @@ async def event_payment_webhook(
         ):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
         payment = event_service.apply_mercadopago_webhook(db, str(provider_payment_id))
+    elif is_pagbank_payload:
+        payment = event_service.apply_pagbank_webhook(db, payload_json)
     else:
         payload = EventPaymentWebhookPayload.model_validate(payload_json)
         payment = event_service.apply_payment_webhook(db, payload)

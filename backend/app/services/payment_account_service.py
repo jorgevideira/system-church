@@ -6,6 +6,7 @@ from app.schemas.payment_account import PaymentAccountCreate, PaymentAccountResp
 
 def _normalize_public_config(payload: PaymentAccountCreate | PaymentAccountUpdate) -> dict:
     return {
+        "environment": getattr(payload, "environment", None) or None,
         "public_key": getattr(payload, "public_key", None) or None,
         "webhook_secret": getattr(payload, "webhook_secret", None) or None,
         "integrator_id": getattr(payload, "integrator_id", None) or None,
@@ -26,11 +27,18 @@ def _build_response(account: PaymentAccount) -> PaymentAccountResponse:
     access_token = str(secrets.get("access_token") or "").strip()
     webhook_secret = str(config.get("webhook_secret") or "").strip()
     public_key = str(config.get("public_key") or "").strip()
-    live_ready = account.provider in {"mercadopago", "pagbank"} and bool(access_token) and bool(public_key)
+    environment = get_account_environment(account)
+    if account.provider == "mercadopago":
+        live_ready = bool(access_token) and bool(public_key)
+    elif account.provider == "pagbank":
+        live_ready = bool(access_token)
+    else:
+        live_ready = True
     return PaymentAccountResponse(
         id=account.id,
         tenant_id=account.tenant_id,
         provider=account.provider,
+        environment=environment,
         label=account.label,
         description=account.description,
         is_default=account.is_default,
@@ -126,7 +134,7 @@ def update_payment_account(db: Session, account: PaymentAccount, payload: Paymen
             setattr(account, field, value)
 
     config = dict(account.config_json or {})
-    for key in ("public_key", "webhook_secret", "integrator_id", "account_email", "app_id"):
+    for key in ("environment", "public_key", "webhook_secret", "integrator_id", "account_email", "app_id"):
         if key in changes:
             config[key] = (changes[key] or "").strip() or None
     if payload.clear_webhook_secret:
@@ -184,3 +192,13 @@ def get_account_integrator_id(account: PaymentAccount | None) -> str | None:
     config = account.config_json or {}
     integrator_id = str(config.get("integrator_id") or "").strip()
     return integrator_id or None
+
+
+def get_account_environment(account: PaymentAccount | None) -> str:
+    if account is None:
+        return "production"
+    config = account.config_json or {}
+    environment = str(config.get("environment") or "").strip().lower()
+    if environment in {"sandbox", "production"}:
+        return environment
+    return "production"
