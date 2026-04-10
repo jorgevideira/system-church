@@ -26,3 +26,12 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
     ports:
       - "${NGINX_PORT}:80"
+    networks:
+      default: {}
+      proxy_manager:
+        aliases:
+          - system-church-dev-web
+
+networks:
+  proxy_manager:
+    external: true

@@ -112,8 +112,9 @@ Portas padrao de `dev`:
 
 - Frontend: `http://localhost:8088`
 - API: `http://localhost:8001`
-- PostgreSQL: `localhost:5433`
+- PostgreSQL: `localhost:5434`
 - Redis: `localhost:6380`
+- URL publica sugerida: `https://dev.jpmit.top`
 
 ### Subir ambiente `main` / producao
 
@@ -126,6 +127,7 @@ docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod
 Porta padrao de producao:
 
 - Frontend/Nginx: `http://localhost:8089`
+- URL publica sugerida: `https://prod.jpmit.top`
 
 Se voce usa um proxy reverso, conecte o Nginx de producao na rede externa `proxy_manager`.
 
