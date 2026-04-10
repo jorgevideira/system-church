@@ -59,30 +59,102 @@ cd system-church
 
 ### 2) Preparar ambiente
 
+Para desenvolvimento/teste:
+
 ```bash
-cp .env.example .env
+cp .env.dev.example .env.dev
 ```
 
-Edite o arquivo `.env` e ajuste segredos e conexoes conforme seu ambiente.
+Para producao:
+
+```bash
+cp .env.prod.example .env.prod
+```
+
+Edite o arquivo de ambiente correspondente e ajuste segredos, URLs e senhas.
 
 ### 3) Subir servicos
 
 ```bash
-docker compose up --build
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up --build -d
 ```
 
 ### 4) Migrar banco (primeira execucao)
 
 ```bash
-docker compose exec backend alembic upgrade head
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml exec backend alembic upgrade head
 ```
+
+## Ambientes Separados
+
+O projeto agora pode rodar com dois ambientes independentes na mesma maquina:
+
+- `dev`: ambiente de teste/homologacao ligado a branch `dev`
+- `main`: ambiente de producao ligado a branch `main`
+
+Cada ambiente usa:
+
+- `COMPOSE_PROJECT_NAME` diferente
+- banco PostgreSQL diferente
+- Redis diferente
+- volumes Docker diferentes
+- portas HTTP/API diferentes
+
+### Subir ambiente `dev`
+
+```bash
+cp .env.dev.example .env.dev
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml exec backend alembic upgrade head
+```
+
+Portas padrao de `dev`:
+
+- Frontend: `http://localhost:8088`
+- API: `http://localhost:8001`
+- PostgreSQL: `localhost:5433`
+- Redis: `localhost:6380`
+
+### Subir ambiente `main` / producao
+
+```bash
+cp .env.prod.example .env.prod
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec backend alembic upgrade head
+```
+
+Porta padrao de producao:
+
+- Frontend/Nginx: `http://localhost:8089`
+
+Se voce usa um proxy reverso, conecte o Nginx de producao na rede externa `proxy_manager`.
+
+### Parar cada ambiente
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml down
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml down
+```
+
+### Fluxo de branches recomendado
+
+```bash
+git checkout -b dev
+git push -u origin dev
+```
+
+Fluxo sugerido:
+
+- desenvolver e validar em `dev`
+- promover para `main` somente depois dos testes
 
 ## Endpoints Locais
 
-- Frontend (via Nginx): `http://localhost`
-- API: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- `dev` Frontend (via Nginx): `http://localhost:8088`
+- `dev` API: `http://localhost:8001`
+- `dev` Swagger: `http://localhost:8001/docs`
+- `dev` ReDoc: `http://localhost:8001/redoc`
+- `prod` Frontend (via Nginx): `http://localhost:8089`
 
 ## Credenciais Iniciais
 

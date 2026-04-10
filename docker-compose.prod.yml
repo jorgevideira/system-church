@@ -1,0 +1,11 @@
+services:
+  nginx:
+    ports:
+      - "${NGINX_PORT}:80"
+    networks:
+      - default
+      - proxy_manager
+
+networks:
+  proxy_manager:
+    external: true

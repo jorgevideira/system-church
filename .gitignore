@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.env.dev
+.env.prod
 venv/
 .venv/
 docker-compose.override.yml
