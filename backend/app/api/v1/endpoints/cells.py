@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_active_user, get_current_membership, get_current_tenant, get_db, require_editor
-from app.core.constants import ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER
+from app.core.constants import ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR
 from app.db.models.tenant import Tenant
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
@@ -26,6 +26,7 @@ from app.schemas.cell import (
     CellMeetingUpdate,
     CellMeetingVisitorResponse,
     CellSummaryResponse,
+    PublicCellResponse,
     CellFrequencyPoint,
     CellGrowthResponse,
     CellRetentionResponse,
@@ -40,7 +41,9 @@ from app.schemas.cell import (
     CellUpdate,
     CellMemberPromoteRequest,
 )
-from app.services import cell_service
+from app.schemas.cell_orgchart import OrgChartResponse
+from app.schemas.user import UserResponse
+from app.services import cell_service, user_service
 
 router = APIRouter()
 
@@ -51,6 +54,8 @@ CELL_VIEW_PERMISSIONS = {
     "cells_meetings_view",
     "cells_leaders_view",
     "cells_disciplers_view",
+    "cells_network_pastors_view",
+    "cells_orgchart_view",
     "cells_lost_sheep_view",
 }
 
@@ -72,6 +77,9 @@ CELL_MANAGE_PERMISSIONS = {
     "cells_disciplers_create",
     "cells_disciplers_edit",
     "cells_disciplers_delete",
+    "cells_network_pastors_create",
+    "cells_network_pastors_edit",
+    "cells_network_pastors_delete",
     "cells_lost_sheep_manage",
 }
 
@@ -106,35 +114,46 @@ def _is_editor_user(user: User, membership: TenantMembership) -> bool:
         user.role in (ROLE_ADMIN, ROLE_EDITOR)
         or membership.role in (ROLE_ADMIN, ROLE_EDITOR)
         or _is_role_obj_admin(membership)
-        or _has_any_cell_manage_permission(membership)
     )
 
 
 def _get_allowed_cell_ids_for_user(db: Session, user: User, membership: TenantMembership, tenant: Tenant) -> Optional[list[int]]:
     if _is_editor_user(user, membership):
         return None
-    if _has_any_cell_view_permission(membership):
-        return None
     if user.role == ROLE_LEADER or membership.role == ROLE_LEADER:
         return cell_service.list_cell_ids_led_by_user(db, user, tenant.id)
+    if user.role == ROLE_DISCIPLER or membership.role == ROLE_DISCIPLER:
+        return cell_service.list_cell_ids_supervised_by_discipler_user(db, user, tenant.id)
+    if user.role == ROLE_NETWORK_PASTOR or membership.role == ROLE_NETWORK_PASTOR:
+        return cell_service.list_cell_ids_supervised_by_network_pastor_user(db, user, tenant.id)
+    if _has_any_cell_view_permission(membership):
+        return None
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
 
 
 def _require_cell_access(db: Session, user: User, membership: TenantMembership, tenant: Tenant, cell_id: int) -> None:
     if _is_editor_user(user, membership):
         return
+    mode = None
+    if user.role == ROLE_LEADER or membership.role == ROLE_LEADER:
+        mode = "leader"
+    elif user.role == ROLE_DISCIPLER or membership.role == ROLE_DISCIPLER:
+        mode = "discipler"
+    elif user.role == ROLE_NETWORK_PASTOR or membership.role == ROLE_NETWORK_PASTOR:
+        mode = "network_pastor"
+    if mode:
+        if not cell_service.user_has_access_to_cell(db, user, tenant.id, cell_id, mode=mode):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this cell")
+        return
     if _has_any_cell_view_permission(membership):
         return
-    if user.role != ROLE_LEADER and membership.role != ROLE_LEADER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
-    if not cell_service.user_has_access_to_cell(db, user, tenant.id, cell_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this cell")
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cell access not allowed")
 
 
 def _require_editor_or_leader(user: User, membership: TenantMembership) -> None:
     if (
-        user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER)
-        or membership.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER)
+        user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR)
+        or membership.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR)
         or _is_role_obj_admin(membership)
         or _has_any_cell_manage_permission(membership)
     ):
@@ -153,6 +172,17 @@ def list_cells(
     return cell_service.list_cells(db, current_tenant.id, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
 
 
+@router.get("/public/tenants/{tenant_slug}/cells", response_model=list[PublicCellResponse])
+def list_public_cells(
+    tenant_slug: str,
+    db: Session = Depends(get_db),
+) -> list[PublicCellResponse]:
+    tenant, cells = cell_service.list_public_cells(db, tenant_slug)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    return [PublicCellResponse.model_validate(cell) for cell in cells]
+
+
 @router.get("/my", response_model=list[CellResponse])
 def list_my_cells(
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -163,6 +193,18 @@ def list_my_cells(
 ) -> list[CellResponse]:
     allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
     return cell_service.list_cells(db, current_tenant.id, status_filter=status_filter, allowed_cell_ids=allowed_cell_ids)
+
+
+@router.get("/orgchart", response_model=OrgChartResponse)
+def get_org_chart(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> OrgChartResponse:
+    # Access is controlled by org-chart role scope or by view permissions for admins/editors.
+    allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
+    return cell_service.get_cells_org_chart(db, current_tenant.id, allowed_cell_ids=allowed_cell_ids)
 
 
 @router.post("/", response_model=CellResponse, status_code=status.HTTP_201_CREATED)
@@ -255,6 +297,19 @@ def create_member(
     return cell_service.create_member(db, payload, current_tenant.id)
 
 
+@router.get("/members/user-candidates", response_model=list[UserResponse])
+def list_member_user_candidates(
+    skip: int = 0,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> list[UserResponse]:
+    _require_editor_or_leader(current_user, current_membership)
+    return user_service.get_users_for_tenant(db, current_tenant.id, skip=skip, limit=limit)
+
+
 @router.put("/members/{member_id}", response_model=CellMemberResponse)
 def update_member(
     member_id: int,
@@ -265,8 +320,8 @@ def update_member(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
     _require_editor_or_leader(current_user, current_membership)
-    if current_user.role == ROLE_LEADER or current_membership.role == ROLE_LEADER:
-        allowed_cell_ids = cell_service.list_cell_ids_led_by_user(db, current_user, current_tenant.id)
+    if current_user.role in (ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR) or current_membership.role in (ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
+        allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
         if not cell_service.member_is_in_cells(db, member_id, current_tenant.id, allowed_cell_ids):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this member")
     member = cell_service.get_member(db, member_id, current_tenant.id)

@@ -4,6 +4,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import sqlalchemy as sa
 
 from app.db.models.cell import Cell
 from app.db.models.cell_leader_assignment import CellLeaderAssignment
@@ -13,6 +14,7 @@ from app.db.models.cell_meeting import CellMeeting
 from app.db.models.cell_meeting_attendance import CellMeetingAttendance
 from app.db.models.cell_visitor import CellVisitor
 from app.db.models.cell_meeting_visitor import CellMeetingVisitor
+from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.cell import (
     CellCreate,
@@ -26,6 +28,7 @@ from app.schemas.cell import (
     CellVisitorCreate,
     CellUpdate,
 )
+from app.schemas.cell_orgchart import OrgChartResponse, OrgChartNetworkPastorNode, OrgChartDisciplerNode, OrgChartLeaderNode, OrgChartMember, OrgChartCell
 
 
 def list_cells(
@@ -44,6 +47,57 @@ def list_cells(
     return q.order_by(Cell.name.asc()).all()
 
 
+def list_public_cells(db: Session, tenant_slug: str) -> tuple[Optional[Tenant], list[dict]]:
+    tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug, Tenant.is_active.is_(True)).first()
+    if tenant is None:
+        return None, []
+
+    cells = (
+        db.query(Cell)
+        .filter(
+            Cell.tenant_id == tenant.id,
+            Cell.status == "active",
+        )
+        .order_by(Cell.name.asc(), Cell.id.asc())
+        .all()
+    )
+
+    payload: list[dict] = []
+    for cell in cells:
+        leader_assignment = (
+            db.query(CellLeaderAssignment, CellMember.full_name)
+            .join(CellMember, CellMember.id == CellLeaderAssignment.member_id)
+            .filter(
+                CellLeaderAssignment.tenant_id == tenant.id,
+                CellLeaderAssignment.cell_id == cell.id,
+                CellLeaderAssignment.active.is_(True),
+                CellMember.tenant_id == tenant.id,
+                CellMember.is_active.is_(True),
+            )
+            .order_by(
+                CellLeaderAssignment.is_primary.desc(),
+                CellLeaderAssignment.start_date.desc(),
+                CellLeaderAssignment.id.desc(),
+            )
+            .first()
+        )
+
+        leader_name = None
+        if leader_assignment is not None:
+            _assignment, leader_name = leader_assignment
+
+        payload.append({
+            "id": cell.id,
+            "name": cell.name,
+            "weekday": cell.weekday,
+            "meeting_time": cell.meeting_time,
+            "address": cell.address,
+            "leader_name": leader_name,
+        })
+
+    return tenant, payload
+
+
 def list_cell_ids_led_by_user(db: Session, user: User, tenant_id: int) -> list[int]:
     rows = (
         db.query(CellLeaderAssignment.cell_id)
@@ -59,10 +113,181 @@ def list_cell_ids_led_by_user(db: Session, user: User, tenant_id: int) -> list[i
     )
     return [row.cell_id for row in rows]
 
+def _member_ids_for_user(db: Session, user: User, tenant_id: int) -> list[int]:
+    rows = (
+        db.query(CellMember.id)
+        .filter(
+            CellMember.tenant_id == tenant_id,
+            CellMember.user_id == user.id,
+            CellMember.is_active.is_(True),
+        )
+        .all()
+    )
+    return [row.id for row in rows]
 
-def user_has_access_to_cell(db: Session, user: User, tenant_id: int, cell_id: int) -> bool:
-    led_cell_ids = list_cell_ids_led_by_user(db, user, tenant_id)
-    return cell_id in led_cell_ids
+
+def list_cell_ids_supervised_by_discipler_user(db: Session, user: User, tenant_id: int) -> list[int]:
+    """Cells where the user acts as discipler/supervisor for leaders (and/or is the discipler row)."""
+    member_ids = _member_ids_for_user(db, user, tenant_id)
+    if not member_ids:
+        return []
+
+    rows = (
+        db.query(CellLeaderAssignment.cell_id)
+        .filter(
+            CellLeaderAssignment.tenant_id == tenant_id,
+            CellLeaderAssignment.active.is_(True),
+            sa.or_(
+                # Leader rows point to their discipler.
+                sa.and_(CellLeaderAssignment.role == "leader", CellLeaderAssignment.discipler_member_id.in_(member_ids)),
+                # Discipler row (co_leader) identifies the discipler supervising that cell.
+                sa.and_(CellLeaderAssignment.role == "co_leader", CellLeaderAssignment.member_id.in_(member_ids)),
+            ),
+        )
+        .distinct()
+        .all()
+    )
+    return [row.cell_id for row in rows]
+
+
+def list_cell_ids_supervised_by_network_pastor_user(db: Session, user: User, tenant_id: int) -> list[int]:
+    """Cells where the user is set as network pastor for the discipler (co_leader row)."""
+    member_ids = _member_ids_for_user(db, user, tenant_id)
+    if not member_ids:
+        return []
+
+    rows = (
+        db.query(CellLeaderAssignment.cell_id)
+        .filter(
+            CellLeaderAssignment.tenant_id == tenant_id,
+            CellLeaderAssignment.active.is_(True),
+            CellLeaderAssignment.role == "co_leader",
+            CellLeaderAssignment.discipler_member_id.in_(member_ids),
+        )
+        .distinct()
+        .all()
+    )
+    return [row.cell_id for row in rows]
+
+def user_has_access_to_cell(db: Session, user: User, tenant_id: int, cell_id: int, *, mode: str = "leader") -> bool:
+    """Check scoped access based on the caller mode (leader/discipler/network_pastor)."""
+    if mode == "network_pastor":
+        return cell_id in list_cell_ids_supervised_by_network_pastor_user(db, user, tenant_id)
+    if mode == "discipler":
+        return cell_id in list_cell_ids_supervised_by_discipler_user(db, user, tenant_id)
+    return cell_id in list_cell_ids_led_by_user(db, user, tenant_id)
+
+
+def get_cells_org_chart(db: Session, tenant_id: int, allowed_cell_ids: Optional[list[int]] = None) -> OrgChartResponse:
+    """Return the org chart: Network Pastor -> Disciplers -> Leaders -> Cells."""
+    cell_query = db.query(Cell).filter(Cell.tenant_id == tenant_id)
+    if allowed_cell_ids is not None:
+        if not allowed_cell_ids:
+            return OrgChartResponse(networks=[])
+        cell_query = cell_query.filter(Cell.id.in_(allowed_cell_ids))
+    cells = cell_query.all()
+    if not cells:
+        return OrgChartResponse(networks=[])
+
+    cell_ids = [c.id for c in cells]
+    assignments = (
+        db.query(CellLeaderAssignment)
+        .filter(
+            CellLeaderAssignment.tenant_id == tenant_id,
+            CellLeaderAssignment.cell_id.in_(cell_ids),
+            CellLeaderAssignment.active.is_(True),
+            CellLeaderAssignment.role.in_(["leader", "co_leader"]),
+        )
+        .all()
+    )
+
+    co_by_cell: dict[int, CellLeaderAssignment] = {}
+    leader_by_cell: dict[int, CellLeaderAssignment] = {}
+    for row in assignments:
+        if row.role == "co_leader" and row.cell_id not in co_by_cell:
+            co_by_cell[row.cell_id] = row
+        elif row.role == "leader" and row.cell_id not in leader_by_cell:
+            leader_by_cell[row.cell_id] = row
+
+    # Collect all member ids referenced by the chart.
+    member_ids: set[int] = set()
+    for cell_id in cell_ids:
+        co = co_by_cell.get(cell_id)
+        lead = leader_by_cell.get(cell_id)
+        if co:
+            member_ids.add(co.member_id)
+            if co.discipler_member_id:
+                member_ids.add(co.discipler_member_id)
+        if lead:
+            member_ids.add(lead.member_id)
+            if lead.discipler_member_id:
+                member_ids.add(lead.discipler_member_id)
+
+    members = (
+        db.query(CellMember)
+        .filter(
+            CellMember.tenant_id == tenant_id,
+            CellMember.id.in_(list(member_ids) or [0]),
+        )
+        .all()
+    )
+    member_by_id = {m.id: m for m in members}
+
+    # network_pastor_id -> discipler_id -> leader_id -> [cells]
+    tree: dict[int | None, dict[int, dict[int, list[Cell]]]] = {}
+
+    for cell in cells:
+        co = co_by_cell.get(cell.id)
+        lead = leader_by_cell.get(cell.id)
+        discipler_id = co.member_id if co else (lead.discipler_member_id if lead else None)
+        leader_id = lead.member_id if lead else None
+        network_pastor_id = co.discipler_member_id if co else None
+
+        if not discipler_id or not leader_id:
+            # Without both discipler and leader this cell can't be placed cleanly in the chart.
+            continue
+
+        tree.setdefault(network_pastor_id, {}).setdefault(discipler_id, {}).setdefault(leader_id, []).append(cell)
+
+    networks: list[OrgChartNetworkPastorNode] = []
+
+    def _member_summary(member_id: int) -> OrgChartMember:
+        m = member_by_id.get(member_id)
+        if not m:
+            return OrgChartMember(id=member_id, full_name=f"Membro {member_id}", user_id=None)
+        return OrgChartMember(id=m.id, full_name=m.full_name, user_id=m.user_id)
+
+    for network_pastor_id, discipler_map in sorted(tree.items(), key=lambda item: (item[0] is None, item[0] or 0)):
+        disciplers: list[OrgChartDisciplerNode] = []
+        for discipler_id, leader_map in sorted(discipler_map.items(), key=lambda item: item[0]):
+            leaders: list[OrgChartLeaderNode] = []
+            for leader_id, leader_cells in sorted(leader_map.items(), key=lambda item: item[0]):
+                leaders.append(
+                    OrgChartLeaderNode(
+                        leader=_member_summary(leader_id),
+                        cells=[
+                            OrgChartCell(
+                                id=c.id,
+                                name=c.name,
+                                weekday=c.weekday,
+                                meeting_time=str(c.meeting_time) if c.meeting_time is not None else None,
+                                address=c.address,
+                                status=c.status,
+                            )
+                            for c in sorted(leader_cells, key=lambda cc: cc.name or "")
+                        ],
+                    )
+                )
+            disciplers.append(OrgChartDisciplerNode(discipler=_member_summary(discipler_id), leaders=leaders))
+
+        networks.append(
+            OrgChartNetworkPastorNode(
+                network_pastor=_member_summary(network_pastor_id) if network_pastor_id else None,
+                disciplers=disciplers,
+            )
+        )
+
+    return OrgChartResponse(networks=networks)
 
 
 def get_cell(db: Session, cell_id: int, tenant_id: int) -> Optional[Cell]:

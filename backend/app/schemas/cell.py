@@ -328,6 +328,17 @@ class CellSummaryResponse(BaseModel):
     average_frequency_percent: float
 
 
+class PublicCellResponse(BaseModel):
+    id: int
+    name: str
+    weekday: str
+    meeting_time: time
+    address: Optional[str] = None
+    leader_name: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class CellGrowthResponse(BaseModel):
     cell_id: int
     period_start: date

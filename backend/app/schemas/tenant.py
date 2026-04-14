@@ -14,6 +14,15 @@ class TenantBase(BaseModel):
     logo_url: Optional[str] = Field(None, max_length=500)
     support_email: Optional[str] = Field(None, max_length=255)
     support_whatsapp: Optional[str] = Field(None, max_length=50)
+    landing_hero_background_url: Optional[str] = Field(None, max_length=500)
+    landing_pix_key: Optional[str] = Field(None, max_length=255)
+    landing_bank_name: Optional[str] = Field(None, max_length=255)
+    landing_bank_agency: Optional[str] = Field(None, max_length=120)
+    landing_bank_account: Optional[str] = Field(None, max_length=120)
+    landing_service_times: Optional[str] = Field(None, max_length=2000)
+    landing_address: Optional[str] = Field(None, max_length=500)
+    landing_location_url: Optional[str] = Field(None, max_length=1000)
+    landing_footer_text: Optional[str] = Field(None, max_length=500)
     is_active: bool = True
 
 
@@ -35,6 +44,15 @@ class TenantCreate(BaseModel):
     logo_url: Optional[str] = Field(None, max_length=500)
     support_email: Optional[str] = Field(None, max_length=255)
     support_whatsapp: Optional[str] = Field(None, max_length=50)
+    landing_hero_background_url: Optional[str] = Field(None, max_length=500)
+    landing_pix_key: Optional[str] = Field(None, max_length=255)
+    landing_bank_name: Optional[str] = Field(None, max_length=255)
+    landing_bank_agency: Optional[str] = Field(None, max_length=120)
+    landing_bank_account: Optional[str] = Field(None, max_length=120)
+    landing_service_times: Optional[str] = Field(None, max_length=2000)
+    landing_address: Optional[str] = Field(None, max_length=500)
+    landing_location_url: Optional[str] = Field(None, max_length=1000)
+    landing_footer_text: Optional[str] = Field(None, max_length=500)
 
 
 class TenantUpdate(BaseModel):
@@ -47,6 +65,15 @@ class TenantUpdate(BaseModel):
     logo_url: Optional[str] = Field(None, max_length=500)
     support_email: Optional[str] = Field(None, max_length=255)
     support_whatsapp: Optional[str] = Field(None, max_length=50)
+    landing_hero_background_url: Optional[str] = Field(None, max_length=500)
+    landing_pix_key: Optional[str] = Field(None, max_length=255)
+    landing_bank_name: Optional[str] = Field(None, max_length=255)
+    landing_bank_agency: Optional[str] = Field(None, max_length=120)
+    landing_bank_account: Optional[str] = Field(None, max_length=120)
+    landing_service_times: Optional[str] = Field(None, max_length=2000)
+    landing_address: Optional[str] = Field(None, max_length=500)
+    landing_location_url: Optional[str] = Field(None, max_length=1000)
+    landing_footer_text: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
 
 
@@ -61,6 +88,15 @@ class TenantBrandingResponse(BaseModel):
     logo_url: Optional[str] = None
     support_email: Optional[str] = None
     support_whatsapp: Optional[str] = None
+    landing_hero_background_url: Optional[str] = None
+    landing_pix_key: Optional[str] = None
+    landing_bank_name: Optional[str] = None
+    landing_bank_agency: Optional[str] = None
+    landing_bank_account: Optional[str] = None
+    landing_service_times: Optional[str] = None
+    landing_address: Optional[str] = None
+    landing_location_url: Optional[str] = None
+    landing_footer_text: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

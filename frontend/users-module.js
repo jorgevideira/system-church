@@ -199,6 +199,13 @@
     PY: { dialCode: "+595", placeholder: "+595 981 234 567" },
   };
 
+  const THEME_PRESETS = {
+    light: { label: "Light", primary: "#9FBA45", secondary: "#7F9930" },
+    dark: { label: "Dark", primary: "#232323", secondary: "#4A4A4A" },
+    contrast: { label: "Alto contraste", primary: "#111111", secondary: "#F2C400" },
+    ocean: { label: "Ocean", primary: "#155EEF", secondary: "#0F8B8D" },
+  };
+
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
@@ -216,6 +223,7 @@
     usersNavRolesBtn: document.getElementById("usersNavRolesBtn"),
     usersNavChurchBtn: document.getElementById("usersNavChurchBtn"),
     usersNavAppearanceBtn: document.getElementById("usersNavAppearanceBtn"),
+    usersNavLandingBtn: document.getElementById("usersNavLandingBtn"),
     usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
     openChurchProfileModalBtn: document.getElementById("openChurchProfileModalBtn"),
     openChurchPaymentsModalBtn: document.getElementById("openChurchPaymentsModalBtn"),
@@ -226,6 +234,7 @@
     usersPaymentsManagementSection: document.getElementById("usersPaymentsManagementSection"),
     usersChurchOverviewSection: document.getElementById("usersChurchOverviewSection"),
     usersAppearanceOverviewSection: document.getElementById("usersAppearanceOverviewSection"),
+    usersLandingOverviewSection: document.getElementById("usersLandingOverviewSection"),
     usersPaymentsOverviewSection: document.getElementById("usersPaymentsOverviewSection"),
 
     usersMessage: document.getElementById("usersMessage"),
@@ -311,19 +320,19 @@
     usersChurchForm: document.getElementById("usersChurchForm"),
     usersChurchGeneralSection: document.getElementById("usersChurchGeneralSection"),
     usersChurchAppearanceSection: document.getElementById("usersChurchAppearanceSection"),
+    usersChurchLandingSection: document.getElementById("usersChurchLandingSection"),
     usersChurchPaymentsSection: document.getElementById("usersChurchPaymentsSection"),
     usersChurchGeneralGroup: document.getElementById("usersChurchGeneralGroup"),
     usersChurchAppearanceGroup: document.getElementById("usersChurchAppearanceGroup"),
+    usersChurchLandingGroup: document.getElementById("usersChurchLandingGroup"),
     usersChurchName: document.getElementById("usersChurchName"),
     usersChurchSlug: document.getElementById("usersChurchSlug"),
     usersChurchPublicDisplayName: document.getElementById("usersChurchPublicDisplayName"),
     usersChurchPublicDescription: document.getElementById("usersChurchPublicDescription"),
+    usersChurchThemePreset: document.getElementById("usersChurchThemePreset"),
+    usersChurchThemeOptions: document.getElementById("usersChurchThemeOptions"),
     usersChurchPrimaryColor: document.getElementById("usersChurchPrimaryColor"),
-    usersChurchPrimaryColorPicker: document.getElementById("usersChurchPrimaryColorPicker"),
-    usersChurchPrimaryEyedropperBtn: document.getElementById("usersChurchPrimaryEyedropperBtn"),
     usersChurchSecondaryColor: document.getElementById("usersChurchSecondaryColor"),
-    usersChurchSecondaryColorPicker: document.getElementById("usersChurchSecondaryColorPicker"),
-    usersChurchSecondaryEyedropperBtn: document.getElementById("usersChurchSecondaryEyedropperBtn"),
     usersChurchLogoUrl: document.getElementById("usersChurchLogoUrl"),
     usersChurchLogoFile: document.getElementById("usersChurchLogoFile"),
     usersChurchLogoUploadBtn: document.getElementById("usersChurchLogoUploadBtn"),
@@ -331,6 +340,15 @@
     usersChurchSupportEmail: document.getElementById("usersChurchSupportEmail"),
     usersChurchWhatsappCountry: document.getElementById("usersChurchWhatsappCountry"),
     usersChurchSupportWhatsapp: document.getElementById("usersChurchSupportWhatsapp"),
+    usersChurchLandingHeroBackgroundUrl: document.getElementById("usersChurchLandingHeroBackgroundUrl"),
+    usersChurchLandingPixKey: document.getElementById("usersChurchLandingPixKey"),
+    usersChurchLandingBankName: document.getElementById("usersChurchLandingBankName"),
+    usersChurchLandingBankAgency: document.getElementById("usersChurchLandingBankAgency"),
+    usersChurchLandingBankAccount: document.getElementById("usersChurchLandingBankAccount"),
+    usersChurchLandingServiceTimes: document.getElementById("usersChurchLandingServiceTimes"),
+    usersChurchLandingAddress: document.getElementById("usersChurchLandingAddress"),
+    usersChurchLandingLocationUrl: document.getElementById("usersChurchLandingLocationUrl"),
+    usersChurchLandingFooterText: document.getElementById("usersChurchLandingFooterText"),
     usersChurchIsActive: document.getElementById("usersChurchIsActive"),
     usersChurchOverviewName: document.getElementById("usersChurchOverviewName"),
     usersChurchOverviewSlug: document.getElementById("usersChurchOverviewSlug"),
@@ -343,6 +361,10 @@
     usersAppearancePreviewLogo: document.getElementById("usersAppearancePreviewLogo"),
     usersAppearancePreviewTitle: document.getElementById("usersAppearancePreviewTitle"),
     usersAppearancePreviewSummary: document.getElementById("usersAppearancePreviewSummary"),
+    usersLandingOverviewHero: document.getElementById("usersLandingOverviewHero"),
+    usersLandingOverviewServices: document.getElementById("usersLandingOverviewServices"),
+    usersLandingOverviewGiving: document.getElementById("usersLandingOverviewGiving"),
+    usersLandingOverviewLocation: document.getElementById("usersLandingOverviewLocation"),
     usersPaymentsOverviewMode: document.getElementById("usersPaymentsOverviewMode"),
     usersPaymentsOverviewPix: document.getElementById("usersPaymentsOverviewPix"),
     usersPaymentsOverviewCard: document.getElementById("usersPaymentsOverviewCard"),
@@ -564,41 +586,127 @@
     return fallback;
   }
 
-  function syncChurchColorInputs(source) {
-    if (source === "primary-picker") {
-      if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = normalizeHexColor(el.usersChurchPrimaryColorPicker.value, "#1565C0");
-    } else if (source === "primary-text") {
-      const normalized = normalizeHexColor(el.usersChurchPrimaryColor.value, "#1565C0");
-      el.usersChurchPrimaryColor.value = normalized;
-      if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalized;
-    } else if (source === "secondary-picker") {
-      if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = normalizeHexColor(el.usersChurchSecondaryColorPicker.value, "#0A8F72");
-    } else if (source === "secondary-text") {
-      const normalized = normalizeHexColor(el.usersChurchSecondaryColor.value, "#0A8F72");
-      el.usersChurchSecondaryColor.value = normalized;
-      if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalized;
+  function inferThemePreset(primaryColor, secondaryColor) {
+    const primary = normalizeHexColor(primaryColor, THEME_PRESETS.light.primary);
+    const secondary = normalizeHexColor(secondaryColor, THEME_PRESETS.light.secondary);
+    for (const [key, preset] of Object.entries(THEME_PRESETS)) {
+      if (preset.primary === primary && preset.secondary === secondary) return key;
     }
-    updateChurchPreview();
+    return "light";
   }
 
-  async function pickColorWithEyedropper(target) {
-    if (!window.EyeDropper) {
-      setChurchMessage("Seu navegador não suporta conta-gotas nativo. Use o seletor de cor.", true);
-      return;
+  function applyThemePreset(themeName, options = {}) {
+    const preset = THEME_PRESETS[themeName] || THEME_PRESETS.light;
+    if (el.usersChurchThemePreset) el.usersChurchThemePreset.value = themeName in THEME_PRESETS ? themeName : "light";
+    if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = preset.primary;
+    if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = preset.secondary;
+    if (el.usersChurchThemeOptions) {
+      el.usersChurchThemeOptions.querySelectorAll("[data-theme-preset]").forEach((button) => {
+        button.classList.toggle("is-active", button.getAttribute("data-theme-preset") === (themeName in THEME_PRESETS ? themeName : "light"));
+      });
     }
-    try {
-      const eyeDropper = new window.EyeDropper();
-      const result = await eyeDropper.open();
-      if (target === "primary") {
-        if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = normalizeHexColor(result.sRGBHex, "#1565C0");
-        if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalizeHexColor(result.sRGBHex, "#1565C0");
-      } else {
-        if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = normalizeHexColor(result.sRGBHex, "#0A8F72");
-        if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalizeHexColor(result.sRGBHex, "#0A8F72");
-      }
+    if (window.applyTenantBranding) {
+      const tenant = state.tenantProfile || {};
+      window.applyTenantBranding({
+        ...tenant,
+        primary_color: preset.primary,
+        secondary_color: preset.secondary,
+      });
+    }
+    if (!options.skipPreview) {
       updateChurchPreview();
-    } catch (_error) {
     }
+  }
+
+  function syncChurchThemeFromProfile(primaryColor, secondaryColor) {
+    applyThemePreset(inferThemePreset(primaryColor, secondaryColor), { skipPreview: true });
+  }
+
+  function getSelectedThemeLabel() {
+    const key = el.usersChurchThemePreset ? el.usersChurchThemePreset.value : "light";
+    return (THEME_PRESETS[key] || THEME_PRESETS.light).label;
+  }
+
+  async function pickColorWithEyedropper(_target) {
+    setChurchMessage("A seleção manual de cores foi substituída por temas prontos.", false);
+  }
+
+  function syncChurchColorInputs() {
+    const selected = el.usersChurchThemePreset ? el.usersChurchThemePreset.value : "light";
+    applyThemePreset(selected, { skipPreview: false });
+  }
+
+  function resolveThemePreviewBackground() {
+    const selected = el.usersChurchThemePreset ? el.usersChurchThemePreset.value : "light";
+    if (selected === "dark") return "#232323";
+    if (selected === "contrast") return "#111111";
+    if (selected === "ocean") return "linear-gradient(145deg, #155EEF, #0F8B8D)";
+    return "linear-gradient(145deg, #9FBA45, #7F9930)";
+  }
+
+  function resolveThemePreviewTextColor() {
+    const selected = el.usersChurchThemePreset ? el.usersChurchThemePreset.value : "light";
+    return selected === "light" ? "#ffffff" : "#f7f7f7";
+  }
+
+  function applyThemePreviewColors() {
+    if (el.usersChurchPreviewCard) {
+      el.usersChurchPreviewCard.style.background = resolveThemePreviewBackground();
+      el.usersChurchPreviewCard.style.color = resolveThemePreviewTextColor();
+    }
+    if (el.usersChurchPreviewTitle) el.usersChurchPreviewTitle.style.color = resolveThemePreviewTextColor();
+    if (el.usersChurchPreviewSummary) el.usersChurchPreviewSummary.style.color = resolveThemePreviewTextColor();
+    if (el.usersChurchPreviewSupport) el.usersChurchPreviewSupport.style.color = resolveThemePreviewTextColor();
+    if (el.usersChurchPreviewSlug) el.usersChurchPreviewSlug.style.color = resolveThemePreviewTextColor();
+  }
+
+  function renderThemeOverview(primaryColor, secondaryColor) {
+    const presetKey = inferThemePreset(primaryColor, secondaryColor);
+    const preset = THEME_PRESETS[presetKey];
+    if (el.usersAppearancePrimaryLabel) el.usersAppearancePrimaryLabel.textContent = preset.label;
+    if (el.usersAppearanceSecondaryLabel) el.usersAppearanceSecondaryLabel.textContent = `${preset.primary} / ${preset.secondary}`;
+    if (el.usersAppearancePrimarySwatch) el.usersAppearancePrimarySwatch.style.background = preset.primary;
+    if (el.usersAppearanceSecondarySwatch) el.usersAppearanceSecondarySwatch.style.background = preset.secondary;
+  }
+
+  function parseLandingServiceLines(rawValue) {
+    return String(rawValue || "")
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  function renderLandingOverview(tenant) {
+    const serviceLines = parseLandingServiceLines(tenant.landing_service_times);
+    const hasGiving = Boolean(
+      (tenant.landing_pix_key && tenant.landing_pix_key.trim())
+      || (tenant.landing_bank_name && tenant.landing_bank_name.trim())
+      || (tenant.landing_bank_account && tenant.landing_bank_account.trim())
+    );
+    if (el.usersLandingOverviewHero) {
+      el.usersLandingOverviewHero.textContent = tenant.landing_hero_background_url ? "Imagem configurada" : "Sem fundo";
+    }
+    if (el.usersLandingOverviewServices) {
+      el.usersLandingOverviewServices.textContent = serviceLines.length ? `${serviceLines.length} culto(s)` : "Não configurado";
+    }
+    if (el.usersLandingOverviewGiving) {
+      el.usersLandingOverviewGiving.textContent = hasGiving ? "Dados preenchidos" : "Não configurado";
+    }
+    if (el.usersLandingOverviewLocation) {
+      el.usersLandingOverviewLocation.textContent = tenant.landing_address || tenant.landing_location_url || "Não configurada";
+    }
+  }
+
+  function syncChurchThemeButtons() {
+    const selected = el.usersChurchThemePreset ? el.usersChurchThemePreset.value : "light";
+    applyThemePreset(selected);
+  }
+
+  function refreshThemeSelectionFromStoredColors() {
+    const primary = el.usersChurchPrimaryColor ? el.usersChurchPrimaryColor.value : "";
+    const secondary = el.usersChurchSecondaryColor ? el.usersChurchSecondaryColor.value : "";
+    syncChurchThemeFromProfile(primary, secondary);
+    updateChurchPreview();
   }
 
   function detectWhatsappCountry(value) {
@@ -817,8 +925,6 @@
     const resolvedLogoUrl = state.churchDraftLogoPreviewUrl
       ? resolveAssetUrl(logoUrl)
       : resolveAssetUrlWithCache(logoUrl, cacheKey);
-    const primaryColor = normalizeHexColor(el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value, "#1565C0");
-    const secondaryColor = normalizeHexColor(el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value, "#0A8F72");
     const supportParts = [supportEmail, supportWhatsapp].filter(Boolean);
     const urls = buildChurchPublicUrls();
 
@@ -829,9 +935,7 @@
     if (el.usersChurchPreviewSummary) el.usersChurchPreviewSummary.textContent = description;
     if (el.usersChurchPreviewSupport) el.usersChurchPreviewSupport.textContent = supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "Contato da igreja ainda não configurado";
     if (el.usersChurchPreviewSlug) el.usersChurchPreviewSlug.textContent = `Landing: /t/${getCurrentChurchSlug()}`;
-    if (el.usersChurchPreviewCard) {
-      el.usersChurchPreviewCard.style.background = `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})`;
-    }
+    applyThemePreviewColors();
     if (el.usersChurchPreviewLogo) {
       el.usersChurchPreviewLogo.classList.toggle("hide", !resolvedLogoUrl);
       if (resolvedLogoUrl) {
@@ -866,9 +970,9 @@
         description: "Apresente a proposta da igreja para visitantes.",
       },
       {
-        done: Boolean(el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value.trim()) && Boolean(el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value.trim()),
-        title: "Identidade visual",
-        description: "Configure cores para a igreja ter presença própria.",
+        done: Boolean(el.usersChurchThemePreset && el.usersChurchThemePreset.value.trim()),
+        title: "Tema visual",
+        description: "Escolha um tema pronto para a identidade da igreja.",
       },
       {
         done: Boolean(el.usersChurchLogoUrl && el.usersChurchLogoUrl.value.trim()),
@@ -1032,6 +1136,7 @@
       roles: "users_roles_view",
       church: "users_roles_view",
       appearance: "users_roles_view",
+      landing: "users_roles_view",
       payments: "users_roles_view",
     };
 
@@ -1048,26 +1153,31 @@
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
-    const isChurchView = ["church", "appearance", "payments"].includes(viewName);
+    const isChurchView = ["church", "appearance", "landing", "payments"].includes(viewName);
     const isAppearanceView = viewName === "appearance";
+    const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("active", isUsersView);
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("active", viewName === "church");
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("active", isAppearanceView);
+    if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("active", isLandingView);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("active", isPaymentsView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
     if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
-    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
+    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView);
     if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
+    if (el.usersLandingOverviewSection) el.usersLandingOverviewSection.classList.toggle("hide", !isLandingView);
     if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
     if (el.usersPaymentsManagementSection) el.usersPaymentsManagementSection.classList.toggle("hide", !isPaymentsView);
     applyChurchFormFocus(viewName);
 
     const targetSection = isAppearanceView
       ? el.usersChurchAppearanceSection
+      : isLandingView
+        ? el.usersChurchLandingSection
       : isPaymentsView
         ? el.usersChurchPaymentsSection
         : el.usersChurchGeneralSection;
@@ -1080,10 +1190,12 @@
 
   function applyChurchFormFocus(viewName) {
     const isAppearanceView = viewName === "appearance";
+    const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
-    const isChurchView = ["church", "appearance", "payments"].includes(viewName);
-    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isPaymentsView);
+    const isChurchView = ["church", "appearance", "landing", "payments"].includes(viewName);
+    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView);
     if (el.usersChurchAppearanceGroup) el.usersChurchAppearanceGroup.classList.toggle("hide", !isChurchView || !isAppearanceView);
+    if (el.usersChurchLandingGroup) el.usersChurchLandingGroup.classList.toggle("hide", !isChurchView || !isLandingView);
   }
 
   function loadPermissionState() {
@@ -1130,6 +1242,7 @@
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("hide", !state.isAdmin);
+    if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
@@ -1162,17 +1275,26 @@
     if (el.usersChurchSlug) el.usersChurchSlug.value = tenant.slug || "";
     if (el.usersChurchPublicDisplayName) el.usersChurchPublicDisplayName.value = tenant.public_display_name || "";
     if (el.usersChurchPublicDescription) el.usersChurchPublicDescription.value = tenant.public_description || "";
-    if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.value = tenant.primary_color || "";
-    if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.value = tenant.secondary_color || "";
-    if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.value = normalizeHexColor(tenant.primary_color, "#1565C0");
-    if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.value = normalizeHexColor(tenant.secondary_color, "#0A8F72");
+    syncChurchThemeFromProfile(tenant.primary_color, tenant.secondary_color);
     if (el.usersChurchLogoUrl) el.usersChurchLogoUrl.value = tenant.logo_url || "";
     if (el.usersChurchSupportEmail) el.usersChurchSupportEmail.value = tenant.support_email || "";
     if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.value = tenant.support_whatsapp || "";
+    if (el.usersChurchLandingHeroBackgroundUrl) el.usersChurchLandingHeroBackgroundUrl.value = tenant.landing_hero_background_url || "";
+    if (el.usersChurchLandingPixKey) el.usersChurchLandingPixKey.value = tenant.landing_pix_key || "";
+    if (el.usersChurchLandingBankName) el.usersChurchLandingBankName.value = tenant.landing_bank_name || "";
+    if (el.usersChurchLandingBankAgency) el.usersChurchLandingBankAgency.value = tenant.landing_bank_agency || "";
+    if (el.usersChurchLandingBankAccount) el.usersChurchLandingBankAccount.value = tenant.landing_bank_account || "";
+    if (el.usersChurchLandingServiceTimes) el.usersChurchLandingServiceTimes.value = tenant.landing_service_times || "";
+    if (el.usersChurchLandingAddress) el.usersChurchLandingAddress.value = tenant.landing_address || "";
+    if (el.usersChurchLandingLocationUrl) el.usersChurchLandingLocationUrl.value = tenant.landing_location_url || "";
+    if (el.usersChurchLandingFooterText) el.usersChurchLandingFooterText.value = tenant.landing_footer_text || "";
     if (el.usersChurchWhatsappCountry) el.usersChurchWhatsappCountry.value = detectWhatsappCountry(tenant.support_whatsapp || "");
     clearDraftLogoPreview();
     syncWhatsappField({ fromCountry: true });
     if (el.usersChurchIsActive) el.usersChurchIsActive.checked = tenant.is_active !== false;
+    if (window.applyTenantBranding) {
+      window.applyTenantBranding(tenant);
+    }
     renderChurchOverviewPanels();
     updateChurchPreview();
   }
@@ -1181,18 +1303,16 @@
     const tenant = state.tenantProfile || {};
     const publicName = tenant.public_display_name || tenant.name || "-";
     const supportParts = [tenant.support_email, tenant.support_whatsapp].filter(Boolean);
-    const primary = normalizeHexColor(tenant.primary_color, "#1565C0");
-    const secondary = normalizeHexColor(tenant.secondary_color, "#0A8F72");
+    const primary = normalizeHexColor(tenant.primary_color, "#9FBA45");
+    const secondary = normalizeHexColor(tenant.secondary_color, "#7F9930");
 
     if (el.usersChurchOverviewName) el.usersChurchOverviewName.textContent = publicName;
     if (el.usersChurchOverviewSlug) el.usersChurchOverviewSlug.textContent = tenant.slug || "-";
     if (el.usersChurchOverviewContact) el.usersChurchOverviewContact.textContent = supportParts.length ? supportParts.join(" · ") : "Sem contato";
     if (el.usersChurchOverviewStatus) el.usersChurchOverviewStatus.textContent = tenant.is_active === false ? "Inativa" : "Ativa";
 
-    if (el.usersAppearancePrimaryLabel) el.usersAppearancePrimaryLabel.textContent = primary;
-    if (el.usersAppearanceSecondaryLabel) el.usersAppearanceSecondaryLabel.textContent = secondary;
-    if (el.usersAppearancePrimarySwatch) el.usersAppearancePrimarySwatch.style.background = primary;
-    if (el.usersAppearanceSecondarySwatch) el.usersAppearanceSecondarySwatch.style.background = secondary;
+    renderThemeOverview(primary, secondary);
+    renderLandingOverview(tenant);
     if (el.usersAppearancePreviewTitle) el.usersAppearancePreviewTitle.textContent = publicName;
     if (el.usersAppearancePreviewSummary) el.usersAppearancePreviewSummary.textContent = tenant.public_description || "A identidade visual da igreja aparecerá aqui para login, landing e eventos.";
     if (el.usersAppearancePreviewLogo) {
@@ -1667,7 +1787,11 @@
           })
           .join("");
 
-        const moduleExtras = activePermissions.filter((permission) => !moduleGroups.some((groupSpec) => groupSpec.permissions.some((permissionSpec) => permissionSpec.name === permission.name)));
+        const moduleExtras = activePermissions.filter(
+          (permission) =>
+            permission.module === moduleName &&
+            !moduleGroups.some((groupSpec) => groupSpec.permissions.some((permissionSpec) => permissionSpec.name === permission.name))
+        );
 
         const extrasHtml = moduleExtras.length
           ? `<div class="role-permission-group"><p class="role-permission-group-title">Outras permissões</p><div class="role-permission-items">${moduleExtras
@@ -2248,14 +2372,23 @@
   }
 
   function openChurchProfileModal(viewName = state.currentView || "church") {
+    const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
     const targetForm = isPaymentsView ? el.usersChurchPaymentsForm : el.usersChurchForm;
     const targetMessage = isPaymentsView ? el.usersChurchPaymentsMessage : el.usersChurchMessage;
     if (!window.openSharedFormModal || !targetForm) return;
     if (!isPaymentsView) applyChurchFormFocus(viewName);
-    const title = viewName === "appearance" ? "Editar aparência" : isPaymentsView ? "Configurar pagamentos" : "Editar perfil da igreja";
+    const title = viewName === "appearance"
+      ? "Editar aparência"
+      : isLandingView
+        ? "Configurar landing page"
+        : isPaymentsView
+          ? "Configurar pagamentos"
+          : "Editar perfil da igreja";
     const hint = viewName === "appearance"
-      ? "Ajuste cores, logo e preview da marca da igreja."
+      ? "Escolha um tema visual, ajuste a logo e revise o preview da marca da igreja."
+      : isLandingView
+        ? "Defina a imagem principal, horários, dados para dízimos, endereço e rodapé da landing pública."
       : isPaymentsView
         ? "Revise o checkout da igreja, meios aceitos e prontidão para uso real."
         : "Atualize dados principais, contato e links públicos da igreja.";
@@ -2268,6 +2401,8 @@
     });
     const targetSection = isPaymentsView
       ? el.usersChurchPaymentsSection
+      : isLandingView
+      ? el.usersChurchLandingSection
       : viewName === "appearance"
       ? el.usersChurchAppearanceSection
       : el.usersChurchGeneralSection;
@@ -2296,8 +2431,7 @@
       return;
     }
 
-    syncChurchColorInputs("primary-text");
-    syncChurchColorInputs("secondary-text");
+    syncChurchColorInputs();
     syncWhatsappField({ fromCountry: true });
 
     const payload = {
@@ -2305,11 +2439,20 @@
       slug: el.usersChurchSlug.value.trim(),
       public_display_name: el.usersChurchPublicDisplayName.value.trim() || null,
       public_description: el.usersChurchPublicDescription.value.trim() || null,
-      primary_color: el.usersChurchPrimaryColor.value.trim() || null,
-      secondary_color: el.usersChurchSecondaryColor.value.trim() || null,
+      primary_color: (el.usersChurchPrimaryColor && el.usersChurchPrimaryColor.value.trim()) || null,
+      secondary_color: (el.usersChurchSecondaryColor && el.usersChurchSecondaryColor.value.trim()) || null,
       logo_url: el.usersChurchLogoUrl.value.trim() || null,
       support_email: el.usersChurchSupportEmail.value.trim() || null,
       support_whatsapp: el.usersChurchSupportWhatsapp.value.trim() || null,
+      landing_hero_background_url: (el.usersChurchLandingHeroBackgroundUrl && el.usersChurchLandingHeroBackgroundUrl.value.trim()) || null,
+      landing_pix_key: (el.usersChurchLandingPixKey && el.usersChurchLandingPixKey.value.trim()) || null,
+      landing_bank_name: (el.usersChurchLandingBankName && el.usersChurchLandingBankName.value.trim()) || null,
+      landing_bank_agency: (el.usersChurchLandingBankAgency && el.usersChurchLandingBankAgency.value.trim()) || null,
+      landing_bank_account: (el.usersChurchLandingBankAccount && el.usersChurchLandingBankAccount.value.trim()) || null,
+      landing_service_times: (el.usersChurchLandingServiceTimes && el.usersChurchLandingServiceTimes.value.trim()) || null,
+      landing_address: (el.usersChurchLandingAddress && el.usersChurchLandingAddress.value.trim()) || null,
+      landing_location_url: (el.usersChurchLandingLocationUrl && el.usersChurchLandingLocationUrl.value.trim()) || null,
+      landing_footer_text: (el.usersChurchLandingFooterText && el.usersChurchLandingFooterText.value.trim()) || null,
       is_active: el.usersChurchIsActive.checked,
     };
 
@@ -2433,6 +2576,7 @@
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.addEventListener("click", () => openRolesView().catch((error) => setRolesMessage(error.message, true)));
     if (el.usersNavChurchBtn) el.usersNavChurchBtn.addEventListener("click", () => openChurchView("church").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.addEventListener("click", () => openChurchView("appearance").catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersNavLandingBtn) el.usersNavLandingBtn.addEventListener("click", () => openChurchView("landing").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
     if (el.openChurchProfileModalBtn) {
       el.openChurchProfileModalBtn.addEventListener("click", () => openChurchProfileModal(state.currentView || "church"));
@@ -2477,12 +2621,15 @@
     if (el.usersChurchCreateBtn) el.usersChurchCreateBtn.addEventListener("click", openChurchCreateModal);
     if (el.usersChurchLogoUploadBtn) el.usersChurchLogoUploadBtn.addEventListener("click", () => uploadChurchLogo().catch((error) => setChurchMessage(error.message, true)));
     if (el.usersChurchLogoFile) el.usersChurchLogoFile.addEventListener("change", syncSelectedLogoPreview);
-    if (el.usersChurchPrimaryColorPicker) el.usersChurchPrimaryColorPicker.addEventListener("input", () => syncChurchColorInputs("primary-picker"));
-    if (el.usersChurchSecondaryColorPicker) el.usersChurchSecondaryColorPicker.addEventListener("input", () => syncChurchColorInputs("secondary-picker"));
-    if (el.usersChurchPrimaryColor) el.usersChurchPrimaryColor.addEventListener("change", () => syncChurchColorInputs("primary-text"));
-    if (el.usersChurchSecondaryColor) el.usersChurchSecondaryColor.addEventListener("change", () => syncChurchColorInputs("secondary-text"));
-    if (el.usersChurchPrimaryEyedropperBtn) el.usersChurchPrimaryEyedropperBtn.addEventListener("click", () => pickColorWithEyedropper("primary"));
-    if (el.usersChurchSecondaryEyedropperBtn) el.usersChurchSecondaryEyedropperBtn.addEventListener("click", () => pickColorWithEyedropper("secondary"));
+    if (el.usersChurchThemePreset) el.usersChurchThemePreset.addEventListener("change", syncChurchThemeButtons);
+    if (el.usersChurchThemeOptions) {
+      el.usersChurchThemeOptions.addEventListener("click", (event) => {
+        const button = event.target instanceof Element ? event.target.closest("[data-theme-preset]") : null;
+        if (!button || !el.usersChurchThemePreset) return;
+        el.usersChurchThemePreset.value = String(button.getAttribute("data-theme-preset") || "light");
+        syncChurchThemeButtons();
+      });
+    }
     if (el.usersChurchWhatsappCountry) el.usersChurchWhatsappCountry.addEventListener("change", () => syncWhatsappField({ fromCountry: true }));
     if (el.usersChurchSupportWhatsapp) el.usersChurchSupportWhatsapp.addEventListener("input", () => syncWhatsappField());
     if (el.usersChurchOpenLandingBtn) {
@@ -2503,8 +2650,6 @@
       el.usersChurchSlug,
       el.usersChurchPublicDisplayName,
       el.usersChurchPublicDescription,
-      el.usersChurchPrimaryColor,
-      el.usersChurchSecondaryColor,
       el.usersChurchLogoUrl,
       el.usersChurchSupportEmail,
     ].forEach((field) => {
@@ -2676,6 +2821,9 @@
     .catch((error) => setMessage(error.message, true));
   window.openChurchSettings = () => openUsersModule()
     .then(() => openChurchView())
+    .catch((error) => setChurchMessage(error.message, true));
+  window.openChurchSettingsSection = (viewName = "church") => openUsersModule()
+    .then(() => openChurchView(viewName))
     .catch((error) => setChurchMessage(error.message, true));
   window.setTopModule = setActiveModule;
   window.usersOpenCreateUserModal = () => openUserForm("create", null);

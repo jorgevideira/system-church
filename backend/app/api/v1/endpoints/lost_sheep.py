@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_active_user
-from app.core.constants import ROLE_ADMIN, ROLE_LEADER
+from app.core.constants import ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR
 from app.db.models import User
 from app.services import lost_sheep_service
 from app.schemas.lost_sheep import LostSheepResponse, LostSheepCreateRequest, LostSheepUpdate
@@ -17,7 +17,7 @@ def mark_as_lost_sheep(
     current_user: User = Depends(get_current_active_user),
 ):
     """Mark a member as lost sheep (removes from cell)"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can mark members as lost sheep"
@@ -42,7 +42,7 @@ def list_lost_sheep(
     current_user: User = Depends(get_current_active_user),
 ):
     """List all active lost sheep"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can view lost sheep"
@@ -58,7 +58,7 @@ def get_lost_sheep(
     current_user: User = Depends(get_current_active_user),
 ):
     """Get a specific lost sheep record"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can view lost sheep"
@@ -82,7 +82,7 @@ def record_visit(
     current_user: User = Depends(get_current_active_user),
 ):
     """Record a visit to a lost sheep"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can record visits"
@@ -108,7 +108,7 @@ def reinsert_into_cell(
     current_user: User = Depends(get_current_active_user),
 ):
     """Reinsert a lost sheep back into a cell"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can reinsert lost sheep"
@@ -132,7 +132,7 @@ def delete_lost_sheep(
     current_user: User = Depends(get_current_active_user),
 ):
     """Delete a lost sheep record"""
-    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER):
+    if current_user.role not in (ROLE_ADMIN, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only leaders and admins can delete lost sheep records"

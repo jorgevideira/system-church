@@ -14,7 +14,7 @@ from app.schemas.role import (
     RoleResponse,
     RoleUpdate,
 )
-from app.services import role_service
+from app.services import role_service, role_templates_service
 
 router = APIRouter()
 
@@ -165,3 +165,14 @@ def get_role_permissions(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[PermissionResponse]:
     return role_service.get_role_permissions(db, role_id, current_tenant.id)
+
+
+@router.post("/templates/install-cells-hierarchy")
+def install_cells_hierarchy_templates(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> dict:
+    """Install default roles for church hierarchy (Líder, Discipulador, Pastor de Rede)."""
+    role_ids = role_templates_service.install_cells_hierarchy_roles(db, current_tenant.id)
+    return {"installed": role_ids}

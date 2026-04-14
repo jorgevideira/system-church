@@ -1009,9 +1009,13 @@ function populatePaymentAccountOptions() {
     if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
     if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
-    if (el.openEventsFormModalBtn) el.openEventsFormModalBtn.addEventListener("click", () => {
+    const handleOpenEventForm = () => {
       resetEventForm();
       openEventsFormModal("Novo evento");
+    };
+    if (el.openEventsFormModalBtn) el.openEventsFormModalBtn.addEventListener("click", handleOpenEventForm);
+    document.querySelectorAll("[data-open-events-form='true']").forEach((button) => {
+      button.addEventListener("click", handleOpenEventForm);
     });
     if (el.eventsFormResetBtn) el.eventsFormResetBtn.addEventListener("click", () => {
       resetEventForm();

@@ -1,4 +1,5 @@
 from pathlib import Path
+import threading
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,14 +35,20 @@ Path(settings.TENANT_LOGO_DIR).mkdir(parents=True, exist_ok=True)
 app.mount("/media/tenant-logos", StaticFiles(directory=settings.TENANT_LOGO_DIR), name="tenant-logos")
 
 
-@app.on_event("startup")
-def startup_init() -> None:
-    # Run initial setup (create default admin and categories)
+def _run_startup_setup() -> None:
     db = SessionLocal()
     try:
         setup(db)
+    except Exception:  # pragma: no cover - defensive startup guard
+        logger.exception("Startup setup failed and was skipped.")
     finally:
         db.close()
+
+
+@app.on_event("startup")
+def startup_init() -> None:
+    # Avoid blocking the full API startup if schema inspection or bootstrap data hangs.
+    threading.Thread(target=_run_startup_setup, daemon=True).start()
 
 
 @app.get("/health")

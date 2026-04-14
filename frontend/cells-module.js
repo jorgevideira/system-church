@@ -12,18 +12,22 @@
     cellsModule: document.getElementById("cellsModule"),
     schoolModule: document.getElementById("bibleSchoolModule"),
     cellsNavDashboardBtn: document.getElementById("cellsNavDashboardBtn"),
+    cellsNavOrgChartBtn: document.getElementById("cellsNavOrgChartBtn"),
     cellsNavCellsBtn: document.getElementById("cellsNavCellsBtn"),
     cellsNavPeopleBtn: document.getElementById("cellsNavPeopleBtn"),
     cellsNavMeetingsBtn: document.getElementById("cellsNavMeetingsBtn"),
     cellsNavLeadersBtn: document.getElementById("cellsNavLeadersBtn"),
     cellsNavDisciplersBtn: document.getElementById("cellsNavDisciplersBtn"),
+    cellsNavNetworkPastorsBtn: document.getElementById("cellsNavNetworkPastorsBtn"),
     cellsNavLostSheepBtn: document.getElementById("cellsNavLostSheepBtn"),
     cellsDashboardView: document.getElementById("cellsDashboardView"),
+    cellsOrgChartView: document.getElementById("cellsOrgChartView"),
     cellsListView: document.getElementById("cellsListView"),
     cellsPeopleView: document.getElementById("cellsPeopleView"),
     cellsMeetingsView: document.getElementById("cellsMeetingsView"),
     cellsLeadersView: document.getElementById("cellsLeadersView"),
     cellsDisciplersView: document.getElementById("cellsDisciplersView"),
+    cellsNetworkPastorsView: document.getElementById("cellsNetworkPastorsView"),
     cellsLostSheepView: document.getElementById("cellsLostSheepView"),
     cellsPeopleRefreshBtn: document.getElementById("cellsPeopleRefreshBtn"),
     cellsPeopleCellSelect: document.getElementById("cellsPeopleCellSelect"),
@@ -68,9 +72,12 @@
     cellsLeadersRefreshBtn: document.getElementById("cellsLeadersRefreshBtn"),
     cellsDisciplersAddBtn: document.getElementById("cellsDisciplersAddBtn"),
     cellsDisciplersRefreshBtn: document.getElementById("cellsDisciplersRefreshBtn"),
+    cellsNetworkPastorsAddBtn: document.getElementById("cellsNetworkPastorsAddBtn"),
+    cellsNetworkPastorsRefreshBtn: document.getElementById("cellsNetworkPastorsRefreshBtn"),
     cellsListBody: document.getElementById("cellsListBody"),
     cellsLeadersBody: document.getElementById("cellsLeadersBody"),
     cellsDisciplersBody: document.getElementById("cellsDisciplersBody"),
+    cellsNetworkPastorsBody: document.getElementById("cellsNetworkPastorsBody"),
     cellsCellModal: document.getElementById("cellsCellModal"),
     cellsCellModalTitle: document.getElementById("cellsCellModalTitle"),
     cellsCellModalCloseBtn: document.getElementById("cellsCellModalCloseBtn"),
@@ -82,6 +89,7 @@
     cellsCellModalAddress: document.getElementById("cellsCellModalAddress"),
     cellsCellModalStatus: document.getElementById("cellsCellModalStatus"),
     cellsCellModalDisciplerId: document.getElementById("cellsCellModalDisciplerId"),
+    cellsCellModalNetworkPastorId: document.getElementById("cellsCellModalNetworkPastorId"),
     cellsCellModalLeaderId: document.getElementById("cellsCellModalLeaderId"),
     cellsCellModalDisableBtn: document.getElementById("cellsCellModalDisableBtn"),
     cellsCellModalDeleteBtn: document.getElementById("cellsCellModalDeleteBtn"),
@@ -92,7 +100,12 @@
     cellsMemberModalId: document.getElementById("cellsMemberModalId"),
     cellsMemberModalRoleTag: document.getElementById("cellsMemberModalRoleTag"),
     cellsMemberModalName: document.getElementById("cellsMemberModalName"),
+    cellsMemberModalNameLabel: document.getElementById("cellsMemberModalNameLabel"),
     cellsMemberModalContact: document.getElementById("cellsMemberModalContact"),
+    cellsMemberModalContactLabel: document.getElementById("cellsMemberModalContactLabel"),
+    cellsMemberModalUserId: document.getElementById("cellsMemberModalUserId"),
+    cellsMemberModalUserSelectLabel: document.getElementById("cellsMemberModalUserSelectLabel"),
+    cellsMemberModalUserSelect: document.getElementById("cellsMemberModalUserSelect"),
     cellsMemberModalStatus: document.getElementById("cellsMemberModalStatus"),
     cellsMemberModalCountStartDate: document.getElementById("cellsMemberModalCountStartDate"),
     cellsMemberModalCellId: document.getElementById("cellsMemberModalCellId"),
@@ -135,6 +148,15 @@
     cellsCreateDisciplerView: document.getElementById("cellsCreateDisciplerView"),
     cellsCreateLeaderView: document.getElementById("cellsCreateLeaderView"),
     cellsMessage: document.getElementById("cellsMessage"),
+    cellsOrgChartRefreshBtn: document.getElementById("cellsOrgChartRefreshBtn"),
+    cellsOrgChartSearch: document.getElementById("cellsOrgChartSearch"),
+    cellsOrgChartExpandAllBtn: document.getElementById("cellsOrgChartExpandAllBtn"),
+    cellsOrgChartCollapseAllBtn: document.getElementById("cellsOrgChartCollapseAllBtn"),
+    cellsOrgChartZoomOutBtn: document.getElementById("cellsOrgChartZoomOutBtn"),
+    cellsOrgChartZoomInBtn: document.getElementById("cellsOrgChartZoomInBtn"),
+    cellsOrgChartZoomResetBtn: document.getElementById("cellsOrgChartZoomResetBtn"),
+    cellsOrgChartZoomLabel: document.getElementById("cellsOrgChartZoomLabel"),
+    cellsOrgChartContainer: document.getElementById("cellsOrgChartContainer"),
     cellsSelect: document.getElementById("cellsSelect"),
     cellsStartDate: document.getElementById("cellsStartDate"),
     cellsEndDate: document.getElementById("cellsEndDate"),
@@ -169,6 +191,7 @@
     cellsCreateCellDisciplerInput: document.getElementById("cellsCreateCellDisciplerInput"),
     cellsCreateCellDisciplerId: document.getElementById("cellsCreateCellDisciplerId"),
     cellsCreateCellAddDisciplerBtn: document.getElementById("cellsCreateCellAddDisciplerBtn"),
+    cellsCreateCellNetworkPastorId: document.getElementById("cellsCreateCellNetworkPastorId"),
     cellsCreateCellLeaderInput: document.getElementById("cellsCreateCellLeaderInput"),
     cellsCreateCellLeaderId: document.getElementById("cellsCreateCellLeaderId"),
     cellsCreateCellAddLeaderBtn: document.getElementById("cellsCreateCellAddLeaderBtn"),
@@ -221,14 +244,46 @@
     pendingConfirmAction: null,
     pendingConfirmErrorMessage: "Falha ao executar exclusao.",
     currentView: "dashboard",
+    devUsers: [],
+    devUserSelectionEnabled: false,
   };
 
   function isLeaderMode() {
+    // "Leader mode" is the most restricted experience (only own cell).
     return state.currentUserRole === "leader";
   }
 
+  function isScopedCellsRole() {
+    // Org-chart roles that should only see scoped cells in listings.
+    return state.currentUserRole === "leader"
+      || state.currentUserRole === "discipler"
+      || state.currentUserRole === "network_pastor";
+  }
+
+  function isDevelopmentRuntime() {
+    const hostname = String(window.location.hostname || "").toLowerCase();
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname === "host.docker.internal") {
+      return true;
+    }
+    if (hostname.indexOf("192.168.") === 0 || hostname.indexOf("10.") === 0) {
+      return true;
+    }
+    if (hostname.indexOf("172.") === 0) {
+      const parts = hostname.split(".");
+      const secondOctet = toNumber(parts.length > 1 ? parts[1] : 0, 0);
+      if (secondOctet >= 16 && secondOctet <= 31) return true;
+    }
+    return false;
+  }
+
+  function shouldUseDevUserSelection(roleTag) {
+    // For leaders/disciples we want strong linking for the next steps:
+    // choose only from registered users, not free-text names.
+    return roleTag === "leader" || roleTag === "discipler" || roleTag === "network_pastor";
+  }
+
   function applyRoleLayout() {
-    if (!isLeaderMode()) return;
+    if (!isScopedCellsRole()) return;
 
     if (el.financeBtn) {
       el.financeBtn.classList.add("hide");
@@ -265,11 +320,13 @@
   function getFirstAllowedCellsView() {
     const ordered = [
       ["dashboard", "cells_dashboard_view"],
+      ["orgchart", "cells_orgchart_view"],
       ["cells", "cells_cells_view"],
       ["people", "cells_people_view"],
       ["meetings", "cells_meetings_view"],
       ["leaders", "cells_leaders_view"],
       ["disciplers", "cells_disciplers_view"],
+      ["network-pastors", "cells_network_pastors_view"],
       ["lost-sheep", "cells_lost_sheep_view"],
     ];
 
@@ -289,11 +346,13 @@
     }
 
     if (el.cellsNavDashboardBtn) el.cellsNavDashboardBtn.classList.toggle("hide", !hasPermission("cells_dashboard_view"));
+    if (el.cellsNavOrgChartBtn) el.cellsNavOrgChartBtn.classList.toggle("hide", !hasPermission("cells_orgchart_view"));
     if (el.cellsNavCellsBtn) el.cellsNavCellsBtn.classList.toggle("hide", !hasPermission("cells_cells_view"));
     if (el.cellsNavPeopleBtn) el.cellsNavPeopleBtn.classList.toggle("hide", !hasPermission("cells_people_view"));
     if (el.cellsNavMeetingsBtn) el.cellsNavMeetingsBtn.classList.toggle("hide", !hasPermission("cells_meetings_view"));
     if (el.cellsNavLeadersBtn) el.cellsNavLeadersBtn.classList.toggle("hide", !hasPermission("cells_leaders_view"));
     if (el.cellsNavDisciplersBtn) el.cellsNavDisciplersBtn.classList.toggle("hide", !hasPermission("cells_disciplers_view"));
+    if (el.cellsNavNetworkPastorsBtn) el.cellsNavNetworkPastorsBtn.classList.toggle("hide", !hasPermission("cells_network_pastors_view"));
     if (el.cellsNavLostSheepBtn) el.cellsNavLostSheepBtn.classList.toggle("hide", !hasPermission("cells_lost_sheep_view"));
   }
 
@@ -343,6 +402,10 @@
         if (!memberId) return;
         if (assignment.role === "co_leader") {
           state.memberRoleTags[String(memberId)] = "discipler";
+          const networkPastorId = toNumber(assignment ? assignment.discipler_member_id : 0, 0);
+          if (networkPastorId) {
+            state.memberRoleTags[String(networkPastorId)] = "network_pastor";
+          }
         }
         if (assignment.role === "leader") {
           state.memberRoleTags[String(memberId)] = "leader";
@@ -438,11 +501,13 @@
   function setCellsView(viewName) {
     const viewPermissions = {
       dashboard: "cells_dashboard_view",
+      orgchart: "cells_orgchart_view",
       cells: "cells_cells_view",
       people: "cells_people_view",
       meetings: "cells_meetings_view",
       leaders: "cells_leaders_view",
       disciplers: "cells_disciplers_view",
+      "network-pastors": "cells_network_pastors_view",
       "lost-sheep": "cells_lost_sheep_view",
     };
 
@@ -459,22 +524,26 @@
     state.currentView = viewName;
 
     if (el.cellsDashboardView) el.cellsDashboardView.classList.toggle("hide", viewName !== "dashboard");
+    if (el.cellsOrgChartView) el.cellsOrgChartView.classList.toggle("hide", viewName !== "orgchart");
     if (el.cellsListView) el.cellsListView.classList.toggle("hide", viewName !== "cells");
     if (el.cellsPeopleView) el.cellsPeopleView.classList.toggle("hide", viewName !== "people");
     if (el.cellsMeetingsView) el.cellsMeetingsView.classList.toggle("hide", viewName !== "meetings");
     if (el.cellsLeadersView) el.cellsLeadersView.classList.toggle("hide", viewName !== "leaders");
     if (el.cellsDisciplersView) el.cellsDisciplersView.classList.toggle("hide", viewName !== "disciplers");
+    if (el.cellsNetworkPastorsView) el.cellsNetworkPastorsView.classList.toggle("hide", viewName !== "network-pastors");
     if (el.cellsLostSheepView) el.cellsLostSheepView.classList.toggle("hide", viewName !== "lost-sheep");
     if (el.cellsCreateCellView) el.cellsCreateCellView.classList.add("hide");
     if (el.cellsCreateDisciplerView) el.cellsCreateDisciplerView.classList.add("hide");
     if (el.cellsCreateLeaderView) el.cellsCreateLeaderView.classList.add("hide");
 
     if (el.cellsNavDashboardBtn) el.cellsNavDashboardBtn.classList.toggle("active", viewName === "dashboard");
+    if (el.cellsNavOrgChartBtn) el.cellsNavOrgChartBtn.classList.toggle("active", viewName === "orgchart");
     if (el.cellsNavCellsBtn) el.cellsNavCellsBtn.classList.toggle("active", viewName === "cells");
     if (el.cellsNavPeopleBtn) el.cellsNavPeopleBtn.classList.toggle("active", viewName === "people");
     if (el.cellsNavMeetingsBtn) el.cellsNavMeetingsBtn.classList.toggle("active", viewName === "meetings");
     if (el.cellsNavLeadersBtn) el.cellsNavLeadersBtn.classList.toggle("active", viewName === "leaders");
     if (el.cellsNavDisciplersBtn) el.cellsNavDisciplersBtn.classList.toggle("active", viewName === "disciplers");
+    if (el.cellsNavNetworkPastorsBtn) el.cellsNavNetworkPastorsBtn.classList.toggle("active", viewName === "network-pastors");
     if (el.cellsNavLostSheepBtn) el.cellsNavLostSheepBtn.classList.toggle("active", viewName === "lost-sheep");
   }
 
@@ -975,6 +1044,12 @@
   function toggleRoleAddButton(roleTag) {
     const controls = getRoleControls(roleTag);
     if (!controls.addBtn || !controls.input || !controls.hidden) return;
+    // Do not allow creating leader/discipler from free-text while creating a cell.
+    // They must be created via "Lideres/Discipuladores" using a registered user.
+    if (roleTag === "leader" || roleTag === "discipler") {
+      controls.addBtn.classList.add("hide");
+      return;
+    }
     const hasText = controls.input.value.trim().length > 0;
     const hasSelected = toNumber(controls.hidden.value, 0) > 0;
     controls.addBtn.classList.toggle("hide", !hasText || hasSelected);
@@ -1053,7 +1128,7 @@
   }
 
   async function loadCells() {
-    const path = isLeaderMode() ? "/cells/my" : "/cells/";
+    const path = isScopedCellsRole() ? "/cells/my" : "/cells/";
     const cells = await api(path);
     state.cells = Array.isArray(cells) ? cells : [];
 
@@ -1094,6 +1169,7 @@
     );
 
     syncCreateCellRoleOptions();
+    fillNetworkPastorSelects();
   }
 
   function formatWeekday(weekday) {
@@ -1135,9 +1211,80 @@
     }
   }
 
+  function fillNetworkPastorSelects() {
+    const selectedCreate = toNumber(el.cellsCreateCellNetworkPastorId ? el.cellsCreateCellNetworkPastorId.value : 0, 0);
+    const createCandidates = getModalRoleCandidates("network_pastor", selectedCreate);
+    fillMemberSelect(el.cellsCreateCellNetworkPastorId, createCandidates, selectedCreate, "Sem pastor de rede");
+
+    // If the modal is open we keep its current selection unless openCellModal already set it.
+    const selectedModal = toNumber(el.cellsCellModalNetworkPastorId ? el.cellsCellModalNetworkPastorId.value : 0, 0);
+    const modalCandidates = getModalRoleCandidates("network_pastor", selectedModal);
+    fillMemberSelect(el.cellsCellModalNetworkPastorId, modalCandidates, selectedModal, "Sem pastor de rede");
+  }
+
+  function renderMemberModalUserOptions(selectedUserId) {
+    if (!el.cellsMemberModalUserSelect) return;
+    const selected = toNumber(selectedUserId, 0);
+    const placeholder = state.devUsers.length
+      ? "Selecione um usuario"
+      : "Nenhum usuario ativo encontrado";
+    const options = state.devUsers
+      .map((user) => {
+        const labelName = valueOr(user.full_name, user.email);
+        return `<option value="${user.id}">${escapeHtml(labelName)} (${escapeHtml(valueOr(user.email, "-"))})</option>`;
+      })
+      .join("");
+    el.cellsMemberModalUserSelect.innerHTML = `<option value="">${placeholder}</option>` + options;
+    el.cellsMemberModalUserSelect.value = selected ? String(selected) : "";
+  }
+
+  async function initializeDevRoleSelection() {
+    state.devUsers = [];
+    // Even in production we need the user list for linking leaders/disciples to real users.
+    state.devUserSelectionEnabled = true;
+
+    try {
+      const users = await api("/cells/members/user-candidates?skip=0&limit=200");
+      state.devUsers = (Array.isArray(users) ? users : [])
+        .filter((user) => user && user.is_active)
+        .sort((a, b) => String(valueOr(a.full_name, a.email)).localeCompare(String(valueOr(b.full_name, b.email))));
+    } catch (_error) {
+      state.devUsers = [];
+    }
+  }
+
+  function syncMemberModalInputMode(roleTag, member) {
+    const useUserSelect = shouldUseDevUserSelection(roleTag);
+    if (el.cellsMemberModalNameLabel) el.cellsMemberModalNameLabel.classList.toggle("hide", useUserSelect);
+    if (el.cellsMemberModalContactLabel) el.cellsMemberModalContactLabel.classList.toggle("hide", useUserSelect);
+    if (el.cellsMemberModalUserSelectLabel) el.cellsMemberModalUserSelectLabel.classList.toggle("hide", !useUserSelect);
+
+    if (el.cellsMemberModalName) {
+      el.cellsMemberModalName.required = !useUserSelect;
+    }
+    if (el.cellsMemberModalUserSelect) {
+      el.cellsMemberModalUserSelect.required = useUserSelect;
+    }
+
+    if (useUserSelect) {
+      const selectedUserId = member ? toNumber(member.user_id, 0) : 0;
+      renderMemberModalUserOptions(selectedUserId);
+      if (el.cellsMemberModalUserId) el.cellsMemberModalUserId.value = selectedUserId ? String(selectedUserId) : "";
+      if (el.cellsMemberModalContact) el.cellsMemberModalContact.value = "";
+      return;
+    }
+
+    if (el.cellsMemberModalUserSelect) el.cellsMemberModalUserSelect.value = "";
+    if (el.cellsMemberModalUserId) el.cellsMemberModalUserId.value = "";
+  }
+
   function getModalRoleCandidates(roleTag, includeMemberId) {
     const includeId = toNumber(includeMemberId, 0);
     const tagged = state.members.filter((member) => state.memberRoleTags[String(member.id)] === roleTag);
+    if (roleTag === "network_pastor") {
+      const base = tagged.length ? tagged : state.members;
+      return base.filter((member) => member.status === "active" || member.id === includeId);
+    }
     const base = tagged.length ? tagged : state.members;
     return base.filter((member) => member.status === "active" || member.id === includeId);
   }
@@ -1149,6 +1296,7 @@
     const leader = activeRows.find((row) => row.role === "leader");
     return {
       disciplerMemberId: discipler ? toNumber(discipler.member_id, 0) : 0,
+      networkPastorMemberId: discipler ? toNumber(discipler.discipler_member_id, 0) : 0,
       leaderMemberId: leader ? toNumber(leader.member_id, 0) : 0,
     };
   }
@@ -1248,6 +1396,8 @@
     renderCellsListTable();
     renderRoleMembersTable("leader", el.cellsLeadersBody);
     renderRoleMembersTable("discipler", el.cellsDisciplersBody);
+    renderRoleMembersTable("network_pastor", el.cellsNetworkPastorsBody);
+    fillNetworkPastorSelects();
   }
 
   function fillPeopleCellSelect() {
@@ -1812,12 +1962,14 @@
     const editing = Boolean(cell);
     const cellId = editing ? toNumber(cell.id, 0) : 0;
     let selectedDisciplerId = 0;
+    let selectedNetworkPastorId = 0;
     let selectedLeaderId = 0;
 
     if (editing && cellId) {
       const assignments = await api(`/cells/${cellId}/leaders`);
       const selected = getCellActiveRoleSelections(assignments);
       selectedDisciplerId = selected.disciplerMemberId;
+      selectedNetworkPastorId = selected.networkPastorMemberId;
       selectedLeaderId = selected.leaderMemberId;
     }
 
@@ -1836,6 +1988,8 @@
 
     const disciplerCandidates = getModalRoleCandidates("discipler", selectedDisciplerId);
     fillMemberSelect(el.cellsCellModalDisciplerId, disciplerCandidates, selectedDisciplerId, "Selecione");
+    const networkPastorCandidates = getModalRoleCandidates("network_pastor", selectedNetworkPastorId);
+    fillMemberSelect(el.cellsCellModalNetworkPastorId, networkPastorCandidates, selectedNetworkPastorId, "Sem pastor de rede");
     const leaderCandidates = getModalRoleCandidates("leader", selectedLeaderId);
     fillMemberSelect(el.cellsCellModalLeaderId, leaderCandidates, selectedLeaderId, "Selecione", selectedDisciplerId);
 
@@ -1849,10 +2003,17 @@
     el.cellsCellModal.classList.add("hide");
   }
 
-  function openMemberModal(roleTag, member) {
+  async function openMemberModal(roleTag, member) {
     if (!el.cellsMemberModal || !el.cellsMemberModalForm) return;
+    if (shouldUseDevUserSelection(roleTag)) {
+      await initializeDevRoleSelection();
+    }
     const editing = Boolean(member);
-    const roleLabel = roleTag === "leader" ? "Lider" : "Discipulador";
+    const roleLabel = roleTag === "leader"
+      ? "Lider"
+      : roleTag === "discipler"
+        ? "Discipulador"
+        : "Pastor de Rede";
     if (el.cellsMemberModalTitle) {
       el.cellsMemberModalTitle.textContent = editing ? `Editar ${roleLabel}` : `Adicionar ${roleLabel}`;
     }
@@ -1866,6 +2027,8 @@
         ? valueOr(member.count_start_date, getTodayIsoDate())
         : getTodayIsoDate();
     }
+
+    syncMemberModalInputMode(roleTag, member);
 
     if (el.cellsMemberModalDisableBtn) el.cellsMemberModalDisableBtn.classList.toggle("hide", !editing);
     if (el.cellsMemberModalDeleteBtn) el.cellsMemberModalDeleteBtn.classList.toggle("hide", !editing);
@@ -1964,9 +2127,10 @@
     });
   }
 
-  async function syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId) {
+  async function syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId, networkPastorMemberId) {
     const assignments = await api(`/cells/${cellId}/leaders`);
     const rows = Array.isArray(assignments) ? assignments : [];
+    const desiredNetworkPastorId = toNumber(networkPastorMemberId, 0) || null;
 
     const activeRows = rows.filter((row) => row && row.active && (row.role === "co_leader" || row.role === "leader"));
     for (const row of activeRows) {
@@ -1984,12 +2148,20 @@
 
     const updatedRows = await api(`/cells/${cellId}/leaders`);
     const updated = Array.isArray(updatedRows) ? updatedRows : [];
-    const hasDiscipler = updated.some((row) => row && row.active && row.role === "co_leader" && toNumber(row.member_id, 0) === disciplerMemberId);
-    if (!hasDiscipler) {
+    const disciplerRow = updated.find((row) => row && row.active && row.role === "co_leader" && toNumber(row.member_id, 0) === disciplerMemberId);
+    if (!disciplerRow) {
       await api(`/cells/${cellId}/leaders`, {
         method: "POST",
-        body: JSON.stringify({ member_id: disciplerMemberId, role: "co_leader", is_primary: false }),
+        body: JSON.stringify({ member_id: disciplerMemberId, discipler_member_id: desiredNetworkPastorId, role: "co_leader", is_primary: false }),
       });
+    } else {
+      const currentNetworkPastorId = toNumber(disciplerRow.discipler_member_id, 0) || null;
+      if (currentNetworkPastorId !== desiredNetworkPastorId) {
+        await api(`/cells/${cellId}/leaders/${disciplerRow.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ discipler_member_id: desiredNetworkPastorId }),
+        });
+      }
     }
 
     const hasLeader = updated.some(
@@ -2070,10 +2242,246 @@
     setCellsMessage("Dados de celula atualizados.", false);
   }
 
+  function countOrgChartStats(node) {
+    const disciplers = Array.isArray(node && node.disciplers) ? node.disciplers : [];
+    const disciplerCount = disciplers.length;
+    let leaderCount = 0;
+    let cellCount = 0;
+    disciplers.forEach((d) => {
+      const leaders = Array.isArray(d && d.leaders) ? d.leaders : [];
+      leaderCount += leaders.length;
+      leaders.forEach((l) => {
+        const cells = Array.isArray(l && l.cells) ? l.cells : [];
+        cellCount += cells.length;
+      });
+    });
+    return { disciplerCount, leaderCount, cellCount };
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(String(valueOr(value, "")).replace(/"/g, "&quot;"));
+  }
+
+  const orgChartZoomStorageKey = "cellsOrgChartZoom";
+  let orgChartZoom = 1;
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function readOrgChartZoom() {
+    const raw = Number(localStorage.getItem(orgChartZoomStorageKey));
+    if (!Number.isFinite(raw) || raw <= 0) return 1;
+    return clamp(raw, 0.6, 1.6);
+  }
+
+  function setOrgChartZoom(next) {
+    orgChartZoom = clamp(next, 0.6, 1.6);
+    localStorage.setItem(orgChartZoomStorageKey, String(orgChartZoom));
+    applyOrgChartZoom();
+  }
+
+  function applyOrgChartZoom() {
+    if (!el.cellsOrgChartContainer) return;
+    const board = el.cellsOrgChartContainer.querySelector(".orgchart-board");
+    if (board instanceof HTMLElement) {
+      board.style.setProperty("--orgchart-zoom", String(orgChartZoom));
+    }
+    if (el.cellsOrgChartZoomLabel) {
+      el.cellsOrgChartZoomLabel.textContent = `${Math.round(orgChartZoom * 100)}%`;
+    }
+  }
+
+  function buildOrgChartHtml(networks) {
+    const items = Array.isArray(networks) ? networks : [];
+    if (!items.length) {
+      return '<div class="orgchart-empty">Sem dados para exibir.</div>';
+    }
+
+    const withPastor = items.filter((n) => n && n.network_pastor);
+    const withoutPastor = items.filter((n) => !n || !n.network_pastor);
+
+    const tenantName = valueOr(document.body && document.body.dataset ? document.body.dataset.tenantName : "", "Igreja");
+    const rootSearch = normalizeText(`pastor presidente ${tenantName}`);
+
+    function weekdayPt(raw) {
+      const key = String(valueOr(raw, "")).trim().toLowerCase();
+      const map = {
+        monday: "Segunda",
+        tuesday: "Terça",
+        wednesday: "Quarta",
+        thursday: "Quinta",
+        friday: "Sexta",
+        saturday: "Sábado",
+        sunday: "Domingo",
+      };
+      if (map[key]) return map[key];
+      // If backend already returns Portuguese labels, keep it (capitalize first letter).
+      if (!key) return "";
+      return key.charAt(0).toUpperCase() + key.slice(1);
+    }
+
+    function formatCellMeta(cell) {
+      const weekday = weekdayPt(cell && cell.weekday);
+      const meeting = valueOr(cell && cell.meeting_time, "");
+      const meetingShort = meeting ? String(meeting).slice(0, 5) : "";
+      return [weekday, meetingShort].filter(Boolean).join(" · ");
+    }
+
+    function buildLeaderNodeHtml(leaderNode) {
+      const leader = leaderNode && leaderNode.leader ? leaderNode.leader : null;
+      const leaderName = leader ? valueOr(leader.full_name, `Membro ${leader.id}`) : "Lider";
+      const cells = Array.isArray(leaderNode && leaderNode.cells) ? leaderNode.cells : [];
+      const canOpen = hasPermission("cells_cells_edit");
+
+      const cellsHtml = cells
+        .slice(0, 2)
+        .map((c) => {
+          const cellLabel = valueOr(c && c.name, `Celula ${c && c.id}`);
+          const meta = formatCellMeta(c);
+          const title = meta ? `${cellLabel} (${meta})` : cellLabel;
+          const btnClass = canOpen ? "orgchart-cell-pill" : "orgchart-cell-pill is-disabled";
+          return `<button type="button" class="${btnClass}" data-cell-id="${escapeAttr(c.id)}" title="${escapeAttr(title)}">
+            <span class="orgchart-cell-pill-name">${escapeHtml(cellLabel)}</span>
+            ${meta ? `<span class="orgchart-cell-pill-meta">${escapeHtml(meta)}</span>` : ""}
+          </button>`;
+        })
+        .join("");
+
+      const more = cells.length > 2 ? `<span class="orgchart-more">+${cells.length - 2} célula(s)</span>` : "";
+      const leaderSearch = normalizeText(`${leaderName} ${cells.map((c) => valueOr(c && c.name, "")).join(" ")}`);
+
+      return `<div class="orgchart-leader-node orgchart-filter-node" data-orgchart-search="${escapeAttr(leaderSearch)}">
+        <div class="orgchart-box orgchart-box--leader">
+          <div class="orgchart-box-kicker">Líder</div>
+          <div class="orgchart-box-title">${escapeHtml(leaderName)}</div>
+          <div class="orgchart-box-meta">${cells.length} célula(s)</div>
+          ${cellsHtml || more ? `<div class="orgchart-box-cells">${cellsHtml}${more}</div>` : ""}
+        </div>
+      </div>`;
+    }
+
+    function buildDisciplerColHtml(d) {
+      const discipler = d && d.discipler ? d.discipler : null;
+      const disciplerName = discipler ? valueOr(discipler.full_name, `Membro ${discipler.id}`) : "Discipulador";
+      const leaders = Array.isArray(d && d.leaders) ? d.leaders : [];
+      const leaderCount = leaders.length;
+      const cellCount = leaders.reduce((acc, l) => acc + (Array.isArray(l && l.cells) ? l.cells.length : 0), 0);
+
+      const leadersHtml = leaders.map(buildLeaderNodeHtml).join("");
+      const disciplerSearch = normalizeText(
+        `${disciplerName} ${leaders.map((l) => (l && l.leader ? l.leader.full_name : "")).join(" ")} ${leaders
+          .flatMap((l) => (Array.isArray(l && l.cells) ? l.cells.map((c) => c.name) : []))
+          .join(" ")}`
+      );
+
+      return `<div class="orgchart-discipler-col orgchart-filter-node" data-orgchart-search="${escapeAttr(disciplerSearch)}">
+        <div class="orgchart-box orgchart-box--discipler">
+          <div class="orgchart-box-kicker">Discipulador</div>
+          <div class="orgchart-box-title">${escapeHtml(disciplerName)}</div>
+          <div class="orgchart-box-meta">${leaderCount} líder(es) · ${cellCount} célula(s)</div>
+        </div>
+        <div class="orgchart-leader-stack">
+          ${leadersHtml || '<div class="orgchart-empty">Sem líderes.</div>'}
+        </div>
+      </div>`;
+    }
+
+    function buildNetworkHtml(net) {
+      const pastor = net && net.network_pastor ? net.network_pastor : null;
+      const pastorName = pastor ? valueOr(pastor.full_name, `Membro ${pastor.id}`) : "Sem pastor de rede";
+      const disciplers = Array.isArray(net && net.disciplers) ? net.disciplers : [];
+      const stats = countOrgChartStats(net);
+      const disciplersHtml = disciplers.map(buildDisciplerColHtml).join("");
+      const networkSearchText = normalizeText(
+        `${pastorName} ${disciplers
+          .map((d) => (d && d.discipler && d.discipler.full_name) || "")
+          .join(" ")} ${disciplers
+          .flatMap((d) => (Array.isArray(d.leaders) ? d.leaders.map((l) => (l && l.leader && l.leader.full_name) || "") : []))
+          .join(" ")} ${disciplers
+          .flatMap((d) => (Array.isArray(d.leaders) ? d.leaders.flatMap((l) => (Array.isArray(l.cells) ? l.cells.map((c) => c.name) : [])) : []))
+          .join(" ")}`
+      );
+
+      return `<div class="orgchart-network orgchart-filter-node" data-orgchart-search="${escapeAttr(networkSearchText)}">
+        <div class="orgchart-box orgchart-box--network">
+          <div class="orgchart-box-kicker">Pastor de Rede</div>
+          <div class="orgchart-box-title">${escapeHtml(pastorName)}</div>
+          <div class="orgchart-box-meta">${stats.disciplerCount} discipulador(es) · ${stats.leaderCount} líder(es) · ${stats.cellCount} célula(s)</div>
+        </div>
+        <div class="orgchart-discipler-row">
+          ${disciplersHtml || '<div class="orgchart-empty">Sem discipuladores.</div>'}
+        </div>
+      </div>`;
+    }
+
+    const networksHtml = withPastor.map(buildNetworkHtml).join("");
+    const orphanHtml = withoutPastor.length
+      ? `<details class="orgchart-orphans">
+          <summary>Existe(m) ${withoutPastor.length} rede(s) sem pastor de rede (dados incompletos)</summary>
+          <div class="orgchart-orphans-body">
+            ${withoutPastor.map(buildNetworkHtml).join("")}
+          </div>
+        </details>`
+      : "";
+
+    return `<div class="orgchart-board">
+      <div class="orgchart-diagram" data-orgchart-mode="expanded">
+        <div class="orgchart-level orgchart-level--root">
+          <div class="orgchart-root-node orgchart-filter-node" data-orgchart-search="${escapeAttr(rootSearch)}">
+            <div class="orgchart-box orgchart-box--root">
+              <div class="orgchart-box-kicker">Pastor Presidente</div>
+              <div class="orgchart-box-title">${escapeHtml(tenantName)}</div>
+              <div class="orgchart-box-meta">Estrutura de células</div>
+            </div>
+          </div>
+        </div>
+        <div class="orgchart-level orgchart-level--networks">
+          <div class="orgchart-network-row">
+            ${networksHtml || '<div class="orgchart-empty">Sem redes com pastor definido.</div>'}
+          </div>
+        </div>
+      </div>
+      ${orphanHtml}
+    </div>`;
+  }
+
+  async function loadOrgChart() {
+    if (!el.cellsOrgChartContainer) return;
+    el.cellsOrgChartContainer.innerHTML = '<div class="orgchart-empty">Carregando...</div>';
+    // Keep local member caches warm for "open cell" shortcuts.
+    await Promise.all([loadCells(), loadMembers()]);
+    await refreshLeadershipByCellMap();
+    const payload = await api("/cells/orgchart");
+    const networks = payload && Array.isArray(payload.networks) ? payload.networks : [];
+    el.cellsOrgChartContainer.innerHTML = buildOrgChartHtml(networks);
+    orgChartZoom = readOrgChartZoom();
+    applyOrgChartZoom();
+    applyOrgChartFilter();
+  }
+
+  function setOrgChartOpenState(open) {
+    if (!el.cellsOrgChartContainer) return;
+    el.cellsOrgChartContainer.classList.toggle("orgchart-is-collapsed", !open);
+  }
+
+  function applyOrgChartFilter() {
+    if (!el.cellsOrgChartContainer) return;
+    const query = normalizeText(el.cellsOrgChartSearch ? el.cellsOrgChartSearch.value : "");
+    const nodes = el.cellsOrgChartContainer.querySelectorAll(".orgchart-filter-node");
+    nodes.forEach((node) => {
+      const text = normalizeText(node.getAttribute("data-orgchart-search") || "");
+      const shouldShow = !query || text.includes(query);
+      node.classList.toggle("hide", !shouldShow);
+    });
+    if (query) setOrgChartOpenState(true);
+  }
+
   async function submitCreateCell(event) {
     event.preventDefault();
     const disciplerMemberId = toNumber(el.cellsCreateCellDisciplerId ? el.cellsCreateCellDisciplerId.value : 0, 0);
     const leaderMemberId = toNumber(el.cellsCreateCellLeaderId ? el.cellsCreateCellLeaderId.value : 0, 0);
+    const networkPastorMemberId = toNumber(el.cellsCreateCellNetworkPastorId ? el.cellsCreateCellNetworkPastorId.value : 0, 0);
 
     if (!disciplerMemberId) throw new Error("Selecione um discipulador para a celula.");
     if (!leaderMemberId) throw new Error("Selecione um lider para a celula.");
@@ -2098,7 +2506,12 @@
 
     await api(`/cells/${createdCell.id}/leaders`, {
       method: "POST",
-      body: JSON.stringify({ member_id: disciplerMemberId, role: "co_leader", is_primary: false }),
+      body: JSON.stringify({
+        member_id: disciplerMemberId,
+        discipler_member_id: networkPastorMemberId || null,
+        role: "co_leader",
+        is_primary: false,
+      }),
     });
     await api(`/cells/${createdCell.id}/leaders`, {
       method: "POST",
@@ -2150,6 +2563,7 @@
   async function ensureCellsInitialized() {
     if (state.initialized) return;
     await loadCurrentUserRole();
+    await initializeDevRoleSelection();
     applyRoleLayout();
     state.memberRoleTags = loadRoleTagsFromStorage();
     applyPreset(30);
@@ -2164,6 +2578,12 @@
     const controls = getRoleControls(roleTag);
     const name = controls.input ? controls.input.value.trim() : "";
     if (!name || !name.trim()) return;
+
+    if (roleTag === "leader" || roleTag === "discipler") {
+      throw new Error(
+        `Para cadastrar ${roleLabel}, use a tela de ${roleTag === "discipler" ? "Discipuladores" : "Lideres"} e selecione um usuario cadastrado.`
+      );
+    }
 
     const member = await createMemberOnly(name.trim(), "");
     setMemberRoleTag(member.id, roleTag);
@@ -2182,6 +2602,7 @@
     event.preventDefault();
     const cellId = toNumber(el.cellsCellModalId ? el.cellsCellModalId.value : 0, 0);
     const disciplerMemberId = toNumber(el.cellsCellModalDisciplerId ? el.cellsCellModalDisciplerId.value : 0, 0);
+    const networkPastorMemberId = toNumber(el.cellsCellModalNetworkPastorId ? el.cellsCellModalNetworkPastorId.value : 0, 0);
     const leaderMemberId = toNumber(el.cellsCellModalLeaderId ? el.cellsCellModalLeaderId.value : 0, 0);
     const payload = {
       name: el.cellsCellModalName ? el.cellsCellModalName.value.trim() : "",
@@ -2201,13 +2622,13 @@
     if (cellId) {
       await api(`/cells/${cellId}`, { method: "PUT", body: JSON.stringify(payload) });
       await ensureMembersLinkedToCell(cellId, [leaderMemberId]);
-      await syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId);
+      await syncCellLeadershipAssignments(cellId, disciplerMemberId, leaderMemberId, networkPastorMemberId);
       await ensureDisciplerIsSupervisorOnly(cellId, disciplerMemberId, leaderMemberId);
       setCellsMessage("Celula atualizada com sucesso.", false);
     } else {
       const createdCell = await api("/cells/", { method: "POST", body: JSON.stringify(payload) });
       await ensureMembersLinkedToCell(createdCell.id, [leaderMemberId]);
-      await syncCellLeadershipAssignments(createdCell.id, disciplerMemberId, leaderMemberId);
+      await syncCellLeadershipAssignments(createdCell.id, disciplerMemberId, leaderMemberId, networkPastorMemberId);
       await ensureDisciplerIsSupervisorOnly(createdCell.id, disciplerMemberId, leaderMemberId);
       setCellsMessage("Celula cadastrada com sucesso.", false);
     }
@@ -2220,36 +2641,79 @@
     event.preventDefault();
     const memberId = toNumber(el.cellsMemberModalId ? el.cellsMemberModalId.value : 0, 0);
     const roleTag = valueOr(el.cellsMemberModalRoleTag ? el.cellsMemberModalRoleTag.value : "", "");
-    const fullName = el.cellsMemberModalName ? el.cellsMemberModalName.value.trim() : "";
-    const contact = el.cellsMemberModalContact ? el.cellsMemberModalContact.value.trim() : "";
+    const usingDevUserSelection = shouldUseDevUserSelection(roleTag);
+    let fullName = el.cellsMemberModalName ? el.cellsMemberModalName.value.trim() : "";
+    let contact = el.cellsMemberModalContact ? el.cellsMemberModalContact.value.trim() : "";
+    let userId = null;
     const status = el.cellsMemberModalStatus ? el.cellsMemberModalStatus.value : "active";
     const countStartDate = el.cellsMemberModalCountStartDate ? el.cellsMemberModalCountStartDate.value : "";
 
-    if (!fullName) throw new Error("Informe o nome completo.");
     if (!roleTag) throw new Error("Perfil invalido para o registro.");
     if (!countStartDate) throw new Error("Informe a data de cadastrado.");
 
+    if (usingDevUserSelection) {
+      const selectedUserId = toNumber(el.cellsMemberModalUserSelect ? el.cellsMemberModalUserSelect.value : 0, 0);
+      if (!selectedUserId) throw new Error("Selecione um usuario cadastrado.");
+
+      const selectedUser = state.devUsers.find((item) => toNumber(item.id, 0) === selectedUserId);
+      if (!selectedUser) throw new Error("Usuario selecionado nao encontrado.");
+
+      fullName = String(valueOr(selectedUser.full_name, selectedUser.email)).trim();
+      contact = "";
+      userId = selectedUserId;
+
+      const existingMemberForUser = state.members.find(
+        (item) => toNumber(item.user_id, 0) === selectedUserId && toNumber(item.id, 0) !== memberId
+      );
+
+      if (existingMemberForUser && !memberId) {
+        await api(`/cells/members/${existingMemberForUser.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            full_name: fullName,
+            contact: null,
+            status,
+            count_start_date: countStartDate,
+            user_id: selectedUserId,
+          }),
+        });
+        setMemberRoleTag(existingMemberForUser.id, roleTag);
+        setCellsMessage("Usuario ja vinculado. Registro existente atualizado para este perfil.", false);
+        closeMemberModal();
+        await refreshCellsAdminData();
+        return;
+      }
+    }
+
+    if (!fullName) throw new Error("Informe o nome completo.");
+
     if (memberId) {
+      const payload = {
+        full_name: fullName,
+        contact: contact || null,
+        status,
+        count_start_date: countStartDate,
+      };
+      if (usingDevUserSelection) payload.user_id = userId;
+
       await api(`/cells/members/${memberId}`, {
         method: "PUT",
-        body: JSON.stringify({
-          full_name: fullName,
-          contact: contact || null,
-          status,
-          count_start_date: countStartDate,
-        }),
+        body: JSON.stringify(payload),
       });
       setMemberRoleTag(memberId, roleTag);
       setCellsMessage("Registro atualizado com sucesso.", false);
     } else {
+      const payload = {
+        full_name: fullName,
+        contact: contact || null,
+        status,
+        count_start_date: countStartDate,
+      };
+      if (usingDevUserSelection) payload.user_id = userId;
+
       const member = await api("/cells/members/all", {
         method: "POST",
-        body: JSON.stringify({
-          full_name: fullName,
-          contact: contact || null,
-          status,
-          count_start_date: countStartDate,
-        }),
+        body: JSON.stringify(payload),
       });
       setMemberRoleTag(member.id, roleTag);
       setCellsMessage("Registro cadastrado com sucesso.", false);
@@ -2275,6 +2739,10 @@
     await ensureCellsInitialized();
     if (isLeaderMode()) {
       setCellsView(hasPermission("cells_people_view") ? "people" : fallbackView);
+      if (state.currentView === "orgchart") {
+        await loadOrgChart();
+        return;
+      }
       if (state.currentView === "people") {
         fillPeopleCellSelect();
         await loadPeopleViewData();
@@ -2291,7 +2759,11 @@
       await loadCellsDashboard();
       return;
     }
-    if (state.currentView === "cells" || state.currentView === "leaders" || state.currentView === "disciplers") {
+    if (state.currentView === "orgchart") {
+      await loadOrgChart();
+      return;
+    }
+    if (state.currentView === "cells" || state.currentView === "leaders" || state.currentView === "disciplers" || state.currentView === "network-pastors") {
       await refreshCellsAdminData();
       return;
     }
@@ -2327,7 +2799,8 @@
     handleLoadError(openCellsModule, "Falha ao carregar modulo de celulas.");
   });
 
-  if (valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase() === "leader" && getToken()) {
+  const startupRole = valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase();
+  if ((startupRole === "leader" || startupRole === "discipler" || startupRole === "network_pastor") && getToken()) {
     handleLoadError(openCellsModule, "Falha ao carregar modulo de celulas.");
   }
 
@@ -2338,6 +2811,13 @@
     el.cellsNavDashboardBtn.addEventListener("click", function () {
       setCellsView("dashboard");
       handleLoadError(loadCellsDashboard, "Falha ao carregar dashboard de celulas.");
+    });
+  }
+
+  if (el.cellsNavOrgChartBtn) {
+    el.cellsNavOrgChartBtn.addEventListener("click", function () {
+      setCellsView("orgchart");
+      handleLoadError(loadOrgChart, "Falha ao carregar organograma.");
     });
   }
 
@@ -2382,6 +2862,13 @@
     });
   }
 
+  if (el.cellsNavNetworkPastorsBtn) {
+    el.cellsNavNetworkPastorsBtn.addEventListener("click", function () {
+      setCellsView("network-pastors");
+      handleLoadError(refreshCellsAdminData, "Falha ao carregar tabela de pastores de rede.");
+    });
+  }
+
   if (el.cellsNavLostSheepBtn) {
     el.cellsNavLostSheepBtn.addEventListener("click", function () {
       setCellsView("lost-sheep");
@@ -2401,6 +2888,71 @@
         await Promise.all([loadCells(), loadMembers()]);
         await loadCellsDashboard();
       }, "Falha ao atualizar modulo de celulas.");
+    });
+  }
+
+  if (el.cellsOrgChartRefreshBtn) {
+    el.cellsOrgChartRefreshBtn.addEventListener("click", function () {
+      handleLoadError(loadOrgChart, "Falha ao atualizar organograma.");
+    });
+  }
+
+  if (el.cellsOrgChartExpandAllBtn) {
+    el.cellsOrgChartExpandAllBtn.addEventListener("click", function () {
+      setOrgChartOpenState(true);
+    });
+  }
+
+  if (el.cellsOrgChartCollapseAllBtn) {
+    el.cellsOrgChartCollapseAllBtn.addEventListener("click", function () {
+      setOrgChartOpenState(false);
+    });
+  }
+
+  if (el.cellsOrgChartZoomOutBtn) {
+    el.cellsOrgChartZoomOutBtn.addEventListener("click", function () {
+      setOrgChartZoom(orgChartZoom - 0.1);
+    });
+  }
+
+  if (el.cellsOrgChartZoomInBtn) {
+    el.cellsOrgChartZoomInBtn.addEventListener("click", function () {
+      setOrgChartZoom(orgChartZoom + 0.1);
+    });
+  }
+
+  if (el.cellsOrgChartZoomResetBtn) {
+    el.cellsOrgChartZoomResetBtn.addEventListener("click", function () {
+      setOrgChartZoom(1);
+    });
+  }
+
+  if (el.cellsOrgChartSearch) {
+    el.cellsOrgChartSearch.addEventListener("input", function () {
+      applyOrgChartFilter();
+    });
+  }
+
+  if (el.cellsOrgChartContainer) {
+    el.cellsOrgChartContainer.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const cellBtn = target.closest("[data-cell-id]");
+      if (!(cellBtn instanceof HTMLElement)) return;
+      const cellId = toNumber(cellBtn.getAttribute("data-cell-id"), 0);
+      if (!cellId) return;
+
+      if (!hasPermission("cells_cells_edit")) {
+        setCellsMessage("Sem permissao para editar células. (Atalho de edicao desabilitado)", true);
+        return;
+      }
+
+      const cell = state.cells.find((item) => item && item.id === cellId);
+      if (!cell) {
+        handleLoadError(refreshCellsAdminData, "Falha ao carregar dados para abrir a célula.");
+        return;
+      }
+      handleLoadError(function () { return openCellModal(cell); }, "Falha ao abrir célula.");
     });
   }
 
@@ -2607,6 +3159,12 @@
     });
   }
 
+  if (el.cellsNetworkPastorsRefreshBtn) {
+    el.cellsNetworkPastorsRefreshBtn.addEventListener("click", function () {
+      handleLoadError(refreshCellsAdminData, "Falha ao atualizar tabela de pastores de rede.");
+    });
+  }
+
   if (el.cellsCellsAddBtn) {
     el.cellsCellsAddBtn.addEventListener("click", function () {
       handleLoadError(function () { return openCellModal(null); }, "Falha ao abrir cadastro de celula.");
@@ -2615,13 +3173,19 @@
 
   if (el.cellsLeadersAddBtn) {
     el.cellsLeadersAddBtn.addEventListener("click", function () {
-      openMemberModal("leader", null);
+      handleLoadError(function () { return openMemberModal("leader", null); }, "Falha ao abrir cadastro de lider.");
     });
   }
 
   if (el.cellsDisciplersAddBtn) {
     el.cellsDisciplersAddBtn.addEventListener("click", function () {
-      openMemberModal("discipler", null);
+      handleLoadError(function () { return openMemberModal("discipler", null); }, "Falha ao abrir cadastro de discipulador.");
+    });
+  }
+
+  if (el.cellsNetworkPastorsAddBtn) {
+    el.cellsNetworkPastorsAddBtn.addEventListener("click", function () {
+      handleLoadError(function () { return openMemberModal("network_pastor", null); }, "Falha ao abrir cadastro de pastor de rede.");
     });
   }
 
@@ -2837,7 +3401,7 @@
       if (!memberId) return;
       const member = state.members.find((item) => item.id === memberId);
       if (!member) return;
-      openMemberModal("leader", member);
+      handleLoadError(function () { return openMemberModal("leader", member); }, "Falha ao abrir edicao de lider.");
     });
   }
 
@@ -2851,7 +3415,21 @@
       if (!memberId) return;
       const member = state.members.find((item) => item.id === memberId);
       if (!member) return;
-      openMemberModal("discipler", member);
+      handleLoadError(function () { return openMemberModal("discipler", member); }, "Falha ao abrir edicao de discipulador.");
+    });
+  }
+
+  if (el.cellsNetworkPastorsView) {
+    el.cellsNetworkPastorsView.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.classList.contains("cells-edit-member-btn")) return;
+
+      const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+      if (!memberId) return;
+      const member = state.members.find((item) => item.id === memberId);
+      if (!member) return;
+      handleLoadError(function () { return openMemberModal("network_pastor", member); }, "Falha ao abrir edicao de pastor de rede.");
     });
   }
 

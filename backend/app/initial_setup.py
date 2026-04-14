@@ -31,6 +31,25 @@ def ensure_runtime_schema_updates() -> None:
                 conn.execute(text("ALTER TABLE users ADD COLUMN active_tenant_id INTEGER"))
             logger.info("Schema update applied: users.active_tenant_id added.")
 
+    if "tenants" in tables:
+        tenant_columns = {col["name"] for col in inspector.get_columns("tenants")}
+        tenant_runtime_columns = [
+            ("landing_hero_background_url", "VARCHAR(500)"),
+            ("landing_pix_key", "VARCHAR(255)"),
+            ("landing_bank_name", "VARCHAR(255)"),
+            ("landing_bank_agency", "VARCHAR(120)"),
+            ("landing_bank_account", "VARCHAR(120)"),
+            ("landing_service_times", "VARCHAR(2000)"),
+            ("landing_address", "VARCHAR(500)"),
+            ("landing_location_url", "VARCHAR(1000)"),
+            ("landing_footer_text", "VARCHAR(500)"),
+        ]
+        for column_name, sql_type in tenant_runtime_columns:
+            if column_name not in tenant_columns:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE tenants ADD COLUMN {column_name} {sql_type}"))
+                logger.info("Schema update applied: tenants.%s added.", column_name)
+
     if "transactions" not in tables:
         return
 

@@ -127,6 +127,15 @@ def create_tenant(db: Session, payload: TenantCreate, current_user: User) -> Ten
         logo_url=payload.logo_url,
         support_email=payload.support_email,
         support_whatsapp=payload.support_whatsapp,
+        landing_hero_background_url=payload.landing_hero_background_url,
+        landing_pix_key=payload.landing_pix_key,
+        landing_bank_name=payload.landing_bank_name,
+        landing_bank_agency=payload.landing_bank_agency,
+        landing_bank_account=payload.landing_bank_account,
+        landing_service_times=payload.landing_service_times,
+        landing_address=payload.landing_address,
+        landing_location_url=payload.landing_location_url,
+        landing_footer_text=payload.landing_footer_text,
         is_active=True,
     )
     db.add(tenant)

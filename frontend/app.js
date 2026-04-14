@@ -92,13 +92,30 @@ const el = {
   loginBrandSupport: document.getElementById("loginBrandSupport"),
   loginPublicCatalogLink: document.getElementById("loginPublicCatalogLink"),
   publicTenantLandingScreen: document.getElementById("publicTenantLandingScreen"),
+  tenantLandingHero: document.getElementById("tenantLandingHero"),
   tenantLandingLogo: document.getElementById("tenantLandingLogo"),
+  tenantLandingTopbarTitle: document.getElementById("tenantLandingTopbarTitle"),
   tenantLandingTitle: document.getElementById("tenantLandingTitle"),
   tenantLandingSummary: document.getElementById("tenantLandingSummary"),
   tenantLandingLoginLink: document.getElementById("tenantLandingLoginLink"),
   tenantLandingEventsLink: document.getElementById("tenantLandingEventsLink"),
   tenantLandingCatalogLink: document.getElementById("tenantLandingCatalogLink"),
   tenantLandingSupport: document.getElementById("tenantLandingSupport"),
+  tenantLandingServiceLead: document.getElementById("tenantLandingServiceLead"),
+  tenantLandingAddressLead: document.getElementById("tenantLandingAddressLead"),
+  tenantLandingPixLead: document.getElementById("tenantLandingPixLead"),
+  tenantLandingAboutText: document.getElementById("tenantLandingAboutText"),
+  tenantLandingContactCard: document.getElementById("tenantLandingContactCard"),
+  tenantLandingServicesGrid: document.getElementById("tenantLandingServicesGrid"),
+  tenantLandingCellsGrid: document.getElementById("tenantLandingCellsGrid"),
+  tenantLandingPixKey: document.getElementById("tenantLandingPixKey"),
+  tenantLandingBankName: document.getElementById("tenantLandingBankName"),
+  tenantLandingBankAgency: document.getElementById("tenantLandingBankAgency"),
+  tenantLandingBankAccount: document.getElementById("tenantLandingBankAccount"),
+  tenantLandingAddress: document.getElementById("tenantLandingAddress"),
+  tenantLandingMapEmbed: document.getElementById("tenantLandingMapEmbed"),
+  tenantLandingLocationLink: document.getElementById("tenantLandingLocationLink"),
+  tenantLandingFooterText: document.getElementById("tenantLandingFooterText"),
   tenantLandingEventsGrid: document.getElementById("tenantLandingEventsGrid"),
   publicCatalogScreen: document.getElementById("publicCatalogScreen"),
   publicEventDetailScreen: document.getElementById("publicEventDetailScreen"),
@@ -159,6 +176,8 @@ const el = {
   publicInvitePassword: document.getElementById("publicInvitePassword"),
   publicInviteAcceptBtn: document.getElementById("publicInviteAcceptBtn"),
   appShellTitle: document.getElementById("appShellTitle"),
+  appShellLogo: document.getElementById("appShellLogo"),
+  appFavicon: document.getElementById("appFavicon"),
   dashboardView: document.getElementById("dashboardView"),
   transactionsView: document.getElementById("transactionsView"),
   payablesView: document.getElementById("payablesView"),
@@ -845,9 +864,46 @@ function getSupportLabel(branding = {}) {
   return supportParts.length ? `Contato: ${supportParts.join(" | ")}` : "";
 }
 
+function getDefaultFaviconHref() {
+  return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23232323'/%3E%3Cpath d='M32 12l8 8h-5v12h12v-5l8 8-8 8v-5H35v12h5l-8 8-8-8h5V38H17v5l-8-8 8-8v5h12V20h-5l8-8z' fill='%239fba45'/%3E%3C/svg%3E";
+}
+
+function updateShellBranding(branding = {}) {
+  const displayName = branding.public_display_name || branding.name || "Church Finance Console";
+  const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
+
+  if (el.appShellTitle) {
+    el.appShellTitle.textContent = displayName;
+    el.appShellTitle.title = displayName;
+  }
+
+  if (el.appShellLogo) {
+    el.appShellLogo.classList.toggle("hide", !logoUrl);
+    if (logoUrl) {
+      el.appShellLogo.src = logoUrl;
+    } else {
+      el.appShellLogo.removeAttribute("src");
+    }
+  }
+
+  document.title = displayName;
+  if (el.appFavicon) {
+    el.appFavicon.href = logoUrl || getDefaultFaviconHref();
+  }
+}
+
 function getLoginTenantSlug() {
   const querySlug = new URLSearchParams(window.location.search).get("tenant");
   return String(querySlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
+}
+
+function getCurrentTenantLandingUrl() {
+  const tenantSlug = String(
+    localStorage.getItem("activeTenantSlug")
+    || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY)
+    || "default"
+  ).trim() || "default";
+  return `/t/${encodeURIComponent(tenantSlug)}`;
 }
 
 function resolveBrandingAssetUrl(value, cacheKey = "") {
@@ -898,9 +954,7 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
       ? `${displayName} em um portal unico`
       : "Controle financeiro com visao total";
   }
-  if (el.appShellTitle) {
-    el.appShellTitle.textContent = displayName || "Church Finance Console";
-  }
+  updateShellBranding(branding);
   if (el.loginBrandSummary) {
     el.loginBrandSummary.textContent = branding.public_description
       || "Acompanhe entradas e saidas, envie extratos e visualize relatorios em um unico painel.";
@@ -936,26 +990,31 @@ function buildTenantOnboardingItems(tenant = {}) {
       done: Boolean(tenant.public_display_name),
       title: "Nome publico",
       description: "Ajuste o nome exibido para membros e visitantes.",
+      target: "church",
     },
     {
       done: Boolean(tenant.primary_color && tenant.secondary_color),
-      title: "Cores da marca",
-      description: "Defina a identidade visual da igreja.",
+      title: "Tema da marca",
+      description: "Escolha o tema visual principal da igreja.",
+      target: "appearance",
     },
     {
       done: Boolean(tenant.logo_url),
       title: "Logo",
       description: "Exiba a logo nas paginas publicas e no login.",
+      target: "appearance",
     },
     {
       done: Boolean(tenant.support_email || tenant.support_whatsapp),
       title: "Contato",
       description: "Mostre um canal de suporte nas paginas publicas.",
+      target: "church",
     },
     {
       done: Boolean(tenant.public_description),
       title: "Descricao",
       description: "Explique a proposta da igreja ou ministerio.",
+      target: "church",
     },
   ];
 }
@@ -988,7 +1047,7 @@ function renderTenantOnboarding(tenant = {}) {
     el.tenantOnboardingScore.textContent = `${completed}/${items.length} concluido`;
   }
   el.tenantOnboardingChecklist.innerHTML = items
-    .map((item) => `<div class="tenant-onboarding-item ${item.done ? "done" : ""}"><strong>${item.done ? "Concluido" : "Pendente"} · ${escapeHtml(item.title)}</strong>${escapeHtml(item.description)}</div>`)
+    .map((item) => `<button class="tenant-onboarding-item ${item.done ? "done" : ""}" type="button" data-onboarding-target="${escapeHtml(item.target || "church")}"><strong>${item.done ? "Concluido" : "Pendente"} · ${escapeHtml(item.title)}</strong>${escapeHtml(item.description)}</button>`)
     .join("");
 
   const tenantSlug = String(tenant.slug || localStorage.getItem("activeTenantSlug") || "default").trim() || "default";
@@ -1002,8 +1061,77 @@ function applyTenantBranding(branding = {}) {
   const root = document.documentElement;
   const primary = String(branding.primary_color || "").trim();
   const secondary = String(branding.secondary_color || "").trim();
-  root.style.setProperty("--primary", primary || "#1565c0");
-  root.style.setProperty("--primary-2", secondary || "#0a8f72");
+  root.style.setProperty("--primary", primary || "#9fba45");
+  root.style.setProperty("--primary-2", secondary || "#7f9930");
+  const normalizedPrimary = (primary || "#9fba45").toUpperCase();
+  const normalizedSecondary = (secondary || "#7f9930").toUpperCase();
+  let bg = "#E8E3D9";
+  let bgSoft = "#F4F1EA";
+  let panel = "#FFFFFF";
+  let line = "#E8E0D2";
+  let ink = "#1F252D";
+  let muted = "#646D78";
+  let shell = "#252525";
+  let shellTop = "#232323";
+  let shellSoft = "#333333";
+  let shellBorder = "#303030";
+  let shellText = "#F4F1EA";
+  let shellTextMuted = "rgba(244, 241, 234, 0.72)";
+
+  if (normalizedPrimary === "#9FBA45" && normalizedSecondary === "#7F9930") {
+    shell = "#F3EFE6";
+    shellTop = "#EAE4D7";
+    shellSoft = "#E0D7C4";
+    shellBorder = "#D7CFBF";
+    shellText = "#2A2F35";
+    shellTextMuted = "rgba(42, 47, 53, 0.68)";
+  } else if (normalizedPrimary === "#111111" && normalizedSecondary === "#F2C400") {
+    shell = "#111111";
+    shellTop = "#0C0C0C";
+    shellSoft = "#252525";
+    shellBorder = "#3B3B3B";
+    shellText = "#FFF8D9";
+    shellTextMuted = "rgba(255, 248, 217, 0.76)";
+    bg = "#121212";
+    bgSoft = "#191919";
+    panel = "#1D1D1D";
+    line = "#3B3B3B";
+    ink = "#FFF8D9";
+    muted = "#D7CFA8";
+  } else if (normalizedPrimary === "#155EEF" && normalizedSecondary === "#0F8B8D") {
+    shell = "#10243D";
+    shellTop = "#0C1D33";
+    shellSoft = "#173252";
+    shellBorder = "#28476B";
+    shellText = "#EAF3FF";
+    shellTextMuted = "rgba(234, 243, 255, 0.74)";
+    bg = "#E7F0F8";
+    bgSoft = "#F4F9FC";
+    panel = "#FFFFFF";
+    line = "#D7E5F0";
+    ink = "#173252";
+    muted = "#5C738A";
+  } else if (normalizedPrimary === "#232323" && normalizedSecondary === "#4A4A4A") {
+    bg = "#151515";
+    bgSoft = "#1C1C1C";
+    panel = "#242424";
+    line = "#3B3B3B";
+    ink = "#F4F1EA";
+    muted = "#C7C1B2";
+  }
+
+  root.style.setProperty("--bg", bg);
+  root.style.setProperty("--bg-2", bgSoft);
+  root.style.setProperty("--panel", panel);
+  root.style.setProperty("--line", line);
+  root.style.setProperty("--ink", ink);
+  root.style.setProperty("--muted", muted);
+  root.style.setProperty("--shell", shell);
+  root.style.setProperty("--shell-top", shellTop);
+  root.style.setProperty("--shell-soft", shellSoft);
+  root.style.setProperty("--shell-border", shellBorder);
+  root.style.setProperty("--shell-text", shellText);
+  root.style.setProperty("--shell-text-muted", shellTextMuted);
   if (branding.slug) {
     rememberTenantSlug(branding.slug);
     syncTenantLinks(branding.slug);
@@ -1012,10 +1140,8 @@ function applyTenantBranding(branding = {}) {
   const displayName = branding.public_display_name || branding.name;
   if (displayName) {
     document.body.dataset.tenantName = displayName;
-    if (el.appShellTitle) {
-      el.appShellTitle.textContent = displayName;
-    }
   }
+  updateShellBranding(branding);
 
   const logos = [
     el.tenantLandingLogo,
@@ -1323,6 +1449,106 @@ function renderPublicCatalog(events, tenantSlug) {
   `).join("");
 }
 
+function parseLandingServiceTimes(rawValue) {
+  return String(rawValue || "")
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("|").map((piece) => piece.trim()).filter(Boolean);
+      return {
+        day: parts[0] || "Culto",
+        time: parts[1] || "Horário a definir",
+        description: parts[2] || "Programação da igreja",
+      };
+    });
+}
+
+function renderTenantLandingServices(branding) {
+  if (!el.tenantLandingServicesGrid) return;
+  const services = parseLandingServiceTimes(branding?.landing_service_times);
+  if (!services.length) {
+    el.tenantLandingServicesGrid.innerHTML = `
+      <article class="tenant-landing-service-card">
+        <strong>Horários em atualização</strong>
+        <p>Cadastre os cultos na configuração da landing page para exibir aqui.</p>
+      </article>
+    `;
+    return;
+  }
+
+  el.tenantLandingServicesGrid.innerHTML = services.map((service) => `
+    <article class="tenant-landing-service-card">
+      <span>${escapeHtml(service.day)}</span>
+      <strong>${escapeHtml(service.time)}</strong>
+      <p>${escapeHtml(service.description)}</p>
+    </article>
+  `).join("");
+}
+
+function formatCellWeekday(value) {
+  const map = {
+    monday: "Segunda-feira",
+    tuesday: "Terça-feira",
+    wednesday: "Quarta-feira",
+    thursday: "Quinta-feira",
+    friday: "Sexta-feira",
+    saturday: "Sábado",
+    sunday: "Domingo",
+  };
+  return map[String(value || "").toLowerCase()] || String(value || "Dia a definir");
+}
+
+function formatCellMeetingTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "Horário a definir";
+  return raw.slice(0, 5);
+}
+
+function renderTenantLandingCells(cells) {
+  if (!el.tenantLandingCellsGrid) return;
+  if (!Array.isArray(cells) || !cells.length) {
+    el.tenantLandingCellsGrid.innerHTML = `
+      <article class="tenant-landing-cell-card">
+        <strong>Células em atualização</strong>
+        <p>As células ativas cadastradas no sistema aparecerão aqui.</p>
+      </article>
+    `;
+    return;
+  }
+
+  el.tenantLandingCellsGrid.innerHTML = cells.map((cell) => `
+    <article class="tenant-landing-cell-card">
+      <span>${escapeHtml(formatCellWeekday(cell.weekday))} · ${escapeHtml(formatCellMeetingTime(cell.meeting_time))}</span>
+      <strong>${escapeHtml(cell.name || "Célula")}</strong>
+      <p><strong>Líder:</strong> ${escapeHtml(cell.leader_name || "A definir")}</p>
+      <p><strong>Endereço:</strong> ${escapeHtml(cell.address || "Endereço a definir")}</p>
+    </article>
+  `).join("");
+}
+
+function buildLandingMapEmbedUrl(locationUrl, address) {
+  const rawUrl = String(locationUrl || "").trim();
+  const rawAddress = String(address || "").trim();
+  const embedQuery = rawAddress || rawUrl;
+
+  if (embedQuery) {
+    return `https://maps.google.com/maps?hl=pt-BR&q=${encodeURIComponent(embedQuery)}&t=&z=15&ie=UTF8&iwloc=B&output=embed`;
+  }
+
+  if (rawUrl) {
+    if (/google\.[^/]+\/maps\/embed/i.test(rawUrl) || /output=embed/i.test(rawUrl)) {
+      return rawUrl;
+    }
+
+    if (/openstreetmap\.org/i.test(rawUrl)) {
+      return rawUrl;
+    }
+  }
+
+  return "";
+}
+
 function renderTenantLandingEvents(events, tenantSlug) {
   if (!el.tenantLandingEventsGrid) return;
   if (!events.length) {
@@ -1352,12 +1578,75 @@ async function initializePublicTenantLandingApp() {
   const branding = await loadPublicTenantBranding(tenantSlug);
   const displayName = branding?.public_display_name || branding?.name || "Sua igreja";
   document.title = `${displayName} | Plataforma da Igreja`;
+  if (el.tenantLandingTopbarTitle) {
+    el.tenantLandingTopbarTitle.textContent = displayName;
+  }
   if (el.tenantLandingTitle) {
     el.tenantLandingTitle.textContent = displayName;
   }
   if (el.tenantLandingSummary) {
     el.tenantLandingSummary.textContent = branding?.public_description || "Centralize administração, eventos e acesso da equipe em um único ambiente.";
   }
+  if (el.tenantLandingAboutText) {
+    el.tenantLandingAboutText.textContent = branding?.public_description || "Apresente a visão, o coração e a mensagem principal da igreja nesta seção.";
+  }
+  if (el.tenantLandingContactCard) {
+    el.tenantLandingContactCard.textContent = getSupportLabel(branding || {}) || "Adicione e-mail ou WhatsApp para exibir aqui.";
+  }
+  if (el.tenantLandingServiceLead) {
+    const serviceLead = parseLandingServiceTimes(branding?.landing_service_times)[0];
+    el.tenantLandingServiceLead.textContent = serviceLead ? `${serviceLead.day}: ${serviceLead.time}` : "Atualize os cultos na configuração";
+  }
+  if (el.tenantLandingAddressLead) {
+    el.tenantLandingAddressLead.textContent = branding?.landing_address || "Adicione o endereço da igreja";
+  }
+  if (el.tenantLandingPixLead) {
+    el.tenantLandingPixLead.textContent = branding?.landing_pix_key || branding?.landing_bank_name || "Defina o PIX e os dados bancários";
+  }
+  if (el.tenantLandingPixKey) {
+    el.tenantLandingPixKey.textContent = branding?.landing_pix_key || "Cadastre a chave PIX na configuração.";
+  }
+  if (el.tenantLandingBankName) {
+    el.tenantLandingBankName.textContent = branding?.landing_bank_name || "Banco não informado";
+  }
+  if (el.tenantLandingBankAgency) {
+    el.tenantLandingBankAgency.textContent = branding?.landing_bank_agency || "-";
+  }
+  if (el.tenantLandingBankAccount) {
+    el.tenantLandingBankAccount.textContent = branding?.landing_bank_account || "-";
+  }
+  if (el.tenantLandingAddress) {
+    el.tenantLandingAddress.textContent = branding?.landing_address || "Adicione o endereço da igreja para orientar membros e visitantes.";
+  }
+  if (el.tenantLandingMapEmbed) {
+    const embedUrl = buildLandingMapEmbedUrl(branding?.landing_location_url, branding?.landing_address);
+    if (embedUrl) {
+      el.tenantLandingMapEmbed.src = embedUrl;
+      el.tenantLandingMapEmbed.classList.remove("hide");
+    } else {
+      el.tenantLandingMapEmbed.classList.add("hide");
+      el.tenantLandingMapEmbed.removeAttribute("src");
+    }
+  }
+  if (el.tenantLandingLocationLink) {
+    const hasLocationUrl = Boolean(branding?.landing_location_url);
+    el.tenantLandingLocationLink.href = hasLocationUrl ? branding.landing_location_url : "#";
+    el.tenantLandingLocationLink.classList.toggle("is-disabled", !hasLocationUrl);
+    el.tenantLandingLocationLink.setAttribute("aria-disabled", hasLocationUrl ? "false" : "true");
+    el.tenantLandingLocationLink.tabIndex = hasLocationUrl ? 0 : -1;
+  }
+  if (el.tenantLandingFooterText) {
+    el.tenantLandingFooterText.textContent = branding?.landing_footer_text || `${displayName} · Atualize o rodapé da landing page nas configurações da igreja.`;
+  }
+  if (el.tenantLandingHero) {
+    const heroBackground = String(branding?.landing_hero_background_url || "").trim();
+    if (heroBackground) {
+      el.tenantLandingHero.style.backgroundImage = `linear-gradient(110deg, rgba(8, 18, 29, 0.72), rgba(8, 18, 29, 0.38)), url("${heroBackground.replace(/"/g, '\\"')}")`;
+    } else {
+      el.tenantLandingHero.style.backgroundImage = "";
+    }
+  }
+  renderTenantLandingServices(branding || {});
   if (el.tenantLandingLoginLink) {
     el.tenantLandingLoginLink.href = `/?tenant=${encodeURIComponent(tenantSlug)}`;
   }
@@ -1367,13 +1656,22 @@ async function initializePublicTenantLandingApp() {
   if (el.tenantLandingCatalogLink) {
     el.tenantLandingCatalogLink.href = `/events/${encodeURIComponent(tenantSlug)}`;
   }
-  const response = await fetch(`${API_PREFIX}/events/public/tenants/${encodeURIComponent(tenantSlug)}/events`);
-  if (!response.ok) {
+  const [eventsResponse, cellsResponse] = await Promise.all([
+    fetch(`${API_PREFIX}/events/public/tenants/${encodeURIComponent(tenantSlug)}/events`),
+    fetch(`${API_PREFIX}/cells/public/tenants/${encodeURIComponent(tenantSlug)}/cells`),
+  ]);
+  if (!eventsResponse.ok) {
     renderTenantLandingEvents([], tenantSlug);
-    return;
+  } else {
+    const events = await eventsResponse.json();
+    renderTenantLandingEvents(events, tenantSlug);
   }
-  const events = await response.json();
-  renderTenantLandingEvents(events, tenantSlug);
+  if (!cellsResponse.ok) {
+    renderTenantLandingCells([]);
+  } else {
+    const cells = await cellsResponse.json();
+    renderTenantLandingCells(cells);
+  }
 }
 
 async function initializePublicCatalogApp() {
@@ -3636,9 +3934,7 @@ function logout() {
   }
   localStorage.removeItem("activeTenantSlug");
   document.body.dataset.userRole = "";
-  if (el.appShellTitle) {
-    el.appShellTitle.textContent = "Church Finance Console";
-  }
+  updateShellBranding({});
   el.sessionUser.textContent = "Nao autenticado";
   setMessage(el.authMessage, "");
   showApp(false);
@@ -4083,8 +4379,9 @@ async function initializeApp() {
     }
 
     setActiveView(firstFinanceView);
-    if (String(me.role || "").toLowerCase() === "leader") {
-      setMessage(el.dashboardMessage, "Perfil de lider: use o modulo de Celulas para gerenciar sua equipe e frequencia.");
+    const roleName = String(me.role || "").toLowerCase();
+    if (roleName === "leader" || roleName === "discipler" || roleName === "network_pastor") {
+      setMessage(el.dashboardMessage, "Perfil de celulas: use o modulo de Celulas para gerenciar sua equipe, rede e frequencia.");
       return;
     }
     await Promise.all([
@@ -4128,6 +4425,18 @@ el.logoutBtn.addEventListener("click", () => {
   logout();
   setMessage(el.authMessage, "Sessao encerrada.");
 });
+
+if (el.appShellTitle) {
+  el.appShellTitle.addEventListener("click", () => {
+    window.location.href = getCurrentTenantLandingUrl();
+  });
+}
+
+if (el.appShellLogo) {
+  el.appShellLogo.addEventListener("click", () => {
+    window.location.href = getCurrentTenantLandingUrl();
+  });
+}
 
 el.publicRefreshStatusBtn.addEventListener("click", async () => {
   try {
@@ -4196,6 +4505,21 @@ if (el.tenantOnboardingInviteBtn) {
     }
     if (window.openUsersModule) {
       window.openUsersModule();
+    }
+  });
+}
+
+if (el.tenantOnboardingChecklist) {
+  el.tenantOnboardingChecklist.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest("[data-onboarding-target]") : null;
+    if (!target) return;
+    const section = String(target.getAttribute("data-onboarding-target") || "church");
+    if (window.openChurchSettingsSection) {
+      window.openChurchSettingsSection(section);
+      return;
+    }
+    if (window.openChurchSettings) {
+      window.openChurchSettings();
     }
   });
 }
