@@ -3599,16 +3599,22 @@
           <div class="events-analytics-grid">
             <article class="dashboard-card">
               <h4>Status dos pagamentos</h4>
-              <canvas id="eventsPaymentStatusChart" class="cells-canvas" aria-label="Status dos pagamentos"></canvas>
+              <div class="cells-chart-box cells-chart-box-square">
+                <canvas id="eventsPaymentStatusChart" class="cells-canvas" aria-label="Status dos pagamentos"></canvas>
+              </div>
             </article>
             <article class="dashboard-card">
               <h4>Métodos de pagamento</h4>
-              <canvas id="eventsPaymentMethodChart" class="cells-canvas" aria-label="Métodos de pagamento"></canvas>
+              <div class="cells-chart-box">
+                <canvas id="eventsPaymentMethodChart" class="cells-canvas" aria-label="Métodos de pagamento"></canvas>
+              </div>
             </article>
           </div>
-          <article class="dashboard-card">
+          <article class="dashboard-card events-analytics-timeline">
             <h4>Inscrições por dia</h4>
-            <canvas id="eventsRegistrationsTimelineChart" class="cells-canvas" aria-label="Inscrições por dia"></canvas>
+            <div class="cells-chart-box">
+              <canvas id="eventsRegistrationsTimelineChart" class="cells-canvas" aria-label="Inscrições por dia"></canvas>
+            </div>
           </article>
         </section>
 

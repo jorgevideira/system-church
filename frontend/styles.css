@@ -3633,6 +3633,14 @@ th {
   gap: 1rem;
 }
 
+.events-analytics-grid .cells-chart-box {
+  height: 260px;
+}
+
+.events-analytics-timeline .cells-chart-box {
+  height: 320px;
+}
+
 .events-empty-state {
   padding: 1rem;
   text-align: center;
