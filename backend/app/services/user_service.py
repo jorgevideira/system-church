@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.security import get_password_hash, verify_password
@@ -21,8 +22,17 @@ def get_users(db: Session, skip: int = 0, limit: int = 20) -> list[User]:
     return db.query(User).offset(skip).limit(limit).all()
 
 
-def get_users_for_tenant(db: Session, tenant_id: int, skip: int = 0, limit: int = 20) -> list[User]:
-    return (
+def get_users_for_tenant(
+    db: Session,
+    tenant_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    search: str | None = None,
+    role_id: int | None = None,
+    is_active: bool | None = None,
+    membership_active_only: bool = True,
+) -> list[User]:
+    query = (
         db.query(User)
         .join(TenantMembership, TenantMembership.user_id == User.id)
         .options(
@@ -31,11 +41,30 @@ def get_users_for_tenant(db: Session, tenant_id: int, skip: int = 0, limit: int 
             selectinload(User.active_tenant),
             selectinload(User.role_obj),
         )
-        .filter(TenantMembership.tenant_id == tenant_id, TenantMembership.is_active.is_(True))
-        .offset(skip)
-        .limit(limit)
-        .all()
+        .filter(TenantMembership.tenant_id == tenant_id)
     )
+
+    if membership_active_only:
+        query = query.filter(TenantMembership.is_active.is_(True))
+
+    if search:
+        normalized = search.strip().lower()
+        if normalized:
+            like_pattern = f"%{normalized}%"
+            query = query.filter(
+                or_(
+                    func.lower(User.email).like(like_pattern),
+                    func.lower(func.coalesce(User.full_name, "")).like(like_pattern),
+                )
+            )
+
+    if role_id is not None:
+        query = query.filter(TenantMembership.role_id == role_id)
+
+    if is_active is not None:
+        query = query.filter(User.is_active.is_(is_active))
+
+    return query.order_by(User.created_at.desc(), User.id.desc()).offset(skip).limit(limit).all()
 
 
 def get_user_for_tenant(db: Session, user_id: int, tenant_id: int) -> Optional[User]:
@@ -48,7 +77,7 @@ def get_user_for_tenant(db: Session, user_id: int, tenant_id: int) -> Optional[U
             selectinload(User.active_tenant),
             selectinload(User.role_obj),
         )
-        .filter(User.id == user_id, TenantMembership.tenant_id == tenant_id, TenantMembership.is_active.is_(True))
+        .filter(User.id == user_id, TenantMembership.tenant_id == tenant_id)
         .first()
     )
 

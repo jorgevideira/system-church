@@ -6,9 +6,11 @@
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
+    kidsBtn: document.getElementById("moduleKidsBtn"),
     schoolBtn: document.getElementById("moduleBibleSchoolBtn"),
     financeModule: document.getElementById("financeModule"),
     cellsModule: document.getElementById("cellsModule"),
+    kidsModule: document.getElementById("kidsModule"),
     schoolModule: document.getElementById("bibleSchoolModule"),
     schoolMessage: document.getElementById("schoolMessage"),
     schoolNavCoursesBtn: document.getElementById("schoolNavCoursesBtn"),
@@ -178,14 +180,17 @@
   function setActiveModule(moduleName) {
     const isFinance = moduleName === "finance";
     const isCells = moduleName === "cells";
+    const isKids = moduleName === "kids";
     const isSchool = moduleName === "school";
 
     if (el.financeBtn) el.financeBtn.classList.toggle("active", isFinance);
     if (el.cellsBtn) el.cellsBtn.classList.toggle("active", isCells);
+    if (el.kidsBtn) el.kidsBtn.classList.toggle("active", isKids);
     if (el.schoolBtn) el.schoolBtn.classList.toggle("active", isSchool);
 
     if (el.financeModule) el.financeModule.classList.toggle("hide", !isFinance);
     if (el.cellsModule) el.cellsModule.classList.toggle("hide", !isCells);
+    if (el.kidsModule) el.kidsModule.classList.toggle("hide", !isKids);
     if (el.schoolModule) el.schoolModule.classList.toggle("hide", !isSchool);
   }
 

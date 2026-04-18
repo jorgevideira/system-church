@@ -7,6 +7,8 @@
   const tenantEndpoint = `${apiPrefix}/tenants/current`;
   const tenantLogoUploadEndpoint = `${apiPrefix}/tenants/current/logo`;
   const tenantPaymentsEndpoint = `${apiPrefix}/tenants/current/payments`;
+  const tenantSmtpEndpoint = `${apiPrefix}/tenants/current/smtp`;
+  const tenantSmtpTestEndpoint = `${apiPrefix}/tenants/current/smtp/test`;
   const paymentAccountsEndpoint = `${apiPrefix}/payment-accounts/`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
@@ -17,6 +19,7 @@
   const MODULE_LABELS = {
     finance: "Financeiro",
     cells: "Células",
+    kids: "Infantil",
     school: "Escola Bíblica",
     events: "Eventos",
     users: "Configurações",
@@ -30,7 +33,7 @@
     manage: "Gerenciar",
   };
 
-  const MODULE_ORDER = ["finance", "cells", "school", "events", "users"];
+  const MODULE_ORDER = ["finance", "cells", "kids", "school", "events", "users"];
   const CATEGORY_ORDER = ["view", "create", "edit", "delete", "manage"];
 
   const PERMISSION_BLUEPRINT = [
@@ -106,6 +109,15 @@
       { label: "Ovelhas perdidas", permissions: [
         { name: "cells_lost_sheep_view", category: "view", description: "Visualizar ovelhas perdidas." },
         { name: "cells_lost_sheep_manage", category: "manage", description: "Marcar, registrar visita e tratar ovelhas perdidas." },
+      ] },
+      { label: "Check-in infantil (Dev)", permissions: [
+        { name: "cells_kids_view", category: "view", description: "Visualizar o modulo infantil." },
+        { name: "cells_kids_create", category: "create", description: "Cadastrar familias, criancas e responsaveis." },
+        { name: "cells_kids_edit", category: "edit", description: "Editar cadastros infantis." },
+        { name: "cells_kids_checkin", category: "manage", description: "Realizar check-in infantil." },
+        { name: "cells_kids_checkout", category: "manage", description: "Realizar check-out infantil." },
+        { name: "cells_kids_manual_override", category: "manage", description: "Liberar retirada por excecao." },
+        { name: "cells_kids_reports", category: "view", description: "Visualizar relatorios infantis." },
       ] },
     ] },
     { module: "school", groups: [
@@ -209,12 +221,14 @@
   const el = {
     financeBtn: document.getElementById("moduleFinanceBtn"),
     cellsBtn: document.getElementById("moduleCellsBtn"),
+    kidsBtn: document.getElementById("moduleKidsBtn"),
     schoolBtn: document.getElementById("moduleBibleSchoolBtn"),
     eventsBtn: document.getElementById("moduleEventsBtn"),
     usersBtn: document.getElementById("moduleUsersBtn"),
 
     financeModule: document.getElementById("financeModule"),
     cellsModule: document.getElementById("cellsModule"),
+    kidsModule: document.getElementById("kidsModule"),
     schoolModule: document.getElementById("bibleSchoolModule"),
     eventsModule: document.getElementById("eventsModule"),
     usersModule: document.getElementById("usersModule"),
@@ -225,6 +239,7 @@
     usersNavAppearanceBtn: document.getElementById("usersNavAppearanceBtn"),
     usersNavLandingBtn: document.getElementById("usersNavLandingBtn"),
     usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
+    usersNavSmtpBtn: document.getElementById("usersNavSmtpBtn"),
     openChurchProfileModalBtn: document.getElementById("openChurchProfileModalBtn"),
     openChurchPaymentsModalBtn: document.getElementById("openChurchPaymentsModalBtn"),
     openPaymentAccountModalBtn: document.getElementById("openPaymentAccountModalBtn"),
@@ -236,8 +251,29 @@
     usersAppearanceOverviewSection: document.getElementById("usersAppearanceOverviewSection"),
     usersLandingOverviewSection: document.getElementById("usersLandingOverviewSection"),
     usersPaymentsOverviewSection: document.getElementById("usersPaymentsOverviewSection"),
+    usersSmtpOverviewSection: document.getElementById("usersSmtpOverviewSection"),
+
+    usersSmtpMessage: document.getElementById("usersSmtpMessage"),
+    usersSmtpForm: document.getElementById("usersSmtpForm"),
+    usersSmtpHost: document.getElementById("usersSmtpHost"),
+    usersSmtpPort: document.getElementById("usersSmtpPort"),
+    usersSmtpUsername: document.getElementById("usersSmtpUsername"),
+    usersSmtpPassword: document.getElementById("usersSmtpPassword"),
+    usersSmtpFromEmail: document.getElementById("usersSmtpFromEmail"),
+    usersSmtpEncryption: document.getElementById("usersSmtpEncryption"),
+    usersSmtpIsActive: document.getElementById("usersSmtpIsActive"),
+    usersChurchSmtpSection: document.getElementById("usersChurchSmtpSection"),
+    usersSmtpTestToEmail: document.getElementById("usersSmtpTestToEmail"),
+    usersSmtpTestBtn: document.getElementById("usersSmtpTestBtn"),
+    usersSmtpTestMessage: document.getElementById("usersSmtpTestMessage"),
 
     usersMessage: document.getElementById("usersMessage"),
+    usersSearchInput: document.getElementById("usersSearchInput"),
+    usersStatusFilter: document.getElementById("usersStatusFilter"),
+    usersRoleFilter: document.getElementById("usersRoleFilter"),
+    usersApplyFiltersBtn: document.getElementById("usersApplyFiltersBtn"),
+    usersClearFiltersBtn: document.getElementById("usersClearFiltersBtn"),
+    usersFilterChips: document.getElementById("usersFilterChips"),
     rolesMessage: document.getElementById("rolesMessage"),
     usersChurchMessage: document.getElementById("usersChurchMessage"),
     usersTableBody: document.getElementById("usersTableBody"),
@@ -450,6 +486,7 @@
     publicEvents: [],
     tenantProfile: null,
     tenantPaymentSettings: null,
+    tenantSmtpSettings: null,
     paymentAccounts: [],
     permissionSet: new Set(),
     isAdmin: false,
@@ -459,6 +496,11 @@
     editingRoleId: null,
     deletingUserId: null,
     churchDraftLogoPreviewUrl: "",
+    userFilters: {
+      q: "",
+      isActive: "all",
+      roleId: "all",
+    },
   };
 
   function getToken() {
@@ -570,6 +612,20 @@
     if (!el.usersChurchPaymentsMessage) return;
     el.usersChurchPaymentsMessage.textContent = message || "";
     el.usersChurchPaymentsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
+  }
+
+  function setSmtpMessage(message, isError) {
+    if (!el.usersSmtpMessage) return;
+    el.usersSmtpMessage.textContent = message || "";
+    el.usersSmtpMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
+  }
+
+  function setSmtpTestMessage(message, isError) {
+    if (!el.usersSmtpTestMessage) return;
+    el.usersSmtpTestMessage.textContent = message || "";
+    el.usersSmtpTestMessage.style.color = isError ? "#b42318" : "#5f6b6d";
     if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
@@ -1113,18 +1169,21 @@
   function setActiveModule(moduleName) {
     const isFinance = moduleName === "finance";
     const isCells = moduleName === "cells";
+    const isKids = moduleName === "kids";
     const isSchool = moduleName === "school";
     const isEvents = moduleName === "events";
     const isUsers = moduleName === "users";
 
     if (el.financeBtn) el.financeBtn.classList.toggle("active", isFinance);
     if (el.cellsBtn) el.cellsBtn.classList.toggle("active", isCells);
+    if (el.kidsBtn) el.kidsBtn.classList.toggle("active", isKids);
     if (el.schoolBtn) el.schoolBtn.classList.toggle("active", isSchool);
     if (el.eventsBtn) el.eventsBtn.classList.toggle("active", isEvents);
     if (el.usersBtn) el.usersBtn.classList.toggle("active", isUsers);
 
     if (el.financeModule) el.financeModule.classList.toggle("hide", !isFinance);
     if (el.cellsModule) el.cellsModule.classList.toggle("hide", !isCells);
+    if (el.kidsModule) el.kidsModule.classList.toggle("hide", !isKids);
     if (el.schoolModule) el.schoolModule.classList.toggle("hide", !isSchool);
     if (el.eventsModule) el.eventsModule.classList.toggle("hide", !isEvents);
     if (el.usersModule) el.usersModule.classList.toggle("hide", !isUsers);
@@ -1138,6 +1197,7 @@
       appearance: "users_roles_view",
       landing: "users_roles_view",
       payments: "users_roles_view",
+      smtp: "users_roles_view",
     };
 
     const requiredPermission = viewPermissions[viewName];
@@ -1153,10 +1213,11 @@
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
-    const isChurchView = ["church", "appearance", "landing", "payments"].includes(viewName);
+    const isChurchView = ["church", "appearance", "landing", "payments", "smtp"].includes(viewName);
     const isAppearanceView = viewName === "appearance";
     const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
+    const isSmtpView = viewName === "smtp";
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("active", isUsersView);
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
@@ -1164,14 +1225,16 @@
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("active", isAppearanceView);
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("active", isLandingView);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("active", isPaymentsView);
+    if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("active", isSmtpView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
     if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
-    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView);
+    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView);
     if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
     if (el.usersLandingOverviewSection) el.usersLandingOverviewSection.classList.toggle("hide", !isLandingView);
     if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
     if (el.usersPaymentsManagementSection) el.usersPaymentsManagementSection.classList.toggle("hide", !isPaymentsView);
+    if (el.usersSmtpOverviewSection) el.usersSmtpOverviewSection.classList.toggle("hide", !isSmtpView);
     applyChurchFormFocus(viewName);
 
     const targetSection = isAppearanceView
@@ -1180,6 +1243,8 @@
         ? el.usersChurchLandingSection
       : isPaymentsView
         ? el.usersChurchPaymentsSection
+        : isSmtpView
+          ? el.usersChurchSmtpSection
         : el.usersChurchGeneralSection;
     if (isChurchView && targetSection) {
       window.setTimeout(() => {
@@ -1192,8 +1257,9 @@
     const isAppearanceView = viewName === "appearance";
     const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
-    const isChurchView = ["church", "appearance", "landing", "payments"].includes(viewName);
-    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView);
+    const isSmtpView = viewName === "smtp";
+    const isChurchView = ["church", "appearance", "landing", "payments", "smtp"].includes(viewName);
+    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView);
     if (el.usersChurchAppearanceGroup) el.usersChurchAppearanceGroup.classList.toggle("hide", !isChurchView || !isAppearanceView);
     if (el.usersChurchLandingGroup) el.usersChurchLandingGroup.classList.toggle("hide", !isChurchView || !isLandingView);
   }
@@ -1244,6 +1310,7 @@
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !state.isAdmin);
+    if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.classList.toggle("hide", !hasPermission("users_users_create"));
@@ -1252,20 +1319,84 @@
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.classList.toggle("hide", !hasPermission("users_system_permissions_manage"));
   }
 
-  async function loadUsers() {
-    setMessage("Carregando usuários...", false);
-    state.users = await fetchJson(usersEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar usuários.");
+  function syncUserFiltersFromInputs() {
+    if (el.usersSearchInput) state.userFilters.q = el.usersSearchInput.value.trim();
+    if (el.usersStatusFilter) state.userFilters.isActive = el.usersStatusFilter.value || "all";
+    if (el.usersRoleFilter) state.userFilters.roleId = el.usersRoleFilter.value || "all";
+  }
+
+  function resetUserFilters() {
+    state.userFilters.q = "";
+    state.userFilters.isActive = "all";
+    state.userFilters.roleId = "all";
+
+    if (el.usersSearchInput) el.usersSearchInput.value = "";
+    if (el.usersStatusFilter) el.usersStatusFilter.value = "all";
+    if (el.usersRoleFilter) el.usersRoleFilter.value = "all";
+  }
+
+  function buildUsersListUrl() {
+    const params = new URLSearchParams();
+    params.set("skip", "0");
+    params.set("limit", "200");
+
+    if (state.userFilters.q) {
+      params.set("q", state.userFilters.q);
+    }
+    if (state.userFilters.isActive === "true" || state.userFilters.isActive === "false") {
+      params.set("is_active", state.userFilters.isActive);
+    }
+    if (state.userFilters.roleId && state.userFilters.roleId !== "all") {
+      params.set("role_id", state.userFilters.roleId);
+    }
+
+    return `${usersEndpoint}?${params.toString()}`;
+  }
+
+  function renderUserFilterChips() {
+    if (!el.usersFilterChips) return;
+
+    const chips = [];
+    if (state.userFilters.q) {
+      chips.push(`Busca: ${escapeHtml(state.userFilters.q)}`);
+    }
+    if (state.userFilters.isActive === "true") chips.push("Status: Ativos");
+    if (state.userFilters.isActive === "false") chips.push("Status: Inativos");
+    if (state.userFilters.roleId && state.userFilters.roleId !== "all") {
+      const selectedRole = state.roles.find((role) => String(role.id) === String(state.userFilters.roleId));
+      chips.push(`Perfil: ${escapeHtml((selectedRole && selectedRole.name) || state.userFilters.roleId)}`);
+    }
+
+    el.usersFilterChips.innerHTML = chips.map((chip) => `<span class="filter-chip">${chip}</span>`).join("");
+  }
+
+  async function loadUsers(options = {}) {
+    const { silent = false } = options;
+    if (!silent) setMessage("Carregando usuários...", false);
+    state.users = await fetchJson(buildUsersListUrl(), { headers: buildHeaders(false) }, "Falha ao carregar usuários.");
     renderUsers();
-    setMessage("", false);
+    renderUserFilterChips();
+    if (!silent) setMessage("", false);
   }
 
   async function loadRoles() {
     state.roles = await fetchJson(rolesEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar roles.");
     renderRoles();
+    ensureUsersRoleFilterOptions();
   }
 
   async function loadPermissions() {
     state.permissions = await fetchJson(permissionsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar permissões.");
+  }
+
+  async function applyUserFilters() {
+    syncUserFiltersFromInputs();
+    await loadUsers({ silent: true });
+  }
+
+  async function clearUserFilters() {
+    resetUserFilters();
+    await loadUsers({ silent: true });
   }
 
   async function loadTenantProfile() {
@@ -1353,6 +1484,77 @@
   async function loadTenantPaymentSettings() {
     state.tenantPaymentSettings = await fetchJson(tenantPaymentsEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos da igreja.");
     renderTenantPaymentSettings();
+  }
+
+  function renderTenantSmtpSettings() {
+    const cfg = state.tenantSmtpSettings || {};
+    if (el.usersSmtpHost) el.usersSmtpHost.value = cfg.host || "";
+    if (el.usersSmtpPort) el.usersSmtpPort.value = String(cfg.port || 587);
+    if (el.usersSmtpUsername) el.usersSmtpUsername.value = cfg.username || "";
+    if (el.usersSmtpFromEmail) el.usersSmtpFromEmail.value = cfg.from_email || "";
+    if (el.usersSmtpEncryption) el.usersSmtpEncryption.value = cfg.encryption || "tls";
+    if (el.usersSmtpIsActive) el.usersSmtpIsActive.checked = cfg.is_active !== false;
+    if (el.usersSmtpPassword) el.usersSmtpPassword.value = "";
+    setSmtpTestMessage("", false);
+  }
+
+  async function loadTenantSmtpSettings() {
+    state.tenantSmtpSettings = await fetchJson(tenantSmtpEndpoint, { headers: buildHeaders(false) }, "Falha ao carregar SMTP.");
+    renderTenantSmtpSettings();
+  }
+
+  async function submitTenantSmtpSettings(event) {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      setSmtpMessage("Acesso negado: somente administradores podem editar SMTP.", true);
+      return;
+    }
+    const payload = {
+      host: el.usersSmtpHost ? el.usersSmtpHost.value.trim() : "",
+      port: el.usersSmtpPort ? Number(el.usersSmtpPort.value || 587) : 587,
+      username: el.usersSmtpUsername ? (el.usersSmtpUsername.value.trim() || null) : null,
+      from_email: el.usersSmtpFromEmail ? (el.usersSmtpFromEmail.value.trim() || null) : null,
+      encryption: el.usersSmtpEncryption ? el.usersSmtpEncryption.value : "tls",
+      is_active: el.usersSmtpIsActive ? el.usersSmtpIsActive.checked : true,
+    };
+    const password = el.usersSmtpPassword ? el.usersSmtpPassword.value.trim() : "";
+    if (password) payload.password = password;
+
+    try {
+      setSmtpMessage("Salvando SMTP...", false);
+      state.tenantSmtpSettings = await fetchJson(
+        tenantSmtpEndpoint,
+        { method: "PUT", headers: buildHeaders(true), body: JSON.stringify(payload) },
+        "Falha ao salvar SMTP."
+      );
+      renderTenantSmtpSettings();
+      setSmtpMessage("SMTP salvo com sucesso.", false);
+    } catch (error) {
+      setSmtpMessage(error.message, true);
+    }
+  }
+
+  async function testTenantSmtpSettings() {
+    if (!state.isAdmin) {
+      setSmtpTestMessage("Acesso negado: somente administradores podem testar SMTP.", true);
+      return;
+    }
+    const toEmail = el.usersSmtpTestToEmail ? el.usersSmtpTestToEmail.value.trim() : "";
+    if (!toEmail) {
+      setSmtpTestMessage("Informe um e-mail para enviar o teste.", true);
+      return;
+    }
+    try {
+      setSmtpTestMessage("Enviando e-mail de teste...", false);
+      const result = await fetchJson(
+        tenantSmtpTestEndpoint,
+        { method: "POST", headers: buildHeaders(true), body: JSON.stringify({ to_email: toEmail }) },
+        "Falha ao enviar e-mail de teste."
+      );
+      setSmtpTestMessage(result && result.message ? result.message : "E-mail de teste enviado.", false);
+    } catch (error) {
+      setSmtpTestMessage(error instanceof Error ? error.message : "Falha ao enviar e-mail de teste.", true);
+    }
   }
 
   function resetPaymentAccountForm() {
@@ -1714,6 +1916,18 @@
       .join("");
 
     el.usersFormRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
+  }
+
+  function ensureUsersRoleFilterOptions() {
+    if (!el.usersRoleFilter) return;
+
+    const current = state.userFilters.roleId || "all";
+    const options = ['<option value="all">Todos os perfis</option>']
+      .concat(state.roles.map((role) => `<option value="${role.id}">${escapeHtml(role.name)}</option>`));
+
+    el.usersRoleFilter.innerHTML = options.join("");
+    el.usersRoleFilter.value = state.roles.some((role) => String(role.id) === String(current)) ? String(current) : "all";
+    state.userFilters.roleId = el.usersRoleFilter.value;
   }
 
   function ensureInviteRoleOptions(selectedRoleId) {
@@ -2364,11 +2578,13 @@
     setUsersView(viewName);
     await loadTenantProfile();
     await loadTenantPaymentSettings();
+    await loadTenantSmtpSettings();
     await loadPaymentAccounts();
     resetPaymentAccountForm();
     await loadPublicEventsForChurch();
     setChurchMessage("", false);
     setChurchPaymentsMessage("", false);
+    setSmtpMessage("", false);
   }
 
   function openChurchProfileModal(viewName = state.currentView || "church") {
@@ -2571,6 +2787,7 @@
 
     if (el.financeBtn) el.financeBtn.addEventListener("click", () => setActiveModule("finance"));
     if (el.cellsBtn) el.cellsBtn.addEventListener("click", () => setActiveModule("cells"));
+    if (el.kidsBtn) el.kidsBtn.addEventListener("click", () => setActiveModule("kids"));
     if (el.schoolBtn) el.schoolBtn.addEventListener("click", () => setActiveModule("school"));
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.addEventListener("click", () => setUsersView("users"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.addEventListener("click", () => openRolesView().catch((error) => setRolesMessage(error.message, true)));
@@ -2578,6 +2795,7 @@
     if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.addEventListener("click", () => openChurchView("appearance").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.addEventListener("click", () => openChurchView("landing").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
+    if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.addEventListener("click", () => openChurchView("smtp").catch((error) => setSmtpMessage(error.message, true)));
     if (el.openChurchProfileModalBtn) {
       el.openChurchProfileModalBtn.addEventListener("click", () => openChurchProfileModal(state.currentView || "church"));
     }
@@ -2594,6 +2812,33 @@
     if (el.usersAddBtn) el.usersAddBtn.addEventListener("click", () => openUserForm("create", null));
     if (el.usersInviteBtn) el.usersInviteBtn.addEventListener("click", openInviteModal);
     if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.addEventListener("click", openLinkInviteModal);
+    if (el.usersApplyFiltersBtn) {
+      el.usersApplyFiltersBtn.addEventListener("click", () => {
+        applyUserFilters().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.usersClearFiltersBtn) {
+      el.usersClearFiltersBtn.addEventListener("click", () => {
+        clearUserFilters().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.usersSearchInput) {
+      el.usersSearchInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        applyUserFilters().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.usersStatusFilter) {
+      el.usersStatusFilter.addEventListener("change", () => {
+        applyUserFilters().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.usersRoleFilter) {
+      el.usersRoleFilter.addEventListener("change", () => {
+        applyUserFilters().catch((error) => setMessage(error.message, true));
+      });
+    }
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.addEventListener("click", openRoleModal);
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.addEventListener("click", openPermissionModal);
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.addEventListener("click", () => generateMissingPermissions().catch((error) => setRolesMessage(error.message, true)));
@@ -2605,6 +2850,8 @@
     if (el.usersPermissionForm) el.usersPermissionForm.addEventListener("submit", submitPermissionForm);
     if (el.usersChurchForm) el.usersChurchForm.addEventListener("submit", submitChurchForm);
     if (el.usersChurchPaymentsForm) el.usersChurchPaymentsForm.addEventListener("submit", submitChurchPaymentsForm);
+    if (el.usersSmtpForm) el.usersSmtpForm.addEventListener("submit", submitTenantSmtpSettings);
+    if (el.usersSmtpTestBtn) el.usersSmtpTestBtn.addEventListener("click", () => testTenantSmtpSettings());
     if (el.usersPaymentAccountForm) el.usersPaymentAccountForm.addEventListener("submit", submitPaymentAccountForm);
     if (el.usersPaymentAccountResetBtn) {
       el.usersPaymentAccountResetBtn.addEventListener("click", () => {
@@ -2614,7 +2861,7 @@
     }
     if (el.usersChurchRefreshBtn) {
       el.usersChurchRefreshBtn.addEventListener("click", () => {
-        Promise.all([loadTenantProfile(), loadTenantPaymentSettings(), loadPublicEventsForChurch()])
+        Promise.all([loadTenantProfile(), loadTenantPaymentSettings(), loadTenantSmtpSettings(), loadPublicEventsForChurch()])
           .catch((error) => setChurchMessage(error.message, true));
       });
     }

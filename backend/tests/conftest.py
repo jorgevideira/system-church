@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
+from app.db.models.tenant import Tenant
+from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.api.v1.deps import get_db
 from app.core.security import get_password_hash, create_access_token
@@ -60,16 +62,19 @@ def test_user(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == "user@test.com").first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     user = User(
         email="user@test.com",
         full_name="Test User",
         role="viewer",
         hashed_password=get_password_hash("testpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(user)
     test_db.commit()
     test_db.refresh(user)
+    ensure_membership(test_db, user, tenant, role="viewer", is_default=True)
     return user
 
 
@@ -78,16 +83,19 @@ def test_admin(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == "admin@test.com").first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     admin = User(
         email="admin@test.com",
         full_name="Test Admin",
         role="admin",
         hashed_password=get_password_hash("adminpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(admin)
     test_db.commit()
     test_db.refresh(admin)
+    ensure_membership(test_db, admin, tenant, role="admin", is_default=True)
     return admin
 
 
@@ -96,20 +104,74 @@ def test_leader(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == "leader@test.com").first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     leader = User(
         email="leader@test.com",
         full_name="Test Leader",
         role="leader",
         hashed_password=get_password_hash("leaderpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(leader)
     test_db.commit()
     test_db.refresh(leader)
+    ensure_membership(test_db, leader, tenant, role="leader", is_default=True)
     return leader
+
+
+def get_or_create_test_tenant(db: Session) -> Tenant:
+    existing = db.query(Tenant).filter(Tenant.slug == "test-tenant").first()
+    if existing:
+        return existing
+    tenant = Tenant(
+        name="Test Tenant",
+        slug="test-tenant",
+        is_active=True,
+    )
+    db.add(tenant)
+    db.commit()
+    db.refresh(tenant)
+    return tenant
+
+
+def ensure_membership(
+    db: Session,
+    user: User,
+    tenant: Tenant,
+    *,
+    role: str,
+    is_default: bool = False,
+) -> TenantMembership:
+    membership = (
+        db.query(TenantMembership)
+        .filter(
+            TenantMembership.user_id == user.id,
+            TenantMembership.tenant_id == tenant.id,
+        )
+        .first()
+    )
+    if membership:
+        membership.role = role
+        membership.is_active = True
+        membership.is_default = bool(is_default)
+        db.commit()
+        db.refresh(membership)
+        return membership
+    membership = TenantMembership(
+        user_id=user.id,
+        tenant_id=tenant.id,
+        role=role,
+        is_active=True,
+        is_default=bool(is_default),
+    )
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
 
 
 def auth_headers(user: User) -> dict:
     """Return Authorization headers for *user*."""
-    token = create_access_token(data={"sub": user.email, "role": user.role})
+    token = create_access_token(data={"sub": user.email, "role": user.role, "tenant_id": user.active_tenant_id})
     return {"Authorization": f"Bearer {token}"}

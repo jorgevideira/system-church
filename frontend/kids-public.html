@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppKids | Cadastro Publico</title>
+  <link rel="stylesheet" href="/styles.css?v=20260417-kids-dev-6">
+</head>
+<body>
+  <main class="app-shell kids-public-shell">
+    <header class="kids-public-hero">
+      <div class="kids-public-hero-top">
+        <div>
+          <div class="kids-public-badge">AppKids</div>
+          <h1 class="kids-public-title">AppKids</h1>
+          <p class="kids-public-subtitle">Escolha uma opcao para continuar.</p>
+        </div>
+        <div class="kids-public-dots" aria-hidden="true"></div>
+      </div>
+    </header>
+
+    <p id="kidsPublicMessage" class="message"></p>
+
+    <section id="kidsPublicStartView" class="panel kids-start-panel">
+      <div class="kids-start-grid">
+        <article class="kids-start-card kids-start-card--visit">
+          <h3>Sou visitante</h3>
+          <p class="tiny">Primeira vez no Ministerio Infantil? Faca seu cadastro rapidinho e gere o QR Code.</p>
+          <button id="kidsPublicStartRegisterBtn" class="btn" type="button">Fazer cadastro</button>
+        </article>
+        <article class="kids-start-card kids-start-card--login">
+          <h3>Ja tenho cadastro</h3>
+          <p class="tiny">Entre com seu e-mail e PIN para reaproveitar seus dados e cadastrar mais criancas/responsaveis.</p>
+          <button id="kidsPublicStartLoginBtn" class="btn" type="button">Entrar</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="kidsPublicRegisterPanel" class="panel kids-public-panel hide">
+      <div class="kids-public-panel-head">
+        <h2>Cadastro infantil</h2>
+        <button id="kidsPublicBackFromRegisterBtn" class="btn ghost btn-mini" type="button">Voltar</button>
+      </div>
+      <p class="tiny">Fotos sao obrigatorias para montar a carteirinha e a pulseira da crianca.</p>
+
+      <form id="kidsPublicPreRegisterForm" class="grid-form cells-form">
+        <label id="kidsPublicTenantSlugLabel">Slug da igreja
+          <input id="kidsPublicTenantSlug" type="text" placeholder="ex: minha-igreja" required>
+        </label>
+        <label>Responsavel principal
+          <input id="kidsPublicResponsible" type="text" required>
+        </label>
+        <label>
+          <span class="kids-label-head">Foto do responsavel principal
+            <span id="kidsPublicResponsiblePhotoStatus" class="kids-photo-status is-missing" aria-label="Falta" title="Falta">
+              <svg class="kids-photo-status-svg kids-photo-status-svg--ok" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 10.5l3.2 3.2L16 4.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+              <svg class="kids-photo-status-svg kids-photo-status-svg--x" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </span>
+          </span>
+          <div class="inline-field-group">
+            <button id="kidsPublicResponsiblePhotoBtn" class="btn ghost btn-inline" type="button">Abrir camera</button>
+            <button id="kidsPublicResponsiblePhotoClearBtn" class="btn ghost btn-inline" type="button">Remover</button>
+          </div>
+          <img id="kidsPublicResponsiblePhotoPreview" alt="Foto do responsavel principal" class="hide" style="width:92px;height:92px;object-fit:cover;border-radius:16px;border:1px solid var(--line);">
+          <span class="input-hint">Obrigatorio. A foto e capturada pela camera e compactada automaticamente.</span>
+        </label>
+        <label>Telefone principal
+          <input id="kidsPublicPhone" type="text" required>
+        </label>
+        <label>E-mail
+          <input id="kidsPublicEmail" type="email" placeholder="voce@exemplo.com" required>
+          <span class="input-hint">Usaremos este e-mail para enviar a carteirinha e para recuperar sua senha.</span>
+        </label>
+        <label>PIN de acesso (recomendado)
+          <input id="kidsPublicPin" type="password" inputmode="numeric" minlength="4" maxlength="12" placeholder="Crie um PIN para reutilizar seu cadastro">
+          <span class="input-hint">Use esse PIN para acessar seu cadastro depois (somente no AppKids).</span>
+        </label>
+        <label>Quantidade de criancas
+          <select id="kidsPublicChildrenCount" required>
+            <option value="1" selected>1 crianca</option>
+            <option value="2">2 criancas</option>
+            <option value="3">3 criancas</option>
+            <option value="4">4 criancas</option>
+            <option value="5">5 criancas</option>
+          </select>
+          <span class="input-hint">Voce vai preencher nome, data de nascimento, alergias e foto de cada crianca.</span>
+        </label>
+        <div id="kidsPublicChildrenWrap" style="grid-column:1/-1;"></div>
+        <label>Responsavel da retirada
+          <input id="kidsPublicGuardianName" type="text" required>
+        </label>
+        <label>
+          <span class="kids-label-head">Foto do responsavel da retirada
+            <span id="kidsPublicGuardianPhotoStatus" class="kids-photo-status is-missing" aria-label="Falta" title="Falta">
+              <svg class="kids-photo-status-svg kids-photo-status-svg--ok" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 10.5l3.2 3.2L16 4.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+              <svg class="kids-photo-status-svg kids-photo-status-svg--x" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+              </svg>
+            </span>
+          </span>
+          <div class="inline-field-group">
+            <button id="kidsPublicGuardianPhotoBtn" class="btn ghost btn-inline" type="button">Abrir camera</button>
+            <button id="kidsPublicGuardianPhotoClearBtn" class="btn ghost btn-inline" type="button">Remover</button>
+          </div>
+          <img id="kidsPublicGuardianPhotoPreview" alt="Foto do responsavel" class="hide" style="width:92px;height:92px;object-fit:cover;border-radius:16px;border:1px solid var(--line);">
+          <span class="input-hint">Obrigatorio. A foto e capturada pela camera e compactada automaticamente.</span>
+        </label>
+        <label>Telefone do responsavel da retirada
+          <input id="kidsPublicGuardianPhone" type="text" placeholder="Opcional">
+        </label>
+        <button id="kidsPublicPreRegisterSubmitBtn" class="btn" type="submit">Gerar cadastro e carteirinha</button>
+      </form>
+      <div id="kidsPublicRegisterCardsResult" style="margin-top: 0.8rem;"></div>
+    </section>
+
+    <section id="kidsPublicLoginPanel" class="panel kids-login-panel hide" style="margin-top: 1rem;">
+      <div class="kids-public-panel-head">
+        <h3 id="kidsPublicLoginTitle">Entrar</h3>
+        <button id="kidsPublicBackFromLoginBtn" class="btn ghost btn-mini" type="button">Voltar</button>
+      </div>
+      <p id="kidsPublicLoginHint" class="tiny">Use seu e-mail e PIN para acessar seu cadastro.</p>
+      <form id="kidsPublicLoginForm" class="grid-form cells-form">
+        <label id="kidsPublicLoginTenantSlugLabel">Slug da igreja
+          <input id="kidsPublicLoginTenantSlug" type="text" placeholder="ex: minha-igreja" required>
+        </label>
+        <label>E-mail
+          <input id="kidsPublicLoginEmail" type="email" placeholder="voce@exemplo.com" required>
+        </label>
+        <label>PIN
+          <input id="kidsPublicLoginPin" type="password" inputmode="numeric" minlength="4" maxlength="12" required>
+        </label>
+        <button class="btn kids-login-btn" type="submit">Entrar</button>
+      </form>
+
+      <button id="kidsPublicForgotToggleBtn" class="btn ghost btn-mini" type="button" style="margin-top:0.6rem;">Esqueci minha senha</button>
+      <div id="kidsPublicForgotWrap" class="hide" style="margin-top:0.7rem;">
+        <div class="panel" style="margin:0; padding:0.85rem; background:rgba(255,255,255,0.75);">
+          <strong>Recuperar senha (PIN)</strong>
+          <p class="tiny" style="margin-top:0.35rem;">Siga as etapas abaixo: 1) enviar codigo, 2) validar codigo, 3) criar novo PIN.</p>
+
+          <div id="kidsPublicRecoverStep1" class="grid-form cells-form" style="margin-bottom:0;">
+            <label>E-mail
+              <input id="kidsPublicRecoverEmail" type="email" placeholder="voce@exemplo.com" required>
+            </label>
+            <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+              <button id="kidsPublicRecoverRequestBtn" class="btn ghost" type="button">Enviar codigo</button>
+            </div>
+          </div>
+
+          <div id="kidsPublicRecoverStep2" class="hide" style="margin-top:0.7rem;">
+            <div class="section-title" style="margin-top:0;">
+              <h4 style="margin:0; font-size:0.95rem;">Validar codigo</h4>
+            </div>
+            <div class="grid-form cells-form" style="margin-bottom:0;">
+              <label>Codigo
+                <input id="kidsPublicRecoverCode" type="text" inputmode="numeric" placeholder="000000">
+              </label>
+              <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+                <button id="kidsPublicRecoverVerifyBtn" class="btn ghost" type="button">Validar</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="kidsPublicRecoverStep3" class="hide" style="margin-top:0.7rem;">
+            <div class="section-title" style="margin-top:0;">
+              <h4 style="margin:0; font-size:0.95rem;">Novo PIN</h4>
+            </div>
+            <div class="grid-form cells-form" style="margin-bottom:0;">
+              <label>Novo PIN
+                <input id="kidsPublicRecoverNewPin" type="password" inputmode="numeric" minlength="4" maxlength="12" placeholder="Crie um novo PIN">
+              </label>
+            </div>
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.7rem;">
+              <button id="kidsPublicRecoverConfirmBtn" class="btn" type="button">Confirmar novo PIN</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="kidsPublicAccountPanel" class="hide" style="margin-top: 0.9rem;">
+        <div class="section-title" style="margin-top:0;">
+          <h4>Minha conta</h4>
+          <button id="kidsPublicLogoutBtn" class="btn ghost" type="button">Sair</button>
+        </div>
+        <p class="tiny">Codigo da familia: <strong id="kidsPublicAccountFamilyCode">-</strong></p>
+        <div id="kidsPublicAccountLists" class="tiny" style="margin-top:0.5rem;"></div>
+
+        <div class="cells-grid" style="margin-top:0.8rem;">
+          <section class="panel" style="margin:0;">
+            <h4>Adicionar crianca</h4>
+            <form id="kidsPublicAddChildForm" class="grid-form cells-form">
+              <label>Nome
+                <input id="kidsPublicAddChildName" type="text" required>
+              </label>
+              <label>Data de nascimento
+                <input id="kidsPublicAddChildBirthDate" type="date" required>
+              </label>
+              <label>Alergias (opcional)
+                <input id="kidsPublicAddChildAllergies" type="text" placeholder="Opcional">
+              </label>
+              <label>
+                <span class="kids-label-head">Foto da crianca
+                  <span id="kidsPublicAddChildPhotoStatus" class="kids-photo-status is-missing" aria-label="Falta" title="Falta">
+                    <svg class="kids-photo-status-svg kids-photo-status-svg--ok" viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 10.5l3.2 3.2L16 4.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    <svg class="kids-photo-status-svg kids-photo-status-svg--x" viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+                    </svg>
+                  </span>
+                </span>
+                <div class="inline-field-group">
+                  <button id="kidsPublicAddChildPhotoBtn" class="btn ghost btn-inline" type="button">Abrir camera</button>
+                  <button id="kidsPublicAddChildPhotoClearBtn" class="btn ghost btn-inline" type="button">Remover</button>
+                </div>
+                <img id="kidsPublicAddChildPhotoPreview" alt="Foto da crianca" class="hide" style="width:92px;height:92px;object-fit:cover;border-radius:16px;border:1px solid var(--line);">
+                <span class="input-hint">Obrigatorio para imprimir a carteirinha e a pulseira.</span>
+              </label>
+              <button class="btn" type="submit">Adicionar</button>
+            </form>
+          </section>
+          <section class="panel" style="margin:0;">
+            <h4>Adicionar responsavel</h4>
+            <form id="kidsPublicAddGuardianForm" class="grid-form cells-form">
+              <label>Nome
+                <input id="kidsPublicAddGuardianName" type="text" required>
+              </label>
+              <label>Telefone (opcional)
+                <input id="kidsPublicAddGuardianPhone" type="text" placeholder="Opcional">
+              </label>
+              <label class="inline-check">
+                <input id="kidsPublicAddGuardianAuthorized" type="checkbox" checked> Autorizado para retirada
+              </label>
+              <button class="btn" type="submit">Adicionar</button>
+            </form>
+          </section>
+        </div>
+      </div>
+      <div id="kidsPublicLoginCardsResult" style="margin-top: 0.8rem;"></div>
+    </section>
+
+    <!-- Lookup removed on purpose to keep the flow simple for families. -->
+  </main>
+
+  <div id="kidsPhotoCaptureModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(620px, 96vw);">
+      <div class="modal-header">
+        <strong id="kidsPhotoCaptureTitle">Capturar foto</strong>
+        <button id="kidsPhotoCaptureCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <video id="kidsPhotoCaptureVideo" style="width:100%; border-radius:14px; border:1px solid var(--line); background:#111;" autoplay playsinline muted></video>
+        <canvas id="kidsPhotoCaptureCanvas" class="hide"></canvas>
+        <p id="kidsPhotoCaptureStatus" class="tiny" style="margin-top:0.6rem;">Ajuste a camera e toque em Capturar.</p>
+        <div class="modal-actions" style="position:static; background:none; padding:0; margin-top:0.8rem;">
+          <button id="kidsPhotoCaptureSnapBtn" class="btn" type="button">Capturar</button>
+          <button id="kidsPhotoCaptureUseBtn" class="btn ghost hide" type="button">Usar foto</button>
+          <button id="kidsPhotoCaptureRetakeBtn" class="btn ghost hide" type="button">Refazer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="kidsPublicEditChildModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(620px, 96vw);">
+      <div class="modal-header">
+        <strong>Editar crianca</strong>
+        <button id="kidsPublicEditChildCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <form id="kidsPublicEditChildForm" class="grid-form cells-form" style="margin-top:0;">
+          <label>Nome
+            <input id="kidsPublicEditChildName" type="text" required>
+          </label>
+          <label>Data de nascimento
+            <input id="kidsPublicEditChildBirthDate" type="date" required>
+          </label>
+          <label>Alergias (opcional)
+            <input id="kidsPublicEditChildAllergies" type="text" placeholder="Opcional">
+          </label>
+          <label>
+            <span class="kids-label-head">Foto da crianca
+              <span id="kidsPublicEditChildPhotoStatus" class="kids-photo-status is-missing" aria-label="Falta" title="Falta">
+                <svg class="kids-photo-status-svg kids-photo-status-svg--ok" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M4 10.5l3.2 3.2L16 4.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                <svg class="kids-photo-status-svg kids-photo-status-svg--x" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+                </svg>
+              </span>
+            </span>
+            <div class="inline-field-group">
+              <button id="kidsPublicEditChildPhotoBtn" class="btn ghost btn-inline" type="button">Abrir camera</button>
+              <button id="kidsPublicEditChildPhotoClearBtn" class="btn ghost btn-inline" type="button">Remover</button>
+            </div>
+            <img id="kidsPublicEditChildPhotoPreview" alt="Foto da crianca" class="hide" style="width:92px;height:92px;object-fit:cover;border-radius:16px;border:1px solid var(--line);">
+            <span class="input-hint">Opcional (se enviar, substitui a foto atual).</span>
+          </label>
+        </form>
+        <p id="kidsPublicEditChildMessage" class="message"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="kidsPublicEditChildCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="kidsPublicEditChildSaveBtn" class="btn" type="submit" form="kidsPublicEditChildForm">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/kids-public.js?v=20260417-kids-public-17"></script>
+</body>
+</html>

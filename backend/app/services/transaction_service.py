@@ -35,7 +35,12 @@ def get_transactions(
             like = f"%{filters.search_query}%"
             q = q.filter(Transaction.description.ilike(like))
     total = q.count()
-    items = q.order_by(Transaction.transaction_date.desc()).offset(skip).limit(limit).all()
+    items = (
+        q.order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     return items, total
 
 

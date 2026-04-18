@@ -2120,6 +2120,60 @@ th {
   gap: 0.6rem;
 }
 
+.upload-guidance {
+  border: 1px solid var(--line);
+  background: #f7fbff;
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.upload-guidance-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.upload-guidance-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.upload-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #cfe0f5;
+  background: #ffffff;
+  color: #23415f;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.upload-chip-primary {
+  border-color: #bdd7ff;
+  background: #eaf3ff;
+  color: #1e5aac;
+}
+
+.upload-chip-muted {
+  border-color: #e5dfd3;
+  background: #fbf7ef;
+  color: #6f5c3d;
+}
+
+.upload-guidance-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .btn-mini {
   padding: 0.38rem 0.56rem;
   border-radius: 10px;
@@ -2348,6 +2402,51 @@ th {
   overflow: auto;
   padding: 0.5rem;
   background: #f9fcff;
+}
+
+.upload-reconciliation-card {
+  margin-top: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.upload-reconciliation-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.upload-reconciliation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.upload-reconciliation-item {
+  border: 1px solid #d9e5f3;
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  background: #fff;
+}
+
+.upload-reconciliation-item span {
+  display: block;
+  font-size: 0.82rem;
+  color: #627a96;
+  margin-bottom: 0.25rem;
+}
+
+.upload-reconciliation-item strong {
+  font-size: 1rem;
+  color: #133454;
+}
+
+.upload-reconciliation-note {
+  margin-top: 0.75rem;
 }
 
 .dup-row {
@@ -2643,6 +2742,27 @@ th {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tx-bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-right: 0.2rem;
+}
+
+.tx-checkbox-col {
+  width: 42px;
+  text-align: center;
+}
+
+.tx-checkbox-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .cells-kpis {
@@ -3207,6 +3327,22 @@ th {
   gap: 0.9rem;
 }
 
+.kids-shell {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.kids-context-presets {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kids-context-presets .btn {
+  padding: 0.38rem 0.55rem;
+}
+
 .events-content-stack {
   display: grid;
   gap: 0.9rem;
@@ -3769,5 +3905,945 @@ th {
 
   .theme-preset-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.kids-quick-shell {
+  border: 1px solid #dfe8d3;
+  background: linear-gradient(180deg, #f8fbf2 0%, #ffffff 100%);
+}
+
+.kids-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.kids-quick-grid > form {
+  border: 1px solid #e8eede;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #ffffff;
+}
+
+.kids-advanced-panel {
+  margin-top: 1rem;
+}
+
+.kids-advanced-panel > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #3f4d2f;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 1100px) {
+  .kids-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kids-public-shell {
+  width: min(1120px, 96vw);
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
+}
+
+.kids-public-hero {
+  position: relative;
+  border-radius: 28px;
+  padding: 1.25rem 1.25rem 1.1rem;
+  border: 1px solid rgba(223, 216, 205, 0.9);
+  background:
+    radial-gradient(1200px 320px at 10% 0%, rgba(255, 220, 120, 0.55) 0%, rgba(255, 255, 255, 0) 65%),
+    radial-gradient(900px 260px at 92% 10%, rgba(60, 210, 255, 0.45) 0%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 245, 237, 0.92));
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(16, 18, 24, 0.08);
+}
+
+.kids-public-hero::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  bottom: -110px;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 42, 165, 0.28), rgba(255, 42, 165, 0) 70%);
+  pointer-events: none;
+}
+
+.kids-public-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kids-public-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(17, 167, 255, 0.16);
+  color: #0b5d91;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  width: fit-content;
+}
+
+.kids-public-title {
+  margin: 0.3rem 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2.1rem, 4.5vw, 3rem);
+  letter-spacing: -0.03em;
+}
+
+.kids-public-subtitle {
+  margin: 0.35rem 0 0;
+  color: #5a6f86;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.kids-public-dots {
+  width: 120px;
+  height: 46px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(107, 43, 208, 0.65) 0 8px, transparent 9px),
+    radial-gradient(circle at 50% 50%, rgba(255, 42, 165, 0.6) 0 8px, transparent 9px),
+    radial-gradient(circle at 82% 50%, rgba(183, 220, 32, 0.7) 0 8px, transparent 9px);
+  border: 1px solid rgba(223, 216, 205, 0.9);
+  background-color: rgba(255, 255, 255, 0.65);
+}
+
+.kids-public-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.kids-start-panel {
+  border-radius: 28px;
+  border: 1px solid rgba(223, 216, 205, 0.9);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 54px rgba(16, 18, 24, 0.06);
+}
+
+.kids-start-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.kids-start-card {
+  border-radius: 24px;
+  padding: 1.1rem 1.1rem 1rem;
+  border: 1px solid rgba(223, 216, 205, 0.85);
+  box-shadow: 0 14px 30px rgba(25, 28, 33, 0.08);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.kids-start-card h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+
+.kids-start-card--visit {
+  background: radial-gradient(1000px 260px at 0% 0%, rgba(107, 43, 208, 0.18), rgba(255, 255, 255, 0) 55%), #ffffff;
+}
+
+.kids-start-card--login {
+  background: radial-gradient(1000px 260px at 100% 0%, rgba(255, 42, 165, 0.16), rgba(255, 255, 255, 0) 55%), #ffffff;
+}
+
+.kids-login-panel {
+  border-radius: 28px;
+  border: 1px solid rgba(223, 216, 205, 0.9);
+  background:
+    radial-gradient(900px 240px at 8% 0%, rgba(183, 220, 32, 0.18), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 245, 237, 0.9));
+}
+
+.kids-login-btn {
+  background: linear-gradient(90deg, rgba(107, 43, 208, 0.92), rgba(17, 167, 255, 0.92));
+  border: 0;
+}
+
+.kids-login-btn:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 900px) {
+  .kids-start-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kids-how {
+  padding: 0.25rem 0 0.75rem;
+}
+
+.kids-how-title {
+  text-align: center;
+  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+  letter-spacing: -0.02em;
+  margin: 0 0 1.1rem;
+}
+
+.kids-how-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.kids-how-card {
+  --kids-how-bg: #2a2a2a;
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.kids-how-card--purple {
+  --kids-how-bg: #6b2bd0;
+}
+
+.kids-how-card--blue {
+  --kids-how-bg: #11a7ff;
+}
+
+.kids-how-card--lime {
+  --kids-how-bg: #b7dc20;
+}
+
+.kids-how-card--pink {
+  --kids-how-bg: #ff2aa5;
+}
+
+.kids-how-visual {
+  flex: 0 0 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.25rem;
+}
+
+.kids-how-visual img {
+  width: 100%;
+  height: auto;
+  max-width: 260px;
+}
+
+.kids-how-panel {
+  flex: 1;
+  border-radius: 22px;
+  padding: 1.15rem 1.2rem;
+  background: var(--kids-how-bg);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 46px rgba(18, 12, 24, 0.14);
+  display: grid;
+  align-content: center;
+  gap: 0.5rem;
+}
+
+.kids-how-panel h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.kids-how-panel p {
+  margin: 0;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+@media (max-width: 940px) {
+  .kids-how-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kids-how-card {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .kids-how-visual {
+    flex: 0 0 auto;
+    padding: 0.25rem 0;
+  }
+
+  .kids-how-visual img {
+    max-width: 320px;
+  }
+}
+
+.kids-label-shell {
+  width: min(980px, 96vw);
+  margin: 1.4rem auto 2.2rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.kids-label-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.kids-label-header h1 {
+  font-size: 1.6rem;
+}
+
+.kids-label-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.kids-label-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.kids-label-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 1rem;
+  color: #324b65;
+}
+
+.kids-label-card {
+  border-radius: 18px;
+  border: 1px solid rgba(221, 214, 201, 0.92);
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(25, 28, 33, 0.08);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.8rem;
+  overflow: hidden;
+}
+
+.kids-label-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.kids-label-title strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.kids-label-meta {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  color: #6a8097;
+}
+
+.kids-label-meta span {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(221, 214, 201, 0.8);
+  background: rgba(244, 241, 234, 0.82);
+}
+
+.kids-label-qr {
+  width: 118px;
+  height: 118px;
+  object-fit: contain;
+  border-radius: 14px;
+  border: 1px solid rgba(221, 214, 201, 0.85);
+  background: #ffffff;
+}
+
+.kids-label-qr-placeholder {
+  width: 118px;
+  height: 118px;
+  border-radius: 14px;
+  border: 1px dashed rgba(221, 214, 201, 0.9);
+  background: rgba(244, 241, 234, 0.65);
+  display: grid;
+  place-items: center;
+  color: #6a8097;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.kids-label-code {
+  border-radius: 16px;
+  border: 1px solid rgba(159, 186, 69, 0.35);
+  background: linear-gradient(135deg, rgba(159, 186, 69, 0.18), rgba(255, 255, 255, 0.96));
+  padding: 0.75rem 0.8rem;
+}
+
+.kids-label-code span {
+  display: block;
+  font-size: 0.78rem;
+  color: #5a6f86;
+  margin-bottom: 0.35rem;
+}
+
+.kids-label-code strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.9rem;
+  letter-spacing: 0.08em;
+}
+
+.kids-label-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+  font-size: 0.82rem;
+  color: #5a6f86;
+}
+
+.kids-label-token {
+  opacity: 0.65;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46%;
+}
+
+.kids-band-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.kids-band {
+  border-radius: 18px;
+  border: 1px dashed rgba(221, 214, 201, 0.92);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(25, 28, 33, 0.06);
+  padding: 0.75rem 0.8rem;
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 120px;
+  gap: 0.75rem;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.kids-band-qr {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  border: 1px solid rgba(221, 214, 201, 0.85);
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.kids-band-qr--placeholder {
+  display: grid;
+  place-items: center;
+  color: #6a8097;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: rgba(244, 241, 234, 0.65);
+}
+
+.kids-band-main strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.kids-band-meta {
+  margin-top: 0.25rem;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #5a6f86;
+}
+
+.kids-band-meta span {
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(221, 214, 201, 0.8);
+  background: rgba(244, 241, 234, 0.82);
+}
+
+.kids-band-code {
+  justify-self: end;
+  border-radius: 16px;
+  border: 1px solid rgba(159, 186, 69, 0.32);
+  background: linear-gradient(135deg, rgba(159, 186, 69, 0.16), rgba(255, 255, 255, 0.98));
+  padding: 0.5rem 0.65rem;
+  text-align: right;
+}
+
+.kids-band-code span {
+  display: block;
+  font-size: 0.72rem;
+  color: #5a6f86;
+}
+
+.kids-band-code strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+}
+
+.kids-band-note {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  color: #6a8097;
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 720px) {
+  .kids-band {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+
+  .kids-band-code {
+    grid-column: 1 / -1;
+    justify-self: start;
+    text-align: left;
+    width: fit-content;
+  }
+}
+
+@media (max-width: 900px) {
+  .kids-label-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .kids-label-header,
+  #kidsLabelMessage {
+    display: none !important;
+  }
+
+  .kids-label-shell {
+    width: auto;
+    margin: 0;
+  }
+
+  .kids-label-grid {
+    gap: 0.45rem;
+  }
+
+  .kids-label-card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .kids-label-section-title {
+    display: none !important;
+  }
+
+  .kids-band {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+/* Layout helpers for label printing page */
+.kids-layout-band .kids-label-section-title,
+.kids-layout-label .kids-label-section-title {
+  display: none;
+}
+
+.kids-layout-band .kids-label-grid {
+  display: none;
+}
+
+.kids-layout-label .kids-band-grid {
+  display: none;
+}
+
+@media print {
+  .kids-layout-band .kids-label-shell {
+    width: auto;
+    margin: 0;
+  }
+
+  .kids-layout-band .kids-band {
+    border: 0;
+    border-radius: 0;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .kids-layout-band .kids-band-note {
+    display: none;
+  }
+}
+
+.kids-pass-shell {
+  width: min(980px, 96vw);
+  margin: 1.4rem auto 2.2rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.kids-pass-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.kids-pass-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.kids-pass-card {
+  border-radius: 20px;
+  border: 1px solid rgba(221, 214, 201, 0.92);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 241, 234, 0.86));
+  box-shadow: 0 14px 34px rgba(25, 28, 33, 0.1);
+  overflow: hidden;
+}
+
+.kids-pass-card-top {
+  padding: 0.9rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.kids-pass-card-main {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.kids-pass-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.kids-pass-hero-text {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 220px;
+}
+
+.kids-pass-hero-kicker {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #5a6f86;
+}
+
+.kids-pass-hero-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+  color: #1d2730;
+}
+
+.kids-pass-hero-meta {
+  display: grid;
+  gap: 0.1rem;
+  color: #5a6f86;
+  font-size: 0.92rem;
+}
+
+.kids-pass-guardian {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.kids-pass-guardian .kids-pass-photo-label {
+  width: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #5a6f86;
+}
+
+.kids-pass-guardian-name {
+  display: grid;
+  gap: 0.1rem;
+  color: #2b3a4a;
+  font-size: 0.92rem;
+}
+
+.kids-pass-guardian-name .tiny {
+  color: #5a6f86;
+}
+
+.kids-pass-card-photos {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.kids-pass-photo-block {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  justify-items: start;
+  font-size: 0.78rem;
+  color: #5a6f86;
+}
+
+.kids-pass-photo-label {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.kids-pass-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  border: 1px solid rgba(221, 214, 201, 0.9);
+  object-fit: cover;
+  background: #ffffff;
+}
+
+.kids-pass-photo--small {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+}
+
+.kids-pass-photo--placeholder {
+  display: grid;
+  place-items: center;
+  color: #6a8097;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.kids-photo-frame {
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(221, 214, 201, 0.9);
+  background: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  color: #6a8097;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.kids-photo-frame--lg {
+  width: 120px;
+  height: 120px;
+}
+
+.kids-photo-frame--sm {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+}
+
+.kids-photo-frame--xs {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+}
+
+.kids-photo-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.kids-photo-frame .kids-photo-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  text-align: center;
+  z-index: 0;
+}
+
+/* Never show "Sem foto" if the image element is present (fixes overlay issues). */
+.kids-photo-frame img + .kids-photo-fallback {
+  display: none;
+}
+
+/* If the image fails to load we add `.hide` and the fallback becomes visible. */
+.kids-photo-frame img.hide + .kids-photo-fallback {
+  display: grid;
+}
+
+.kids-photo-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-left: 0.45rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border: 1px solid rgba(223, 216, 205, 0.9);
+  background: rgba(255, 255, 255, 0.8);
+  color: #5a6f86;
+}
+
+.kids-photo-status-svg {
+  width: 14px;
+  height: 14px;
+  display: none;
+}
+
+.kids-photo-status.is-ok .kids-photo-status-svg--ok {
+  display: block;
+}
+
+.kids-photo-status.is-missing .kids-photo-status-svg--x {
+  display: block;
+}
+
+.kids-photo-status.is-ok {
+  background: rgba(11, 140, 89, 0.14);
+  border-color: rgba(11, 140, 89, 0.22);
+  color: #0b7d51;
+}
+
+.kids-photo-status.is-missing {
+  background: rgba(184, 82, 17, 0.12);
+  border-color: rgba(184, 82, 17, 0.18);
+  color: #a44d12;
+}
+
+.kids-label-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.45rem;
+  line-height: 1.15;
+}
+
+.kids-label-head .kids-photo-status {
+  margin-left: 0;
+}
+
+.kids-pass-card-photo-meta {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  align-content: start;
+  font-size: 0.78rem;
+  color: #5a6f86;
+}
+
+.kids-pass-card-qr {
+  display: grid;
+  justify-items: end;
+  gap: 0.4rem;
+}
+
+.kids-pass-card-qr img {
+  width: 140px;
+  height: 140px;
+  border-radius: 18px;
+  border: 1px solid rgba(221, 214, 201, 0.9);
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.kids-pass-card-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85rem;
+  color: #5a6f86;
+}
+
+.kids-pass-card-body {
+  padding: 0 0.9rem 0.95rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.kids-pass-card-body strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.kids-pass-card-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: #5a6f86;
+  font-size: 0.9rem;
+}
+
+.kids-pass-card-guardians {
+  border-radius: 16px;
+  border: 1px solid rgba(221, 214, 201, 0.85);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.65rem 0.75rem;
+}
+
+.kids-pass-card-guardians-list {
+  margin-top: 0.35rem;
+  display: grid;
+  gap: 0.2rem;
+  color: #2b3a4a;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 980px) {
+  .kids-pass-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .kids-pass-header,
+  #kidsPassMessage {
+    display: none !important;
+  }
+
+  .kids-pass-shell {
+    width: auto;
+    margin: 0;
+  }
+
+  .kids-pass-card {
+    box-shadow: none;
+    break-inside: avoid;
   }
 }

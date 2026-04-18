@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "023_tenant_landing_page_settings"
-down_revision = "022_payment_accounts_and_event_links"
+down_revision = "022_payment_accounts_evt"
 branch_labels = None
 depends_on = None
 

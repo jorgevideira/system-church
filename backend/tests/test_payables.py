@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.models.transaction import Transaction
 from app.db.models.user import User
-from tests.conftest import auth_headers
+from tests.conftest import auth_headers, ensure_membership, get_or_create_test_tenant
 
 
 @pytest.fixture
@@ -18,16 +18,19 @@ def editor_user(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == "payable-editor@test.com").first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     user = User(
         email="payable-editor@test.com",
         full_name="Payable Editor",
         role="editor",
         hashed_password=get_password_hash("editorpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(user)
     test_db.commit()
     test_db.refresh(user)
+    ensure_membership(test_db, user, tenant, role="editor", is_default=True)
     return user
 
 

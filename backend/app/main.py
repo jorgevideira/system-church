@@ -33,6 +33,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 Path(settings.TENANT_LOGO_DIR).mkdir(parents=True, exist_ok=True)
 app.mount("/media/tenant-logos", StaticFiles(directory=settings.TENANT_LOGO_DIR), name="tenant-logos")
+app.mount("/media/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 def _run_startup_setup() -> None:

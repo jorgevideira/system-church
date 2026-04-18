@@ -82,6 +82,30 @@ def infer_transaction_type(
     """
     lower_desc = (description or "").lower()
 
+    expense_overrides = [
+        "pagamento de fatura",
+    ]
+    for hint in expense_overrides:
+        if hint in lower_desc:
+            return "expense", 0.95
+
+    # Positive PagSeguro/MP settlement labels must stay as income even when the
+    # text also contains words like "debito".
+    positive_income_overrides = [
+        "rendimento",
+        "vendas - disponivel",
+        "disponivel debito",
+        "disponivel crédito",
+        "disponivel credito",
+        "disponivel pix",
+        "devolução pix recebida",
+        "devolucao pix recebida",
+    ]
+    if parsed_amount is not None and parsed_amount > 0:
+        for hint in positive_income_overrides:
+            if hint in lower_desc:
+                return "income", 0.95
+
     for hint in INCOME_HINTS:
         if hint in lower_desc:
             return "income", 0.9

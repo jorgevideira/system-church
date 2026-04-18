@@ -16,6 +16,8 @@
   let eventsBound = false;
 
   const el = {
+    kidsBtn: document.getElementById("moduleKidsBtn"),
+    kidsModule: document.getElementById("kidsModule"),
     eventsBtn: document.getElementById("moduleEventsBtn"),
     eventsModule: document.getElementById("eventsModule"),
     eventsMessage: document.getElementById("eventsMessage"),
@@ -24,11 +26,13 @@
     eventsNavPaymentsBtn: document.getElementById("eventsNavPaymentsBtn"),
     eventsNavAnalyticsBtn: document.getElementById("eventsNavAnalyticsBtn"),
     eventsNavNotificationsBtn: document.getElementById("eventsNavNotificationsBtn"),
+    eventsNavCheckinBtn: document.getElementById("eventsNavCheckinBtn"),
     eventsAgendaView: document.getElementById("eventsAgendaView"),
     eventsRegistrationsView: document.getElementById("eventsRegistrationsView"),
     eventsPaymentsView: document.getElementById("eventsPaymentsView"),
     eventsAnalyticsView: document.getElementById("eventsAnalyticsView"),
     eventsNotificationsView: document.getElementById("eventsNotificationsView"),
+    eventsCheckinView: document.getElementById("eventsCheckinView"),
     eventsRefreshBtn: document.getElementById("eventsRefreshBtn"),
     eventsSearchInput: document.getElementById("eventsSearchInput"),
     eventsStatusFilter: document.getElementById("eventsStatusFilter"),
@@ -99,6 +103,13 @@
     eventsNotificationsChannelFilter: document.getElementById("eventsNotificationsChannelFilter"),
     eventsNotificationsStatusFilter: document.getElementById("eventsNotificationsStatusFilter"),
     eventsNotificationsBody: document.getElementById("eventsNotificationsBody"),
+    eventsCheckinRefreshBtn: document.getElementById("eventsCheckinRefreshBtn"),
+    eventsCheckinHint: document.getElementById("eventsCheckinHint"),
+    eventsCheckinTokenInput: document.getElementById("eventsCheckinTokenInput"),
+    eventsCheckinSubmitBtn: document.getElementById("eventsCheckinSubmitBtn"),
+    eventsCheckinClearBtn: document.getElementById("eventsCheckinClearBtn"),
+    eventsCheckinResult: document.getElementById("eventsCheckinResult"),
+    eventsCheckinBody: document.getElementById("eventsCheckinBody"),
   };
 
   const state = {
@@ -106,6 +117,7 @@
     registrations: [],
     payments: [],
     notifications: [],
+    checkins: [],
     analytics: null,
     paymentAccounts: [],
     permissionSet: new Set(),
@@ -169,7 +181,7 @@
     if (hasPermission(VIEW_PERMISSIONS.payments)) return "payments";
     if (hasPermission(VIEW_PERMISSIONS.analytics)) return "analytics";
     if (hasPermission(VIEW_PERMISSIONS.notifications)) return "notifications";
-    return null;
+    return "checkin";
   }
 
   function buildHeaders(includeJson = false) {
@@ -299,6 +311,7 @@
     if (el.eventsNavPaymentsBtn) el.eventsNavPaymentsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.payments));
     if (el.eventsNavAnalyticsBtn) el.eventsNavAnalyticsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.analytics));
     if (el.eventsNavNotificationsBtn) el.eventsNavNotificationsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.notifications));
+    if (el.eventsNavCheckinBtn) el.eventsNavCheckinBtn.classList.toggle("hide", !canOpen);
     if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.toggle("hide", !(state.selectedEventId && hasPermission("events_events_delete")));
   }
 
@@ -307,6 +320,9 @@
       window.setTopModule(moduleName);
       return;
     }
+    const isKids = moduleName === "kids";
+    if (el.kidsBtn) el.kidsBtn.classList.toggle("active", isKids);
+    if (el.kidsModule) el.kidsModule.classList.toggle("hide", !isKids);
     if (el.eventsModule) {
       el.eventsModule.classList.toggle("hide", moduleName !== "events");
     }
@@ -327,12 +343,14 @@
     if (el.eventsNavPaymentsBtn) el.eventsNavPaymentsBtn.classList.toggle("active", viewName === "payments");
     if (el.eventsNavAnalyticsBtn) el.eventsNavAnalyticsBtn.classList.toggle("active", viewName === "analytics");
     if (el.eventsNavNotificationsBtn) el.eventsNavNotificationsBtn.classList.toggle("active", viewName === "notifications");
+    if (el.eventsNavCheckinBtn) el.eventsNavCheckinBtn.classList.toggle("active", viewName === "checkin");
 
     if (el.eventsAgendaView) el.eventsAgendaView.classList.toggle("hide", viewName !== "agenda");
     if (el.eventsRegistrationsView) el.eventsRegistrationsView.classList.toggle("hide", viewName !== "registrations");
     if (el.eventsPaymentsView) el.eventsPaymentsView.classList.toggle("hide", viewName !== "payments");
     if (el.eventsAnalyticsView) el.eventsAnalyticsView.classList.toggle("hide", viewName !== "analytics");
     if (el.eventsNotificationsView) el.eventsNotificationsView.classList.toggle("hide", viewName !== "notifications");
+    if (el.eventsCheckinView) el.eventsCheckinView.classList.toggle("hide", viewName !== "checkin");
   }
 
   function resetEventForm() {
@@ -372,6 +390,11 @@
       el.eventsAnalyticsHint.textContent = event
         ? `Analytics prontos para ${event.title}.`
         : "Selecione um evento na agenda para ver ocupacao, receita e conversao.";
+    }
+    if (el.eventsCheckinHint) {
+      el.eventsCheckinHint.textContent = event
+        ? `Check-in de ${event.title}.`
+        : "Selecione um evento na agenda e leia o QR Code para registrar a entrada.";
     }
     renderCalendar();
     applyModuleVisibility();
@@ -765,6 +788,74 @@ function populatePaymentAccountOptions() {
     `).join("");
   }
 
+  function setCheckinResult(message, isError = false) {
+    if (!el.eventsCheckinResult) return;
+    el.eventsCheckinResult.textContent = message || "";
+    el.eventsCheckinResult.style.color = isError ? "#b42318" : "#0f766e";
+    if (message && window.showUiAlert) {
+      window.showUiAlert(message, isError ? "error" : "success");
+    }
+  }
+
+  function renderCheckins() {
+    if (!el.eventsCheckinBody) return;
+    if (!state.selectedEventId) {
+      el.eventsCheckinBody.innerHTML = "<tr><td colspan='4'>Selecione um evento.</td></tr>";
+      return;
+    }
+    if (!state.checkins.length) {
+      el.eventsCheckinBody.innerHTML = "<tr><td colspan='4'>Nenhum check-in registrado ainda.</td></tr>";
+      return;
+    }
+    el.eventsCheckinBody.innerHTML = state.checkins.map((row) => `
+      <tr>
+        <td>${escapeHtml(row.attendee_name || "-")}</td>
+        <td>${escapeHtml(row.attendee_email || "-")}</td>
+        <td>${escapeHtml(formatDateTime(row.checked_in_at))}</td>
+        <td>${escapeHtml(row.checked_in_by_user_id ? String(row.checked_in_by_user_id) : "-")}</td>
+      </tr>
+    `).join("");
+  }
+
+  async function loadCheckins() {
+    if (!el.eventsCheckinBody) return;
+    if (!state.selectedEventId) {
+      renderCheckins();
+      return;
+    }
+    state.checkins = await fetchJson(
+      `${eventsEndpoint}/${state.selectedEventId}/checkins`,
+      { headers: buildHeaders(false) },
+      "Falha ao carregar check-ins."
+    );
+    renderCheckins();
+  }
+
+  async function submitCheckinToken() {
+    if (!el.eventsCheckinTokenInput) return;
+    const token = String(el.eventsCheckinTokenInput.value || "").trim();
+    if (!token) {
+      setCheckinResult("Informe o token do QR Code.", true);
+      return;
+    }
+    try {
+      const result = await fetchJson(
+        `${eventsEndpoint}/checkin`,
+        { method: "POST", headers: buildHeaders(true), body: JSON.stringify({ token }) },
+        "Falha ao realizar check-in."
+      );
+      const statusKey = String(result.status || "").toLowerCase();
+      if (statusKey === "success") setCheckinResult(`Check-in confirmado: ${result.attendee_name || ""}`.trim(), false);
+      else if (statusKey === "duplicate") setCheckinResult(`Check-in duplicado: ${result.attendee_name || ""}`.trim(), true);
+      else if (statusKey === "not_paid") setCheckinResult(`Pagamento pendente: ${result.attendee_name || ""}`.trim(), true);
+      else setCheckinResult(result.message || "QR Code invalido.", true);
+      el.eventsCheckinTokenInput.value = "";
+      await loadCheckins();
+    } catch (error) {
+      setCheckinResult(error && error.message ? error.message : "Falha ao realizar check-in.", true);
+    }
+  }
+
   async function refreshCurrentView() {
     if (state.currentView === "agenda") {
       await loadEvents();
@@ -784,6 +875,10 @@ function populatePaymentAccountOptions() {
     }
     if (state.currentView === "notifications") {
       await loadNotifications();
+      return;
+    }
+    if (state.currentView === "checkin") {
+      await loadCheckins();
     }
   }
 
@@ -980,6 +1075,13 @@ function populatePaymentAccountOptions() {
         loadNotifications().catch((error) => setMessage(error.message, true));
       });
     }
+    if (el.eventsNavCheckinBtn) {
+      el.eventsNavCheckinBtn.addEventListener("click", () => {
+        ensureSelectedEvent();
+        setView("checkin");
+        loadCheckins().catch((error) => setMessage(error.message, true));
+      });
+    }
     if (el.eventsRefreshBtn) el.eventsRefreshBtn.addEventListener("click", () => loadEvents().catch((error) => setMessage(error.message, true)));
     if (el.eventsCalendarPrevBtn) {
       el.eventsCalendarPrevBtn.addEventListener("click", () => {
@@ -1008,6 +1110,22 @@ function populatePaymentAccountOptions() {
     if (el.eventsPaymentsRefreshBtn) el.eventsPaymentsRefreshBtn.addEventListener("click", () => loadPayments().catch((error) => setMessage(error.message, true)));
     if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
+    if (el.eventsCheckinRefreshBtn) el.eventsCheckinRefreshBtn.addEventListener("click", () => loadCheckins().catch((error) => setMessage(error.message, true)));
+    if (el.eventsCheckinSubmitBtn) el.eventsCheckinSubmitBtn.addEventListener("click", () => submitCheckinToken().catch((error) => setMessage(error.message, true)));
+    if (el.eventsCheckinTokenInput) {
+      el.eventsCheckinTokenInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          submitCheckinToken().catch((error) => setMessage(error.message, true));
+        }
+      });
+    }
+    if (el.eventsCheckinClearBtn && el.eventsCheckinTokenInput) {
+      el.eventsCheckinClearBtn.addEventListener("click", () => {
+        el.eventsCheckinTokenInput.value = "";
+        setCheckinResult("", false);
+      });
+    }
     if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
     const handleOpenEventForm = () => {
       resetEventForm();

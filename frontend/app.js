@@ -36,6 +36,7 @@ const state = {
     type: "",
     categoryId: "",
     ministryId: "",
+    bank: "",
     attachment: "",
     sort: "date_desc",
   },
@@ -55,6 +56,7 @@ const state = {
     page: 1,
     pageSize: 25,
   },
+  txSelectedIds: new Set(),
   payableFilters: {
     search: "",
     status: "",
@@ -199,6 +201,7 @@ const el = {
   reportMessage: document.getElementById("reportMessage"),
   moduleFinanceBtn: document.getElementById("moduleFinanceBtn"),
   moduleCellsBtn: document.getElementById("moduleCellsBtn"),
+  moduleKidsBtn: document.getElementById("moduleKidsBtn"),
   moduleBibleSchoolBtn: document.getElementById("moduleBibleSchoolBtn"),
   moduleEventsBtn: document.getElementById("moduleEventsBtn"),
   moduleUsersBtn: document.getElementById("moduleUsersBtn"),
@@ -259,6 +262,7 @@ const el = {
   openTransactionModalBtn: document.getElementById("openTransactionModalBtn"),
   uploadForm: document.getElementById("uploadForm"),
   txTableBody: document.getElementById("txTableBody"),
+  txSelectAllCheckbox: document.getElementById("txSelectAllCheckbox"),
   txDescription: document.getElementById("txDescription"),
   txFilterSearch: document.getElementById("txFilterSearch"),
   txFilterStartDate: document.getElementById("txFilterStartDate"),
@@ -266,6 +270,7 @@ const el = {
   txFilterType: document.getElementById("txFilterType"),
   txFilterCategory: document.getElementById("txFilterCategory"),
   txFilterMinistry: document.getElementById("txFilterMinistry"),
+  txFilterBank: document.getElementById("txFilterBank"),
   txFilterAttachment: document.getElementById("txFilterAttachment"),
   txFilterSort: document.getElementById("txFilterSort"),
   txFilterResetBtn: document.getElementById("txFilterResetBtn"),
@@ -275,6 +280,9 @@ const el = {
   txPagePrevBtn: document.getElementById("txPagePrevBtn"),
   txPageInfo: document.getElementById("txPageInfo"),
   txPageNextBtn: document.getElementById("txPageNextBtn"),
+  txBulkSelectionCount: document.getElementById("txBulkSelectionCount"),
+  txBulkClearBtn: document.getElementById("txBulkClearBtn"),
+  txBulkDeleteBtn: document.getElementById("txBulkDeleteBtn"),
   txHeaderDateSort: document.getElementById("txHeaderDateSort"),
   txHeaderAmountSort: document.getElementById("txHeaderAmountSort"),
   txType: document.getElementById("txType"),
@@ -1268,9 +1276,19 @@ function schedulePublicPaymentPolling(checkoutReference) {
   }, 10000);
 }
 
-function renderPixQrCode(pixCode) {
+function renderPixQrCode(pixCode, qrCodeBase64 = "") {
   if (!el.publicPixQr) return;
   el.publicPixQr.innerHTML = "";
+  const imageSource = String(qrCodeBase64 || "").trim();
+  if (imageSource) {
+    const image = document.createElement("img");
+    image.alt = "QR Code PIX";
+    image.src = imageSource.startsWith("data:")
+      ? imageSource
+      : `data:image/png;base64,${imageSource}`;
+    el.publicPixQr.appendChild(image);
+    return;
+  }
   const value = String(pixCode || "").trim();
   if (!value || !window.QRCode || typeof window.QRCode.toCanvas !== "function") {
     return;
@@ -1293,6 +1311,17 @@ function renderPixQrCode(pixCode) {
 
 function renderPublicPaymentStatus(payload) {
   const { event, registration, payment } = payload;
+  const providerPayload = payment && typeof payment.provider_payload === "object" && payment.provider_payload
+    ? payment.provider_payload
+    : {};
+  const transactionData = providerPayload.point_of_interaction
+    && typeof providerPayload.point_of_interaction === "object"
+    && providerPayload.point_of_interaction.transaction_data
+    && typeof providerPayload.point_of_interaction.transaction_data === "object"
+      ? providerPayload.point_of_interaction.transaction_data
+      : {};
+  const checkoutMode = String(providerPayload.checkout_mode || "").trim().toLowerCase();
+  const qrCodeBase64 = String(providerPayload.qr_code_base64 || transactionData.qr_code_base64 || "").trim();
   document.title = `${event.title} | Inscricao`;
   el.publicEventTitle.textContent = event.title;
   el.publicEventSummary.textContent = event.summary || event.description || "Acompanhe sua inscricao e o status do pagamento.";
@@ -1319,12 +1348,14 @@ function renderPublicPaymentStatus(payload) {
     el.publicPaymentMessage.textContent = "Seu pagamento ainda nao foi concluido. Revise os dados e tente novamente se necessario.";
   }
 
-  const hasPix = Boolean(payment.pix_copy_paste);
+  const resolvedPixCode = String(payment.pix_copy_paste || transactionData.qr_code || "").trim();
+  const hasPix = Boolean(resolvedPixCode);
   el.publicPixBlock.classList.toggle("hide", !hasPix);
-  el.publicPixCode.value = hasPix ? payment.pix_copy_paste : "";
-  renderPixQrCode(hasPix ? payment.pix_copy_paste : "");
+  el.publicPixCode.value = hasPix ? resolvedPixCode : "";
+  renderPixQrCode(hasPix ? resolvedPixCode : "", hasPix ? qrCodeBase64 : "");
 
-  const hasCheckoutUrl = Boolean(payment.checkout_url);
+  const hasTransparentPixPayload = hasPix && Boolean(qrCodeBase64 || transactionData.qr_code);
+  const hasCheckoutUrl = Boolean(payment.checkout_url) && !(hasTransparentPixPayload || (hasPix && checkoutMode === "transparent_pix"));
   el.publicCheckoutBlock.classList.toggle("hide", !hasCheckoutUrl);
   if (hasCheckoutUrl) {
     el.publicCheckoutLink.href = payment.checkout_url;
@@ -1797,6 +1828,16 @@ function hasModuleAccess(moduleName) {
   if (!state.currentUserPermissionSet || !state.currentUserPermissionSet.size) {
     syncPermissionStateFromStorage();
   }
+
+  if (moduleName === "kids") {
+    for (const permissionName of state.currentUserPermissionSet) {
+      if (permissionName.startsWith("cells_kids_")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   const prefix = `${moduleName}_`;
   for (const permissionName of state.currentUserPermissionSet) {
     if (permissionName.startsWith(prefix)) {
@@ -1807,7 +1848,7 @@ function hasModuleAccess(moduleName) {
 }
 
 function getFirstAccessibleModule() {
-  const orderedModules = ["finance", "cells", "school", "events", "users"];
+  const orderedModules = ["finance", "kids", "cells", "school", "events", "users"];
   for (const moduleName of orderedModules) {
     if (hasModuleAccess(moduleName)) {
       return moduleName;
@@ -1830,6 +1871,7 @@ function openFirstAccessibleModule() {
   }
 
   const clickMap = {
+    kids: el.moduleKidsBtn,
     cells: el.moduleCellsBtn,
     school: el.moduleBibleSchoolBtn,
     events: el.moduleEventsBtn,
@@ -1868,6 +1910,7 @@ function applyTopModulePermissions() {
   const modules = [
     [el.moduleFinanceBtn, "finance"],
     [el.moduleCellsBtn, "cells"],
+    [el.moduleKidsBtn, "kids"],
     [el.moduleBibleSchoolBtn, "school"],
     [el.moduleEventsBtn, "events"],
     [el.moduleUsersBtn, "users"],
@@ -1971,6 +2014,7 @@ function loadTransactionFilterState() {
   el.txFilterStartDate.value = state.txFilters.startDate;
   el.txFilterEndDate.value = state.txFilters.endDate;
   el.txFilterType.value = state.txFilters.type;
+  el.txFilterBank.value = state.txFilters.bank;
   el.txFilterAttachment.value = state.txFilters.attachment;
   el.txFilterSort.value = state.txFilters.sort;
   el.txPageSize.value = String(state.txPagination.pageSize || 25);
@@ -2045,6 +2089,7 @@ function populateBankDropdowns() {
   const selectedTx = el.txBankName.value;
   const selectedEdit = el.editTxBankName.value;
   const selectedDash = state.dashboardFilters.bank || el.dashBankFilter.value;
+  const selectedTxFilter = state.txFilters.bank || el.txFilterBank.value;
   const banks = new Set();
 
   for (const tx of state.transactionsRaw) {
@@ -2057,6 +2102,7 @@ function populateBankDropdowns() {
   el.txBankName.innerHTML = "<option value=''>Nao informado</option>";
   el.editTxBankName.innerHTML = "<option value=''>Nao informado</option>";
   el.dashBankFilter.innerHTML = "<option value=''>Todos</option>";
+  el.txFilterBank.innerHTML = "<option value=''>Todos</option>";
 
   for (const bank of [...banks].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
     const optionTx = document.createElement("option");
@@ -2073,15 +2119,22 @@ function populateBankDropdowns() {
     optionDash.value = bank;
     optionDash.textContent = bank;
     el.dashBankFilter.appendChild(optionDash);
+
+    const optionTxFilter = document.createElement("option");
+    optionTxFilter.value = bank;
+    optionTxFilter.textContent = bank;
+    el.txFilterBank.appendChild(optionTxFilter);
   }
 
   ensureSelectHasOption(el.txBankName, selectedTx);
   ensureSelectHasOption(el.editTxBankName, selectedEdit);
   ensureSelectHasOption(el.dashBankFilter, selectedDash);
+  ensureSelectHasOption(el.txFilterBank, selectedTxFilter);
 
   el.txBankName.value = selectedTx || "";
   el.editTxBankName.value = selectedEdit || "";
   el.dashBankFilter.value = selectedDash || "";
+  el.txFilterBank.value = selectedTxFilter || "";
 }
 
 function populateBudgetReferenceOptions() {
@@ -2466,6 +2519,7 @@ function openTransactionsWithFilters(nextFilters) {
   el.txFilterType.value = state.txFilters.type || "";
   el.txFilterCategory.value = state.txFilters.categoryId || "";
   el.txFilterMinistry.value = state.txFilters.ministryId || "";
+  el.txFilterBank.value = state.txFilters.bank || "";
   el.txFilterAttachment.value = state.txFilters.attachment || "";
   el.txFilterSort.value = state.txFilters.sort || "date_desc";
 
@@ -2836,6 +2890,7 @@ function syncTransactionFiltersFromUi() {
   state.txFilters.type = el.txFilterType.value;
   state.txFilters.categoryId = el.txFilterCategory.value;
   state.txFilters.ministryId = el.txFilterMinistry.value;
+  state.txFilters.bank = el.txFilterBank.value;
   state.txFilters.attachment = el.txFilterAttachment.value;
   state.txFilters.sort = el.txFilterSort.value;
   state.txPagination.page = 1;
@@ -2850,6 +2905,7 @@ function resetTransactionFilters() {
     type: "",
     categoryId: "",
     ministryId: "",
+    bank: "",
     attachment: "",
     sort: "date_desc",
   };
@@ -2864,6 +2920,7 @@ function resetTransactionFilters() {
   el.txFilterType.value = "";
   el.txFilterCategory.value = "";
   el.txFilterMinistry.value = "";
+  el.txFilterBank.value = "";
   el.txFilterAttachment.value = "";
   el.txFilterSort.value = "date_desc";
 
@@ -2886,6 +2943,7 @@ function renderTransactionFilterChips(filteredCount) {
     const ministry = state.ministries.find((m) => String(m.id) === String(f.ministryId));
     if (ministry) chips.push(`Ministerio: ${ministry.name}`);
   }
+  if (f.bank) chips.push(`Banco: ${f.bank}`);
   if (f.attachment === "with") chips.push("Com anexo");
   if (f.attachment === "without") chips.push("Sem anexo");
 
@@ -2909,6 +2967,7 @@ function getFilteredAndSortedTransactions() {
     if (f.type && tx.transaction_type !== f.type) return false;
     if (f.categoryId && String(tx.category_id || "") !== String(f.categoryId)) return false;
     if (f.ministryId && String(tx.ministry_id || "") !== String(f.ministryId)) return false;
+    if (f.bank && String(tx.source_bank || tx.source_bank_name || "").trim() !== f.bank) return false;
 
     const hasAttachment = Number(tx.attachment_count || 0) > 0 || tx.has_attachments === true;
     if (f.attachment === "with" && !hasAttachment) return false;
@@ -2945,10 +3004,15 @@ function getFilteredAndSortedTransactions() {
   return filtered;
 }
 
-function renderTransactions() {
-  const filteredRows = getFilteredAndSortedTransactions();
+function sanitizeTransactionSelection() {
+  const validIds = new Set((state.transactionsRaw || []).map((tx) => Number(tx.id)).filter(Boolean));
+  state.txSelectedIds = new Set([...state.txSelectedIds].filter((id) => validIds.has(Number(id))));
+}
+
+function getPaginatedTransactionRows(filteredRows = getFilteredAndSortedTransactions()) {
   const pageSize = Number(state.txPagination.pageSize || 25);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+
   if (state.txPagination.page > totalPages) {
     state.txPagination.page = totalPages;
   }
@@ -2958,7 +3022,110 @@ function renderTransactions() {
 
   const start = (state.txPagination.page - 1) * pageSize;
   const end = start + pageSize;
-  const rows = filteredRows.slice(start, end);
+
+  return {
+    rows: filteredRows.slice(start, end),
+    totalPages,
+  };
+}
+
+function updateTransactionBulkActions(visibleRows = []) {
+  const selectedCount = state.txSelectedIds.size;
+  el.txBulkSelectionCount.textContent = selectedCount > 0
+    ? `${selectedCount} selecionado(s)`
+    : "Nenhum selecionado";
+  el.txBulkDeleteBtn.disabled = selectedCount <= 0;
+  el.txBulkClearBtn.classList.toggle("hide", selectedCount <= 0);
+
+  if (!el.txSelectAllCheckbox) {
+    return;
+  }
+
+  const visibleIds = visibleRows.map((tx) => Number(tx.id)).filter(Boolean);
+  const selectedOnPage = visibleIds.filter((id) => state.txSelectedIds.has(id)).length;
+  el.txSelectAllCheckbox.checked = visibleIds.length > 0 && selectedOnPage === visibleIds.length;
+  el.txSelectAllCheckbox.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleIds.length;
+  el.txSelectAllCheckbox.disabled = visibleIds.length === 0;
+}
+
+function clearTransactionSelection() {
+  state.txSelectedIds = new Set();
+  renderTransactions();
+}
+
+async function deleteSelectedTransactions() {
+  const selectedIds = [...state.txSelectedIds].map(Number).filter(Boolean);
+  if (!selectedIds.length) {
+    setMessage(el.txMessage, "Selecione ao menos um lancamento para excluir.", true);
+    return;
+  }
+
+  const confirmed = await openConfirmModal(
+    `Tem certeza que deseja excluir ${selectedIds.length} lancamento(s)?`,
+    "Excluir selecionados",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  let deletedCount = 0;
+  let hasForbiddenError = false;
+  let genericError = "";
+
+  for (const txId of selectedIds) {
+    try {
+      await api(`/transactions/${txId}`, { method: "DELETE" });
+      deletedCount += 1;
+    } catch (error) {
+      const message = String(error?.message || "");
+      if (message.includes("403")) {
+        hasForbiddenError = true;
+        break;
+      }
+      genericError = message || "Falha ao excluir alguns lancamentos.";
+    }
+  }
+
+  if (deletedCount > 0) {
+    state.txSelectedIds = new Set([...state.txSelectedIds].filter((id) => !selectedIds.includes(Number(id))));
+    await Promise.all([
+      loadTransactions(),
+      loadSummary(),
+      loadReports(),
+      loadPayables(),
+      loadPayablesAlertsSummary(),
+      loadReceivables(),
+      loadReceivablesAlertsSummary(),
+    ]);
+    renderDashboard();
+  }
+
+  if (hasForbiddenError && deletedCount === 0) {
+    setMessage(el.txMessage, "Somente administrador pode excluir lancamentos.", true);
+    return;
+  }
+
+  if (hasForbiddenError && deletedCount > 0) {
+    setMessage(el.txMessage, `${deletedCount} lancamento(s) excluido(s). Alguns itens exigem perfil de administrador.`, true);
+    return;
+  }
+
+  if (genericError && deletedCount > 0) {
+    setMessage(el.txMessage, `${deletedCount} lancamento(s) excluido(s). Alguns itens nao puderam ser removidos.`, true);
+    return;
+  }
+
+  if (genericError) {
+    setMessage(el.txMessage, genericError, true);
+    return;
+  }
+
+  setMessage(el.txMessage, `${deletedCount} lancamento(s) excluido(s) com sucesso.`);
+}
+
+function renderTransactions() {
+  const filteredRows = getFilteredAndSortedTransactions();
+  const { rows, totalPages } = getPaginatedTransactionRows(filteredRows);
 
   el.txTableBody.innerHTML = "";
 
@@ -2972,7 +3139,11 @@ function renderTransactions() {
     const attachmentIcon = hasAttachment
       ? `<span class="tx-attachment-badge" title="${displayAttachmentCount} anexo(s)" aria-label="${displayAttachmentCount} anexo(s)">&#128206; ${displayAttachmentCount}</span>`
       : "-";
+    const isSelected = state.txSelectedIds.has(Number(tx.id));
     tr.innerHTML = `
+      <td class="tx-checkbox-col">
+        <input type="checkbox" data-select-tx="${tx.id}" aria-label="Selecionar lancamento ${tx.description}" ${isSelected ? "checked" : ""}>
+      </td>
       <td>${tx.transaction_date}</td>
       <td>${tx.description}</td>
       <td>${tx.transaction_type === "income" ? "Entrada" : "Saida"}</td>
@@ -2985,6 +3156,21 @@ function renderTransactions() {
       <td>${editBtn} ${deleteBtn}</td>
     `;
     el.txTableBody.appendChild(tr);
+  }
+
+  for (const input of el.txTableBody.querySelectorAll("input[data-select-tx]")) {
+    input.addEventListener("change", () => {
+      const txId = Number(input.getAttribute("data-select-tx"));
+      if (!txId) {
+        return;
+      }
+      if (input.checked) {
+        state.txSelectedIds.add(txId);
+      } else {
+        state.txSelectedIds.delete(txId);
+      }
+      updateTransactionBulkActions(rows);
+    });
   }
 
   for (const button of el.txTableBody.querySelectorAll("button[data-edit-tx]")) {
@@ -3029,7 +3215,7 @@ function renderTransactions() {
 
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = "<td colspan='10'>Nenhum resultado para os filtros atuais. <button class='btn ghost btn-mini' type='button' id='txEmptyResetBtn'>Limpar filtros</button></td>";
+    tr.innerHTML = "<td colspan='11'>Nenhum resultado para os filtros atuais. <button class='btn ghost btn-mini' type='button' id='txEmptyResetBtn'>Limpar filtros</button></td>";
     el.txTableBody.appendChild(tr);
     const resetEmptyBtn = document.getElementById("txEmptyResetBtn");
     if (resetEmptyBtn) {
@@ -3037,6 +3223,7 @@ function renderTransactions() {
     }
   }
 
+  updateTransactionBulkActions(rows);
   updateTransactionSortHeaderLabels();
   renderTransactionFilterChips(filteredRows.length);
   el.txPageInfo.textContent = `Pag. ${state.txPagination.page}/${totalPages}`;
@@ -3865,8 +4052,25 @@ async function api(path, options = {}, isForm = false) {
   if (state.accessToken) {
     headers.set("Authorization", `Bearer ${state.accessToken}`);
   }
+  const method = String(options.method || "GET").toUpperCase();
+  const isReadRequest = method === "GET" || method === "HEAD";
+  const requestUrl = isReadRequest
+    ? (() => {
+        const separator = path.includes("?") ? "&" : "?";
+        return `${API_PREFIX}${path}${separator}_ts=${Date.now()}`;
+      })()
+    : `${API_PREFIX}${path}`;
 
-  const response = await fetch(`${API_PREFIX}${path}`, { ...options, headers });
+  if (isReadRequest) {
+    headers.set("Cache-Control", "no-cache, no-store, max-age=0");
+    headers.set("Pragma", "no-cache");
+  }
+
+  const response = await fetch(requestUrl, {
+    ...options,
+    headers,
+    cache: isReadRequest ? "no-store" : "no-cache",
+  });
   if (!response.ok) {
     let detail = `Erro ${response.status}`;
     try {
@@ -4028,6 +4232,7 @@ async function loadTransactions() {
   }
 
   state.transactionsRaw = allItems;
+  sanitizeTransactionSelection();
   populateBankDropdowns();
   populatePayableFormOptions();
   renderTransactions();
@@ -4207,22 +4412,127 @@ function closeUploadModal() {
   el.uploadResultModal.classList.add("hide");
 }
 
+function resetUploadModalActions() {
+  el.modalKeepBothBtn.onclick = null;
+  el.modalDiscardBtn.onclick = null;
+  el.modalChooseOneBtn.onclick = null;
+  el.modalApplySelectionBtn.onclick = null;
+  el.modalOkBtn.onclick = null;
+}
+
+function countTransactionsForStatementInState(statementFileId) {
+  return (state.transactionsRaw || []).filter((tx) => Number(tx.statement_file_id) === Number(statementFileId)).length;
+}
+
+function getTransactionsForStatementInState(statementFileId) {
+  return (state.transactionsRaw || []).filter((tx) => Number(tx.statement_file_id) === Number(statementFileId));
+}
+
+async function refreshFinanceStateAfterUpload(record, maxAttempts = 6) {
+  const expectedCount = Number(record?.transactions_count || 0);
+  const statementFileId = Number(record?.id || 0);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+
+    if (!statementFileId || countTransactionsForStatementInState(statementFileId) >= expectedCount) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+}
+
 function extractDuplicateCount(errorMessage) {
   const msg = String(errorMessage || "");
   const match = msg.match(/duplicadas=(\d+)/i);
   return match ? Number(match[1]) : 0;
 }
 
+function extractIgnoredOpeningBalanceCount(errorMessage) {
+  const msg = String(errorMessage || "");
+  const match = msg.match(/saldo_inicial_ignorado=(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function buildStatementReconciliationSummary(statementFileId) {
+  const rows = getTransactionsForStatementInState(statementFileId);
+  if (!rows.length) {
+    return null;
+  }
+
+  let inferredOpeningBalance = 0;
+  let movementIncome = 0;
+  let movementExpense = 0;
+
+  for (const tx of rows) {
+    const amount = Number(tx.amount || 0);
+    const isOpeningBalance = String(tx.description || "") === "Saldo inicial inferido do extrato";
+    if (isOpeningBalance) {
+      inferredOpeningBalance += amount;
+      continue;
+    }
+    if (tx.transaction_type === "income") {
+      movementIncome += amount;
+    } else {
+      movementExpense += amount;
+    }
+  }
+
+  return {
+    inferredOpeningBalance,
+    movementIncome,
+    movementExpense,
+    movementNet: movementIncome - movementExpense,
+    reconciledBalance: inferredOpeningBalance + movementIncome - movementExpense,
+  };
+}
+
 function renderUploadModalStatus(record, fileName) {
   const duplicates = extractDuplicateCount(record.error_message);
+  const ignoredOpeningBalance = extractIgnoredOpeningBalanceCount(record.error_message);
+  const showDecision = duplicates > 0;
+  const completedWithoutAction = record.status === "completed" && !showDecision;
+  const statusMessage = completedWithoutAction
+    ? (record.error_message || "Processamento concluido sem duplicatas.")
+    : (record.error_message || "Processamento concluido sem avisos.");
+  const reconciliation = buildStatementReconciliationSummary(record.id);
+  const reconciliationHtml = reconciliation
+    ? `
+      <div class="upload-reconciliation-card">
+        <div class="upload-reconciliation-head">
+          <strong>Conciliação do extrato</strong>
+          <span class="tiny">Resumo calculado com base nas linhas importadas</span>
+        </div>
+        <div class="upload-reconciliation-grid">
+          <div class="upload-reconciliation-item">
+            <span>Saldo pelos lançamentos</span>
+            <strong>${brl(reconciliation.movementNet)}</strong>
+          </div>
+          <div class="upload-reconciliation-item">
+            <span>Saldo inicial inferido</span>
+            <strong>${brl(reconciliation.inferredOpeningBalance)}</strong>
+          </div>
+          <div class="upload-reconciliation-item">
+            <span>Saldo final conciliado</span>
+            <strong>${brl(reconciliation.reconciledBalance)}</strong>
+          </div>
+        </div>
+      </div>
+    `
+    : "";
+  const openingBalanceNote = ignoredOpeningBalance > 0
+    ? `<p class="tiny upload-reconciliation-note">Saldo inicial inferido ignorado nesta importação porque já existe histórico anterior desse banco.</p>`
+    : "";
   el.modalTitle.textContent = `Resultado do Upload: ${fileName}`;
   el.modalBody.innerHTML = `
     <p>Status: <strong>${record.status}</strong></p>
     <p>Transacoes importadas: <strong>${record.transactions_count || 0}</strong></p>
-    <p>${record.error_message || "Processamento concluido sem avisos."}</p>
+    <p>${statusMessage}</p>
+    ${reconciliationHtml}
+    ${openingBalanceNote}
   `;
 
-  const showDecision = duplicates > 0;
   el.modalKeepBothBtn.classList.toggle("hide", !showDecision);
   el.modalDiscardBtn.classList.toggle("hide", !showDecision);
   el.modalChooseOneBtn.classList.toggle("hide", !showDecision);
@@ -4280,7 +4590,10 @@ async function waitUploadCompletion(fileId, fileName) {
   while (tries < 90) {
     const rec = await api(`/upload/${fileId}`);
     if (rec.status === "completed" || rec.status === "failed") {
-      return renderUploadModalStatus(rec, fileName);
+      if (rec.status === "completed") {
+        await refreshFinanceStateAfterUpload(rec);
+      }
+      return { duplicates: renderUploadModalStatus(rec, fileName), record: rec };
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     tries += 1;
@@ -4289,8 +4602,10 @@ async function waitUploadCompletion(fileId, fileName) {
   el.modalBody.innerHTML = "<p>O processamento está demorando mais que o esperado. Voce pode fechar e verificar depois.</p>";
   el.modalKeepBothBtn.classList.add("hide");
   el.modalDiscardBtn.classList.add("hide");
+  el.modalChooseOneBtn.classList.add("hide");
+  el.modalApplySelectionBtn.classList.add("hide");
   el.modalOkBtn.classList.remove("hide");
-  return 0;
+  return { duplicates: 0, record: null };
 }
 
 async function loadReports() {
@@ -4553,7 +4868,7 @@ el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
     }
 
     const result = await response.json();
-    if (result.payment && result.payment.checkout_url) {
+    if (result.payment && result.payment.checkout_reference) {
       window.location.href = `/events/registration/${encodeURIComponent(result.payment.checkout_reference)}`;
       return;
     }
@@ -5115,6 +5430,7 @@ for (const node of [
   el.txFilterType,
   el.txFilterCategory,
   el.txFilterMinistry,
+  el.txFilterBank,
   el.txFilterAttachment,
   el.txFilterSort,
 ]) {
@@ -5127,6 +5443,25 @@ for (const node of [
 el.txFilterResetBtn.addEventListener("click", resetTransactionFilters);
 el.txHeaderDateSort.addEventListener("click", () => toggleTransactionSort("date"));
 el.txHeaderAmountSort.addEventListener("click", () => toggleTransactionSort("amount"));
+el.txSelectAllCheckbox.addEventListener("change", () => {
+  const { rows } = getPaginatedTransactionRows();
+  for (const tx of rows) {
+    const txId = Number(tx.id);
+    if (!txId) {
+      continue;
+    }
+    if (el.txSelectAllCheckbox.checked) {
+      state.txSelectedIds.add(txId);
+    } else {
+      state.txSelectedIds.delete(txId);
+    }
+  }
+  renderTransactions();
+});
+el.txBulkClearBtn.addEventListener("click", clearTransactionSelection);
+el.txBulkDeleteBtn.addEventListener("click", async () => {
+  await deleteSelectedTransactions();
+});
 el.txPageSize.addEventListener("change", () => {
   state.txPagination.pageSize = Number(el.txPageSize.value || 25);
   state.txPagination.page = 1;
@@ -5498,14 +5833,15 @@ el.uploadForm.addEventListener("submit", async (event) => {
     event.target.reset();
 
     openUploadModal();
-    const duplicates = await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
+    resetUploadModalActions();
+    const completion = await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
+    const duplicates = Number(completion?.duplicates || 0);
 
     el.modalKeepBothBtn.onclick = async () => {
       try {
         await api(`/upload/${uploaded.id}/retry?include_duplicates=true&reset_existing=true`, { method: "POST" });
         el.modalBody.innerHTML += "<p>Reprocessando para manter ambas as transacoes duplicadas...</p>";
         await waitUploadCompletion(uploaded.id, uploaded.original_filename || file.name);
-        await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
       } catch (error) {
         setMessage(el.uploadMessage, error.message, true);
       }
@@ -5514,7 +5850,9 @@ el.uploadForm.addEventListener("submit", async (event) => {
     el.modalDiscardBtn.onclick = async () => {
       closeUploadModal();
       setMessage(el.uploadMessage, `Duplicadas desconsideradas (${duplicates}).`);
-      await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+      if (completion?.record) {
+        await refreshFinanceStateAfterUpload(completion.record);
+      }
     };
 
     el.modalChooseOneBtn.onclick = async () => {
@@ -5541,7 +5879,8 @@ el.uploadForm.addEventListener("submit", async (event) => {
         });
         closeUploadModal();
         setMessage(el.uploadMessage, "Selecao de duplicatas aplicada com sucesso.");
-        await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+        const finalRecord = await api(`/upload/${uploaded.id}`);
+        await refreshFinanceStateAfterUpload(finalRecord);
       } catch (error) {
         setMessage(el.uploadMessage, error.message, true);
       }
@@ -5549,7 +5888,9 @@ el.uploadForm.addEventListener("submit", async (event) => {
 
     el.modalOkBtn.onclick = async () => {
       closeUploadModal();
-      await Promise.all([loadTransactions(), loadSummary(), loadReports()]);
+      if (completion?.record) {
+        await refreshFinanceStateAfterUpload(completion.record);
+      }
     };
   } catch (error) {
     setMessage(el.uploadMessage, error.message, true);

@@ -3,6 +3,10 @@ from pydantic import field_validator
 
 
 class Settings(BaseSettings):
+    # Runtime environment
+    ENVIRONMENT: str = "development"
+    CHILD_CHECKIN_DEV_ENABLED: bool = False
+
     # Database
     DATABASE_URL: str = "sqlite:///./church_finance.db"
 
@@ -60,6 +64,12 @@ class Settings(BaseSettings):
 
     # Tenant invitations
     TENANT_INVITATION_EXPIRY_DAYS: int = 7
+
+    # Optional AI fallback for statement imports
+    OLLAMA_ENABLED: bool = False
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5:3b"
+    OLLAMA_TIMEOUT_SECONDS: int = 120
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

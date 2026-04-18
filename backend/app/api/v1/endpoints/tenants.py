@@ -16,7 +16,14 @@ from app.schemas.tenant import (
     TenantResponse,
     TenantUpdate,
 )
+from app.schemas.smtp_settings import (
+    TenantSmtpSettingsResponse,
+    TenantSmtpSettingsUpdate,
+    TenantSmtpTestRequest,
+    TenantSmtpTestResponse,
+)
 from app.services import tenant_service
+from app.services import smtp_settings_service
 
 router = APIRouter()
 
@@ -112,6 +119,71 @@ def update_current_tenant_payment_settings(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return tenant_service.build_payment_settings_response(tenant)
+
+
+@router.get("/current/smtp", response_model=TenantSmtpSettingsResponse)
+def get_current_tenant_smtp_settings(
+    _user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantSmtpSettingsResponse:
+    cfg = smtp_settings_service.get_tenant_smtp_settings(db, current_tenant.id)
+    if cfg is None:
+        return TenantSmtpSettingsResponse()
+    return TenantSmtpSettingsResponse(
+        host=cfg.host,
+        port=int(cfg.port or 587),
+        username=cfg.username,
+        from_email=cfg.from_email,
+        encryption=(cfg.encryption or "tls"),
+        is_active=bool(cfg.is_active),
+        has_password=bool(cfg.password),
+    )
+
+
+@router.put("/current/smtp", response_model=TenantSmtpSettingsResponse)
+def update_current_tenant_smtp_settings(
+    payload: TenantSmtpSettingsUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantSmtpSettingsResponse:
+    cfg = smtp_settings_service.upsert_tenant_smtp_settings(
+        db,
+        tenant_id=current_tenant.id,
+        host=payload.host,
+        port=payload.port,
+        username=payload.username,
+        password=payload.password,
+        from_email=str(payload.from_email) if payload.from_email else None,
+        encryption=payload.encryption,
+        is_active=payload.is_active,
+    )
+    return TenantSmtpSettingsResponse(
+        host=cfg.host,
+        port=int(cfg.port or 587),
+        username=cfg.username,
+        from_email=cfg.from_email,
+        encryption=(cfg.encryption or "tls"),
+        is_active=bool(cfg.is_active),
+        has_password=bool(cfg.password),
+    )
+
+
+@router.post("/current/smtp/test", response_model=TenantSmtpTestResponse)
+def test_current_tenant_smtp_settings(
+    payload: TenantSmtpTestRequest,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantSmtpTestResponse:
+    try:
+        smtp_settings_service.send_test_email(db, current_tenant.id, to_email=str(payload.to_email))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return TenantSmtpTestResponse(status="sent", message="E-mail de teste enviado.")
 
 
 @router.get("/public/{tenant_slug}/branding", response_model=TenantBrandingResponse)

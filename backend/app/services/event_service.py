@@ -24,6 +24,7 @@ from app.services import (
     tenant_service,
     transaction_service,
 )
+from app.tasks.event_notifications import dispatch_event_notification
 
 
 def _slugify(value: str) -> str:
@@ -312,23 +313,73 @@ def create_public_registration(
         provider_payload: dict | None = None
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
+        provider_reference = None
+
         if provider == "mercadopago":
-            preference = mercadopago_service.create_checkout_preference(
-                tenant=tenant,
-                payment_account=payment_account,
-                event_title=event.title,
-                registration_code=registration.registration_code,
-                checkout_reference=checkout_reference,
-                amount=total_amount,
-                quantity=payload.quantity,
-                attendee_name=payload.attendee_name,
-                attendee_email=str(payload.attendee_email),
-                preferred_method=payment_method,
-            )
-            checkout_url = preference.get("init_point") or preference.get("sandbox_init_point")
-            provider_payload = preference
-            pix_copy_paste = None
-            expires_at = None
+            if payment_method == "pix":
+                try:
+                    pix_payment = mercadopago_service.create_pix_payment(
+                        tenant=tenant,
+                        payment_account=payment_account,
+                        event_title=event.title,
+                        registration_code=registration.registration_code,
+                        checkout_reference=checkout_reference,
+                        amount=total_amount,
+                        attendee_name=payload.attendee_name,
+                        attendee_email=str(payload.attendee_email),
+                    )
+                    pix_data = mercadopago_service.extract_pix_payment_data(pix_payment)
+                    checkout_url = pix_data.get("ticket_url")
+                    pix_copy_paste = pix_data.get("qr_code")
+                    provider_reference = str(pix_payment.get("id")) if pix_payment.get("id") is not None else None
+                    provider_payload = {
+                        **pix_payment,
+                        "checkout_mode": "transparent_pix",
+                        "qr_code_base64": pix_data.get("qr_code_base64"),
+                        "ticket_url": pix_data.get("ticket_url"),
+                    }
+                    expires_at = mercadopago_service.parse_expires_at(pix_payment)
+                except ValueError as exc:
+                    preference = mercadopago_service.create_checkout_preference(
+                        tenant=tenant,
+                        payment_account=payment_account,
+                        event_title=event.title,
+                        registration_code=registration.registration_code,
+                        checkout_reference=checkout_reference,
+                        amount=total_amount,
+                        quantity=payload.quantity,
+                        attendee_name=payload.attendee_name,
+                        attendee_email=str(payload.attendee_email),
+                        preferred_method=payment_method,
+                    )
+                    checkout_url = preference.get("init_point") or preference.get("sandbox_init_point")
+                    provider_payload = {
+                        **preference,
+                        "checkout_mode": "redirect",
+                        "transparent_pix_error": str(exc),
+                    }
+                    pix_copy_paste = None
+                    expires_at = None
+            else:
+                preference = mercadopago_service.create_checkout_preference(
+                    tenant=tenant,
+                    payment_account=payment_account,
+                    event_title=event.title,
+                    registration_code=registration.registration_code,
+                    checkout_reference=checkout_reference,
+                    amount=total_amount,
+                    quantity=payload.quantity,
+                    attendee_name=payload.attendee_name,
+                    attendee_email=str(payload.attendee_email),
+                    preferred_method=payment_method,
+                )
+                checkout_url = preference.get("init_point") or preference.get("sandbox_init_point")
+                provider_payload = {
+                    **preference,
+                    "checkout_mode": "redirect",
+                }
+                pix_copy_paste = None
+                expires_at = None
         elif provider == "pagbank":
             checkout = pagbank_service.create_checkout(
                 tenant=tenant,
@@ -366,6 +417,7 @@ def create_public_registration(
             amount=total_amount,
             currency=event.currency,
             checkout_reference=checkout_reference,
+            provider_reference=provider_reference,
             checkout_url=checkout_url,
             pix_copy_paste=pix_copy_paste,
             expires_at=expires_at,
@@ -476,7 +528,13 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
 
     payment.status = payload.status
     payment.provider_reference = payload.provider_reference
-    payment.provider_payload = payload.provider_payload or payment.provider_payload
+    if isinstance(payment.provider_payload, dict) and isinstance(payload.provider_payload, dict):
+        payment.provider_payload = {
+            **payment.provider_payload,
+            **payload.provider_payload,
+        }
+    else:
+        payment.provider_payload = payload.provider_payload or payment.provider_payload
     if payload.status == "paid":
         payment.paid_at = payload.paid_at or datetime.now(timezone.utc)
         registration.payment_status = "paid"
@@ -485,12 +543,19 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
         _ensure_income_transaction(db, event, registration, payment)
         db.commit()
         db.refresh(payment)
-        event_notification_service.enqueue_registration_notifications(
+        notifications = event_notification_service.enqueue_registration_notifications(
             db,
             event=event,
             registration=registration,
             phase="payment_confirmed",
         )
+        for notification in notifications:
+            try:
+                dispatch_event_notification.delay(notification.id)
+            except Exception:
+                # Keep payment confirmation resilient even if the broker is down.
+                # Notification stays queued and can be reprocessed later.
+                pass
         return payment
     elif payload.status in {"failed", "expired", "cancelled", "refunded"}:
         registration.payment_status = payload.status

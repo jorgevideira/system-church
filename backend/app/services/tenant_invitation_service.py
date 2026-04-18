@@ -14,6 +14,7 @@ from app.db.models.tenant_invitation import TenantInvitation
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.schemas.tenant_invitation import TenantInvitationAcceptRequest, TenantInvitationCreate
+from app.services import smtp_settings_service
 
 
 def _build_invitation_url(token: str) -> str:
@@ -95,7 +96,8 @@ def dispatch_invitation_email(db: Session, invitation: TenantInvitation) -> Tena
     if invitation.status != "pending":
         raise ValueError("Only pending invitations can be sent")
 
-    if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
+    cfg = smtp_settings_service.resolve_effective_smtp_config(db, invitation.tenant_id)
+    if cfg is None or not cfg.host or not cfg.from_email:
         _set_delivery_metadata(invitation, status="manual_share", error=None, mark_sent=False)
         db.commit()
         db.refresh(invitation)
@@ -105,15 +107,24 @@ def dispatch_invitation_email(db: Session, invitation: TenantInvitation) -> Tena
     try:
         message = EmailMessage()
         message["Subject"] = subject
-        message["From"] = settings.SMTP_FROM_EMAIL
+        message["From"] = cfg.from_email
         message["To"] = invitation.email
         message.set_content(body)
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
-            if settings.SMTP_USE_TLS:
+        if cfg.encryption == "ssl":
+            server: smtplib.SMTP = smtplib.SMTP_SSL(cfg.host, cfg.port, timeout=20)
+        else:
+            server = smtplib.SMTP(cfg.host, cfg.port, timeout=20)
+        try:
+            if cfg.encryption == "tls":
                 server.starttls()
-            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            if cfg.username and cfg.password:
+                server.login(cfg.username, cfg.password)
             server.send_message(message)
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                server.close()
         _set_delivery_metadata(invitation, status="sent", error=None, mark_sent=True)
     except Exception as exc:
         _set_delivery_metadata(invitation, status="failed", error=str(exc), mark_sent=False)

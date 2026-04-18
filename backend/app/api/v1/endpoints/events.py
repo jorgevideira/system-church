@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
+from app.db.models.event_registration import EventRegistration
 from app.schemas.event import (
     EventCreate,
     EventPaymentResponse,
@@ -20,7 +21,8 @@ from app.schemas.event import (
     PublicEventRegistrationResponse,
 )
 from app.schemas.event_notification import EventAnalyticsResponse, EventNotificationResponse
-from app.services import event_notification_service, event_service, mercadopago_service
+from app.schemas.event_checkin import EventCheckInRequest, EventCheckInResponse
+from app.services import event_checkin_service, event_notification_service, event_service, mercadopago_service
 
 router = APIRouter()
 
@@ -157,6 +159,92 @@ def confirm_event_payment(
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     return updated
+
+
+@router.post("/checkin", response_model=EventCheckInResponse)
+def check_in_participant(
+    payload: EventCheckInRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> EventCheckInResponse:
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    status_key, registration, checkin = event_checkin_service.check_in_by_public_token(
+        db,
+        tenant_id=current_tenant.id,
+        public_token=payload.token,
+        checked_in_by_user_id=current_user.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    if status_key == "invalid_token":
+        return EventCheckInResponse(status="invalid", message="QR Code inválido ou inscrição não encontrada.")
+    if status_key == "not_paid":
+        return EventCheckInResponse(
+            status="not_paid",
+            message="Inscrição não está confirmada (pagamento pendente).",
+            event_id=registration.event_id if registration else None,
+            registration_id=registration.id if registration else None,
+            attendee_name=registration.attendee_name if registration else None,
+            attendee_email=str(registration.attendee_email) if registration else None,
+        )
+    if status_key == "duplicate":
+        return EventCheckInResponse(
+            status="duplicate",
+            message="Check-in já registrado para esta inscrição.",
+            event_id=registration.event_id if registration else None,
+            registration_id=registration.id if registration else None,
+            attendee_name=registration.attendee_name if registration else None,
+            attendee_email=str(registration.attendee_email) if registration else None,
+            checked_in_at=checkin.checked_in_at if checkin else None,
+        )
+    return EventCheckInResponse(
+        status="success",
+        message="Check-in confirmado.",
+        event_id=registration.event_id if registration else None,
+        registration_id=registration.id if registration else None,
+        attendee_name=registration.attendee_name if registration else None,
+        attendee_email=str(registration.attendee_email) if registration else None,
+        checked_in_at=checkin.checked_in_at if checkin else None,
+    )
+
+
+@router.get("/{event_id}/checkins", response_model=list[dict])
+def list_event_checkins(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> list[dict]:
+    rows = event_checkin_service.list_event_checkins(db, tenant_id=current_tenant.id, event_id=event_id)
+    registration_ids = [row.registration_id for row in rows]
+    registrations = []
+    if registration_ids:
+        registrations = (
+            db.query(EventRegistration)
+            .filter(
+                EventRegistration.tenant_id == current_tenant.id,
+                EventRegistration.id.in_(registration_ids),
+            )
+            .all()
+        )
+    registrations_by_id = {reg.id: reg for reg in registrations}
+    return [
+        {
+            "id": row.id,
+            "event_id": row.event_id,
+            "registration_id": row.registration_id,
+            "attendee_name": getattr(registrations_by_id.get(row.registration_id), "attendee_name", None),
+            "attendee_email": getattr(registrations_by_id.get(row.registration_id), "attendee_email", None),
+            "checked_in_at": row.checked_in_at,
+            "checked_in_by_user_id": row.checked_in_by_user_id,
+            "source": row.source,
+        }
+        for row in rows
+    ]
 
 
 @router.get("/public/registrations/{public_token}", response_model=EventRegistrationResponse)

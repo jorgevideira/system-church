@@ -23,6 +23,108 @@ def ensure_runtime_schema_updates() -> None:
     if "alembic_version" not in tables:
         logger.info("Alembic version table not found yet; skipping runtime schema updates until migrations are applied.")
         return
+    dialect = engine.dialect.name
+
+    # Some deployments lag behind migrations. Create a few new tables defensively on Postgres so the UI won't 500.
+    if dialect == "postgresql":
+        if "tenant_smtp_settings" not in tables:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS tenant_smtp_settings (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                        host VARCHAR(255) NOT NULL,
+                        port INTEGER NOT NULL DEFAULT 587,
+                        username VARCHAR(255),
+                        password VARCHAR(1024),
+                        from_email VARCHAR(255),
+                        encryption VARCHAR(10) NOT NULL DEFAULT 'tls',
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_smtp_settings_tenant ON tenant_smtp_settings (tenant_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tenant_smtp_settings_tenant_id ON tenant_smtp_settings (tenant_id)"))
+            logger.info("Schema update applied: tenant_smtp_settings table created.")
+
+        if "event_checkins" not in tables:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS event_checkins (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+                        event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                        registration_id INTEGER NOT NULL REFERENCES event_registrations(id) ON DELETE CASCADE,
+                        checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        checked_in_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        source VARCHAR(20) NOT NULL DEFAULT 'qr',
+                        metadata JSON,
+                        CONSTRAINT uq_event_checkins_registration UNIQUE (registration_id)
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkins_tenant_id ON event_checkins (tenant_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkins_event_id ON event_checkins (event_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkins_checked_in_at ON event_checkins (checked_in_at)"))
+            logger.info("Schema update applied: event_checkins table created.")
+
+        if "event_checkin_attempts" not in tables:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS event_checkin_attempts (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+                        event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+                        registration_id INTEGER REFERENCES event_registrations(id) ON DELETE CASCADE,
+                        checked_in_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        token_hash VARCHAR(128),
+                        status VARCHAR(30) NOT NULL,
+                        error_message VARCHAR(500),
+                        ip_address VARCHAR(64),
+                        user_agent VARCHAR(255),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_tenant_id ON event_checkin_attempts (tenant_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_event_id ON event_checkin_attempts (event_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_registration_id ON event_checkin_attempts (registration_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_token_hash ON event_checkin_attempts (token_hash)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_status ON event_checkin_attempts (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_event_checkin_attempts_created_at ON event_checkin_attempts (created_at)"))
+            logger.info("Schema update applied: event_checkin_attempts table created.")
+
+        if "payable_notifications" not in tables:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS payable_notifications (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+                        payable_id INTEGER NOT NULL REFERENCES payables(id) ON DELETE CASCADE,
+                        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        channel VARCHAR(20) NOT NULL DEFAULT 'email',
+                        template_key VARCHAR(50) NOT NULL,
+                        recipient VARCHAR(255) NOT NULL,
+                        trigger_date DATE NOT NULL,
+                        due_date_snapshot DATE NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'queued',
+                        payload JSON,
+                        error_message VARCHAR(500),
+                        sent_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        CONSTRAINT uq_payable_notifications_dispatch UNIQUE (payable_id, channel, template_key, trigger_date, recipient)
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_tenant_id ON payable_notifications (tenant_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_payable_id ON payable_notifications (payable_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_user_id ON payable_notifications (user_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_channel ON payable_notifications (channel)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_template_key ON payable_notifications (template_key)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_recipient ON payable_notifications (recipient)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_trigger_date ON payable_notifications (trigger_date)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_due_date_snapshot ON payable_notifications (due_date_snapshot)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_status ON payable_notifications (status)"))
+            logger.info("Schema update applied: payable_notifications table created.")
 
     if "users" in tables:
         user_columns = {col["name"] for col in inspector.get_columns("users")}
@@ -49,6 +151,46 @@ def ensure_runtime_schema_updates() -> None:
                 with engine.begin() as conn:
                     conn.execute(text(f"ALTER TABLE tenants ADD COLUMN {column_name} {sql_type}"))
                 logger.info("Schema update applied: tenants.%s added.", column_name)
+
+    if "statement_files" in tables:
+        statement_columns = {col["name"] for col in inspector.get_columns("statement_files")}
+
+        if "filename" not in statement_columns:
+            with engine.begin() as conn:
+                if "storage_filename" in statement_columns:
+                    if dialect == "postgresql":
+                        conn.execute(text("ALTER TABLE statement_files RENAME COLUMN storage_filename TO filename"))
+                    else:
+                        conn.execute(text("ALTER TABLE statement_files ADD COLUMN filename VARCHAR(255)"))
+                        conn.execute(text("UPDATE statement_files SET filename = storage_filename WHERE filename IS NULL"))
+                else:
+                    conn.execute(text("ALTER TABLE statement_files ADD COLUMN filename VARCHAR(255)"))
+            logger.info("Schema update applied: statement_files.filename added/aligned.")
+
+        if "file_size" not in statement_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE statement_files ADD COLUMN file_size INTEGER NOT NULL DEFAULT 0"))
+            logger.info("Schema update applied: statement_files.file_size added.")
+
+        if "status" not in statement_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE statement_files ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"))
+            logger.info("Schema update applied: statement_files.status added.")
+
+        if "error_message" not in statement_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE statement_files ADD COLUMN error_message VARCHAR(1000)"))
+            logger.info("Schema update applied: statement_files.error_message added.")
+
+        if "transactions_count" not in statement_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE statement_files ADD COLUMN transactions_count INTEGER NOT NULL DEFAULT 0"))
+            logger.info("Schema update applied: statement_files.transactions_count added.")
+
+        if "bank_account_id" not in statement_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE statement_files ADD COLUMN bank_account_id INTEGER"))
+            logger.info("Schema update applied: statement_files.bank_account_id added.")
 
     if "transactions" not in tables:
         return
@@ -77,7 +219,8 @@ def ensure_runtime_schema_updates() -> None:
                 conn.execute(text("ALTER TABLE categories ADD COLUMN is_system BOOLEAN NOT NULL DEFAULT FALSE"))
             logger.info("Schema update applied: categories.is_system added.")
 
-        if "user_id" in category_columns and category_column_defs["user_id"].get("nullable") is False:
+        # SQLite does not support ALTER COLUMN; keep this change Postgres-only.
+        if dialect == "postgresql" and "user_id" in category_columns and category_column_defs["user_id"].get("nullable") is False:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL"))
             logger.info("Schema update applied: categories.user_id is now nullable for tenant-based records.")
@@ -91,7 +234,8 @@ def ensure_runtime_schema_updates() -> None:
                 conn.execute(text("ALTER TABLE ministries ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"))
             logger.info("Schema update applied: ministries.is_active added.")
 
-        if "user_id" in ministry_columns and ministry_column_defs["user_id"].get("nullable") is False:
+        # SQLite does not support ALTER COLUMN; keep this change Postgres-only.
+        if dialect == "postgresql" and "user_id" in ministry_columns and ministry_column_defs["user_id"].get("nullable") is False:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE ministries ALTER COLUMN user_id DROP NOT NULL"))
             logger.info("Schema update applied: ministries.user_id is now nullable for tenant-based records.")
@@ -225,18 +369,24 @@ def create_default_tenant(db: Session) -> Tenant:
 
 
 def ensure_default_tenant_memberships(db: Session, default_tenant: Tenant) -> None:
+    """Backfill tenant memberships safely.
+
+    Behavior:
+    - If a user has no memberships at all, create one in the default tenant.
+    - If a user already has memberships, do NOT force-add default tenant membership.
+    - Keep exactly one default membership per user (prefer active_tenant_id).
+    """
     users = db.query(User).all()
     updated = False
     for user in users:
-        membership = (
+        memberships = (
             db.query(TenantMembership)
-            .filter(
-                TenantMembership.user_id == user.id,
-                TenantMembership.tenant_id == default_tenant.id,
-            )
-            .first()
+            .filter(TenantMembership.user_id == user.id)
+            .order_by(TenantMembership.id.asc())
+            .all()
         )
-        if membership is None:
+
+        if not memberships:
             membership = TenantMembership(
                 user_id=user.id,
                 tenant_id=default_tenant.id,
@@ -246,18 +396,53 @@ def ensure_default_tenant_memberships(db: Session, default_tenant: Tenant) -> No
                 is_default=True,
             )
             db.add(membership)
+            memberships = [membership]
             updated = True
+
+        # Keep active tenant consistent with an active membership when missing/invalid.
+        active_tenant_membership = next(
+            (
+                membership
+                for membership in memberships
+                if membership.is_active and membership.tenant_id == user.active_tenant_id
+            ),
+            None,
+        )
+        if active_tenant_membership is None:
+            fallback_membership = next((membership for membership in memberships if membership.is_active), memberships[0])
+            if user.active_tenant_id != fallback_membership.tenant_id:
+                user.active_tenant_id = fallback_membership.tenant_id
+                updated = True
+
+        # Normalize "default" flag so each user has exactly one default membership.
+        preferred_default = next(
+            (
+                membership
+                for membership in memberships
+                if membership.is_active and membership.tenant_id == user.active_tenant_id
+            ),
+            None,
+        )
+        if preferred_default is None:
+            preferred_default = next((membership for membership in memberships if membership.is_active), memberships[0])
+
+        for membership in memberships:
+            should_be_default = membership.id == preferred_default.id
+            if membership.is_default != should_be_default:
+                membership.is_default = should_be_default
+                updated = True
+
         if user.active_tenant_id is None:
-            user.active_tenant_id = default_tenant.id
+            user.active_tenant_id = preferred_default.tenant_id
             updated = True
+
     if updated:
         db.commit()
         logger.info("Default tenant memberships ensured for existing users.")
 
 
-def create_default_categories(db: Session) -> None:
+def create_default_categories(db: Session, default_tenant: Tenant) -> None:
     """Create system categories defined in constants if they do not already exist."""
-    default_tenant = create_default_tenant(db)
     for cat_data in DEFAULT_CATEGORIES:
         existing = db.query(Category).filter(Category.name == cat_data["name"], Category.tenant_id == default_tenant.id).first()
         if existing:
@@ -294,7 +479,7 @@ def setup(db: Session) -> None:
     create_default_admin(db)
     default_tenant = create_default_tenant(db)
     ensure_default_tenant_memberships(db, default_tenant)
-    create_default_categories(db)
+    create_default_categories(db, default_tenant)
 
 
 if __name__ == "__main__":

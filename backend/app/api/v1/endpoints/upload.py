@@ -39,6 +39,14 @@ def _get_file_type(filename: str) -> str:
     return ext
 
 
+def _count_transactions_for_statement(db: Session, statement_file_id: int) -> int:
+    return (
+        db.query(Transaction)
+        .filter(Transaction.statement_file_id == statement_file_id)
+        .count()
+    )
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def upload_file(
     file: UploadFile = File(...),
@@ -99,6 +107,10 @@ def get_upload_status(
     record = db.query(StatementFile).filter(StatementFile.id == file_id, StatementFile.tenant_id == current_tenant.id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    actual_count = _count_transactions_for_statement(db, record.id)
+    if record.transactions_count != actual_count:
+        record.transactions_count = actual_count
+        db.commit()
     return {
         "id": record.id,
         "filename": record.filename,
@@ -107,7 +119,7 @@ def get_upload_status(
         "file_size": record.file_size,
         "status": record.status,
         "error_message": record.error_message,
-        "transactions_count": record.transactions_count,
+        "transactions_count": actual_count,
         "created_at": record.created_at.isoformat(),
         "updated_at": record.updated_at.isoformat(),
     }
@@ -351,17 +363,26 @@ def list_uploads(
         .limit(limit)
         .all()
     )
-    return [
-        {
-            "id": r.id,
-            "filename": r.filename,
-            "original_filename": r.original_filename,
-            "file_type": r.file_type,
-            "file_size": r.file_size,
-            "status": r.status,
-            "error_message": r.error_message,
-            "transactions_count": r.transactions_count,
-            "created_at": r.created_at.isoformat(),
-        }
-        for r in records
-    ]
+    payload: list[dict] = []
+    updated = False
+    for r in records:
+        actual_count = _count_transactions_for_statement(db, r.id)
+        if r.transactions_count != actual_count:
+            r.transactions_count = actual_count
+            updated = True
+        payload.append(
+            {
+                "id": r.id,
+                "filename": r.filename,
+                "original_filename": r.original_filename,
+                "file_type": r.file_type,
+                "file_size": r.file_size,
+                "status": r.status,
+                "error_message": r.error_message,
+                "transactions_count": actual_count,
+                "created_at": r.created_at.isoformat(),
+            }
+        )
+    if updated:
+        db.commit()
+    return payload

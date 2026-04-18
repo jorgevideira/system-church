@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20260417-kids-dev-6">
 </head>
 <body>
   <div class="grain"></div>
@@ -356,6 +356,7 @@
       <div class="module-nav" aria-label="Selecao de Módulo">
         <button id="moduleFinanceBtn" class="module-btn active" type="button">Financeiro</button>
         <button id="moduleCellsBtn" class="module-btn" type="button">Células</button>
+        <button id="moduleKidsBtn" class="module-btn" type="button">Infantil</button>
         <button id="moduleBibleSchoolBtn" class="module-btn" type="button">Escola Bíblica</button>
         <button id="moduleEventsBtn" class="module-btn" type="button">Eventos</button>
         <button id="moduleUsersBtn" class="module-btn" type="button" onclick="window.openUsersModule && window.openUsersModule()">Configurações</button>
@@ -595,6 +596,11 @@
           <div class="section-title">
             <h3>Entradas e Saidas</h3>
             <div class="module-actions">
+              <div class="tx-bulk-actions">
+                <span id="txBulkSelectionCount" class="tx-result-count">Nenhum selecionado</span>
+                <button id="txBulkClearBtn" class="btn ghost btn-mini hide" type="button">Limpar seleção</button>
+                <button id="txBulkDeleteBtn" class="btn ghost btn-mini" type="button" disabled>Excluir selecionados</button>
+              </div>
               <button id="openTransactionModalBtn" class="btn" type="button">Novo lançamento</button>
             </div>
           </div>
@@ -671,6 +677,11 @@
                   <option value="">Todos</option>
                 </select>
               </label>
+              <label>Banco
+                <select id="txFilterBank">
+                  <option value="">Todos</option>
+                </select>
+              </label>
               <label>Anexo
                 <select id="txFilterAttachment">
                   <option value="">Todos</option>
@@ -699,6 +710,9 @@
             <table>
               <thead>
                 <tr>
+                  <th class="tx-checkbox-col">
+                    <input type="checkbox" id="txSelectAllCheckbox" aria-label="Selecionar lançamentos da página">
+                  </th>
                   <th><button class="th-sort-btn" id="txHeaderDateSort" data-sort-base="date" type="button">Data</button></th>
                   <th>Descrição</th>
                   <th>Tipo</th>
@@ -1023,6 +1037,15 @@
             <label>Arquivo (csv, ofx, pdf)
               <input type="file" id="fileInput" accept=".csv,.ofx,.pdf" required>
             </label>
+            <div class="upload-guidance">
+              <p class="upload-guidance-title">Formatos recomendados para importacao</p>
+              <div class="upload-guidance-chips">
+                <span class="upload-chip upload-chip-primary">Preferencial: OFX</span>
+                <span class="upload-chip">Alternativa: CSV</span>
+                <span class="upload-chip upload-chip-muted">PDF somente quando nao houver outro formato</span>
+              </div>
+              <p class="upload-guidance-copy">Arquivos OFX e CSV costumam importar com mais precisao. PDFs podem variar de acordo com o layout do banco.</p>
+            </div>
             <button class="btn" type="submit">Enviar arquivo</button>
           </form>
           <p id="uploadMessage" class="message"></p>
@@ -1699,6 +1722,243 @@
           </div>
         </section>
 
+	        <section id="cellsKidsCheckinView" class="kids-shell hide">
+	          <section class="panel">
+	          <div class="section-title">
+	            <h3>Check-in Infantil (Dev)</h3>
+	            <div class="module-actions">
+	              <button id="kidsRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+	            </div>
+	          </div>
+	          <p id="kidsMessage" class="message"></p>
+
+	          <section class="kpis cells-kpis">
+	            <article class="kpi-card"><span class="kpi-label">Check-ins no periodo</span><strong id="kidsSummaryTotal">0</strong></article>
+	            <article class="kpi-card"><span class="kpi-label">Criancas em sala</span><strong id="kidsSummaryActive">0</strong></article>
+	            <article class="kpi-card"><span class="kpi-label">Check-outs concluidos</span><strong id="kidsSummaryCheckout">0</strong></article>
+	            <article class="kpi-card"><span class="kpi-label">Criancas visitantes</span><strong id="kidsSummaryVisitors">0</strong></article>
+	            <article class="kpi-card"><span class="kpi-label">Criancas com alertas</span><strong id="kidsSummaryAlerts">0</strong></article>
+	          </section>
+	          </section>
+
+		          <section id="kidsOpsView" class="panel kids-view kids-quick-shell">
+	            <div class="section-title">
+	              <h4>Operacao Rapida</h4>
+	              <p class="tiny">Fluxo simplificado para recepcao, check-in e retirada.</p>
+	            </div>
+	            <p class="tiny">Auto-cadastro das familias: <a id="kidsPublicPageLink" href="/kids-public.html" target="_blank" rel="noopener">abrir pagina publica</a>.</p>
+	            <div class="tiny" style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center; margin-top:0.35rem;">
+	              <label style="display:flex; gap:0.4rem; align-items:center;">
+	                <strong style="white-space:nowrap;">Culto atual:</strong>
+	                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+	                  <input id="kidsOpsContextName" type="text" list="kidsOpsContextSuggestions" placeholder="Ex: Culto Domingo 19h" required style="min-width:240px;">
+	                  <datalist id="kidsOpsContextSuggestions"></datalist>
+	                  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+	                    <div id="kidsOpsPresets" class="kids-context-presets" aria-label="Atalhos de culto"></div>
+	                    <button id="kidsOpsPresetsEditBtn" class="btn ghost btn-mini" type="button">Editar atalhos</button>
+	                  </div>
+	                </div>
+	              </label>
+	              <strong>Impressao:</strong>
+	              <label style="display:flex; gap:0.4rem; align-items:center;">
+	                <span class="tiny">Modo</span>
+	                <select id="kidsPrinterModeSelect">
+	                  <option value="both">Etiqueta + Pulseira</option>
+                  <option value="band">Somente pulseira</option>
+                  <option value="label">Somente etiqueta</option>
+                </select>
+              </label>
+              <span class="input-hint">Use “Somente pulseira” para impressora termica de pulseira.</span>
+            </div>
+
+	            <div class="kids-quick-grid">
+	              <form id="kidsQuickQrForm" class="grid-form cells-form">
+	                <h5>Check-in por QR Code</h5>
+	                <label>QR payload
+	                  <div class="inline-field-group">
+	                    <input id="kidsQuickQrPayload" type="text" placeholder="KIDS:tenant:fam_code:child_id" required>
+	                    <button id="kidsQuickQrScanBtn" class="btn ghost btn-inline" type="button">Ler</button>
+	                  </div>
+	                  <span class="input-hint">Use "Ler" para abrir a camera e capturar o QR da carteirinha.</span>
+	                </label>
+	                <button class="btn" type="submit">Ler QR e Fazer Check-in</button>
+	              </form>
+	
+	              <form id="kidsQuickVisitorForm" class="grid-form cells-form">
+	                <h5>Visitante rapido</h5>
+	                <label>Nome da crianca
+	                  <input id="kidsQuickVisitorChildName" type="text" required>
+                </label>
+                <label>Responsavel
+                  <input id="kidsQuickVisitorResponsible" type="text" required>
+                </label>
+                <label>Telefone
+                  <input id="kidsQuickVisitorPhone" type="text" required>
+                </label>
+	                <label>Sala
+	                  <input id="kidsQuickVisitorRoom" type="text" required>
+	                </label>
+	                <button class="btn" type="submit">Check-in Visitante</button>
+		              </form>
+		            </div>
+		          </section>
+
+		            <section id="kidsCheckoutsView" class="panel kids-view hide">
+		              <h5>Criancas em sala (retirada)</h5>
+		              <div class="table-wrap">
+		                <table class="table">
+	                  <thead>
+	                    <tr>
+	                      <th>ID</th>
+	                      <th>Crianca</th>
+	                      <th>Sala</th>
+	                      <th>Entrada</th>
+	                      <th>Codigo</th>
+	                      <th>Acoes</th>
+	                    </tr>
+	                  </thead>
+		                  <tbody id="kidsActiveCheckinsBody"><tr><td colspan="6">Sem criancas em sala.</td></tr></tbody>
+		                </table>
+		              </div>
+		            </section>
+
+	            <section id="kidsMonitorView" class="panel kids-view hide">
+	              <div class="section-title">
+	                <h5>Monitoramento por sala</h5>
+	                <span class="tiny">Acompanhe a sala e chame os pais pelo WhatsApp.</span>
+	              </div>
+	              <form id="kidsMonitorForm" class="grid-form cells-form">
+	                <label>Sala
+	                  <input id="kidsMonitorRoomName" type="text" placeholder="Ex: Jardim A" required>
+	                </label>
+	                <label>Data
+	                  <input id="kidsMonitorDate" type="date">
+	                </label>
+	                <button id="kidsMonitorLoadBtn" class="btn" type="submit">Carregar sala</button>
+	              </form>
+	              <div class="table-wrap" style="margin-top:0.6rem;">
+	                <table class="table">
+	                  <thead>
+	                    <tr>
+	                      <th>Crianca</th>
+	                      <th>Familia</th>
+	                      <th>Contato</th>
+	                      <th>Acao</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody id="kidsMonitorBody"><tr><td colspan="4">Informe a sala para iniciar.</td></tr></tbody>
+	                </table>
+	              </div>
+	            </section>
+
+		            <section id="kidsCadastroView" class="kids-view hide">
+		              <div class="cells-grid" style="margin-top:1rem;">
+		                <section id="kidsRoomsPanel" class="panel">
+		                  <h5>Configuracao de salas/turmas</h5>
+		                  <form id="kidsRoomForm" class="grid-form cells-form">
+		                    <label>Nome da sala
+		                      <input id="kidsRoomName" type="text" placeholder="Ex: Jardim A" required>
+		                    </label>
+		                    <label>Faixa etaria
+		                      <input id="kidsRoomAgeRange" type="text" placeholder="Ex: 0-3 anos">
+		                    </label>
+		                    <label>Idade minima (anos)
+		                      <input id="kidsRoomMinAgeYears" type="number" min="0" max="20" placeholder="Ex: 0">
+		                    </label>
+		                    <label>Idade maxima (anos)
+		                      <input id="kidsRoomMaxAgeYears" type="number" min="0" max="20" placeholder="Ex: 3">
+		                    </label>
+		                    <label>Limite de criancas na sala
+		                      <input id="kidsRoomCapacity" type="number" min="1" max="500" placeholder="Ex: 10">
+		                    </label>
+		                    <label>Descricao
+		                      <input id="kidsRoomDescription" type="text" placeholder="Opcional">
+		                    </label>
+		                    <button class="btn" type="submit">Salvar sala</button>
+		                  </form>
+		                  <div class="table-wrap" style="margin-top:0.6rem;">
+		                    <table class="table">
+		                      <thead>
+		                        <tr>
+		                          <th>Sala</th>
+		                          <th>Faixa</th>
+		                          <th>Limite</th>
+		                          <th>Status</th>
+		                        </tr>
+		                      </thead>
+		                      <tbody id="kidsRoomsBody"><tr><td colspan="4">Sem salas cadastradas.</td></tr></tbody>
+		                    </table>
+		                  </div>
+		                </section>
+
+		                <section id="kidsChildrenPanel" class="panel">
+		                  <h5>Criancas cadastradas</h5>
+		                  <div class="table-wrap">
+		                    <table class="table">
+		                      <thead>
+		                        <tr><th>ID</th><th>Crianca</th><th>Familia</th><th>Sala</th><th>Alertas</th><th>Visitante</th></tr>
+		                      </thead>
+		                      <tbody id="kidsChildrenBody"><tr><td colspan="6">Sem registros.</td></tr></tbody>
+		                    </table>
+		                  </div>
+		                </section>
+		              </div>
+		            </section>
+
+		          <section id="kidsNotifsView" class="kids-view hide">
+		            <div class="cells-grid">
+		              <section class="panel">
+		                <div class="section-title">
+		                  <h5>Comunicacao com pais</h5>
+		                  <span class="tiny">Envie mensagens e registre os chamados.</span>
+		                </div>
+		                <form id="kidsNotifyForm" class="grid-form cells-form">
+		                  <label>Canal
+		                    <select id="kidsNotifyChannel">
+		                      <option value="email">Email</option>
+		                      <option value="whatsapp">WhatsApp (futuro)</option>
+		                      <option value="sms">SMS (futuro)</option>
+		                    </select>
+		                  </label>
+		                  <label>Tipo de mensagem
+		                    <select id="kidsNotifyType">
+		                      <option value="checkin_confirmation">Confirmacao de check-in</option>
+		                      <option value="pickup_request">Solicitacao para comparecer a sala</option>
+		                      <option value="emergency">Emergencia</option>
+		                      <option value="checkout_confirmation">Confirmacao de check-out</option>
+		                    </select>
+		                  </label>
+		                  <label>ID da familia (opcional)
+		                    <input id="kidsNotifyFamilyId" type="number" min="1">
+		                  </label>
+		                  <label>ID da crianca (opcional)
+		                    <input id="kidsNotifyChildId" type="number" min="1">
+		                  </label>
+		                  <label>Mensagem
+		                    <input id="kidsNotifyMessage" type="text" required>
+		                  </label>
+		                  <button class="btn" type="submit">Enviar (simulado)</button>
+		                </form>
+		              </section>
+
+		              <section class="panel">
+		                <div class="section-title">
+		                  <h5>Ultimas notificacoes</h5>
+		                  <span class="tiny">Historico recente do modulo infantil.</span>
+		                </div>
+		                <div class="table-wrap">
+		                  <table class="table">
+		                    <thead>
+		                      <tr><th>Canal</th><th>Tipo</th><th>Mensagem</th><th>Status</th><th>Data</th></tr>
+		                    </thead>
+		                    <tbody id="kidsNotificationsBody"><tr><td colspan="5">Sem registros.</td></tr></tbody>
+		                  </table>
+		                </div>
+		              </section>
+		            </div>
+		          </section>
+		        </section>
+
         <section id="cellsCreateCellView" class="panel cells-view hide">
           <h4>Cadastrar Célula</h4>
           <form id="cellsCreateCellForm" class="grid-form cells-form">
@@ -2188,6 +2448,22 @@
     </div>
   </div>
 
+	  <section id="kidsModule" class="module-panel hide">
+	    <div class="cells-module-grid">
+	      <aside class="cells-sidebar panel">
+	        <p class="sidebar-title">Módulo Infantil</p>
+	        <button id="kidsNavOpsBtn" class="nav-btn active" type="button">Operação</button>
+	        <button id="kidsNavCheckoutsBtn" class="nav-btn" type="button">Retirada</button>
+	        <button id="kidsNavMonitorBtn" class="nav-btn" type="button">Monitoramento</button>
+	        <button id="kidsNavCadastroBtn" class="nav-btn" type="button">Cadastros</button>
+	        <button id="kidsNavNotifsBtn" class="nav-btn" type="button">Notificações</button>
+	      </aside>
+	      <section class="cells-content-stack">
+	        <div id="kidsModuleContent"></div>
+	      </section>
+	    </div>
+	  </section>
+
   <section id="usersModule" class="module-panel hide">
     <div class="users-module-grid">
       <aside class="users-sidebar panel">
@@ -2198,6 +2474,7 @@
         <button id="usersNavAppearanceBtn" class="nav-btn" type="button">Aparência</button>
         <button id="usersNavLandingBtn" class="nav-btn" type="button">Landing Page</button>
         <button id="usersNavPaymentsBtn" class="nav-btn" type="button">Pagamentos</button>
+        <button id="usersNavSmtpBtn" class="nav-btn" type="button">SMTP</button>
       </aside>
       <section class="users-content-stack">
         <section class="panel view show" id="usersUsersView">
@@ -2221,6 +2498,32 @@
                 </thead>
                 <tbody id="usersInvitationsBody"><tr><td colspan="6">Carregando...</td></tr></tbody>
               </table>
+            </div>
+          </section>
+          <section class="tx-filters users-filters" aria-label="Filtros de usuários">
+            <div class="tx-filters-grid users-filters-grid">
+              <label>Buscar
+                <input id="usersSearchInput" type="search" placeholder="Nome ou e-mail">
+              </label>
+              <label>Status
+                <select id="usersStatusFilter">
+                  <option value="all">Todos</option>
+                  <option value="true">Ativos</option>
+                  <option value="false">Inativos</option>
+                </select>
+              </label>
+              <label>Perfil
+                <select id="usersRoleFilter">
+                  <option value="all">Todos os perfis</option>
+                </select>
+              </label>
+            </div>
+            <div class="tx-filters-footer">
+              <div id="usersFilterChips" class="filter-chips"></div>
+              <div class="tx-filter-actions">
+                <button id="usersClearFiltersBtn" class="btn ghost btn-mini" type="button">Limpar</button>
+                <button id="usersApplyFiltersBtn" class="btn ghost btn-mini" type="button">Filtrar</button>
+              </div>
             </div>
           </section>
           <div class="table-wrap">
@@ -2373,6 +2676,66 @@
                 <tbody id="usersPaymentAccountsOverviewBody"><tr><td colspan="6">Nenhuma conta cadastrada.</td></tr></tbody>
               </table>
             </div>
+          </section>
+          <section id="usersSmtpOverviewSection" class="dashboard-card settings-overview-panel hide">
+            <div class="section-title">
+              <h4>SMTP</h4>
+              <span class="tiny">Configure o servidor de e-mail usado para convites e confirmações de eventos.</span>
+            </div>
+            <div id="usersChurchSmtpSection" class="settings-anchor"></div>
+            <p id="usersSmtpMessage" class="message"></p>
+            <form id="usersSmtpForm" class="stack">
+              <div class="events-form-row">
+                <label>Servidor SMTP
+                  <input id="usersSmtpHost" type="text" maxlength="255" placeholder="smtp.seudominio.com" required>
+                </label>
+                <label>Porta
+                  <input id="usersSmtpPort" type="number" min="1" max="65535" value="587" required>
+                </label>
+              </div>
+              <div class="events-form-row">
+                <label>Usuário
+                  <input id="usersSmtpUsername" type="text" maxlength="255" placeholder="Opcional">
+                </label>
+                <label>Senha
+                  <input id="usersSmtpPassword" type="password" maxlength="500" placeholder="Deixe em branco para manter">
+                </label>
+              </div>
+              <div class="events-form-row">
+                <label>E-mail remetente (From)
+                  <input id="usersSmtpFromEmail" type="email" maxlength="255" placeholder="no-reply@igreja.com">
+                </label>
+                <label>Criptografia
+                  <select id="usersSmtpEncryption">
+                    <option value="tls">TLS (STARTTLS)</option>
+                    <option value="ssl">SSL</option>
+                    <option value="none">Sem criptografia</option>
+                  </select>
+                </label>
+              </div>
+              <label class="inline-check">
+                <input id="usersSmtpIsActive" type="checkbox" checked>
+                SMTP ativo
+              </label>
+              <div class="modal-actions">
+                <button class="btn" type="submit">Salvar SMTP</button>
+              </div>
+            </form>
+            <section class="dashboard-card">
+              <div class="section-title compact-section-title">
+                <h4>Teste rápido</h4>
+                <span class="tiny">Envia um e-mail de teste usando a configuração salva.</span>
+              </div>
+              <div class="events-form-row">
+                <label>Enviar para
+                  <input id="usersSmtpTestToEmail" type="email" maxlength="255" placeholder="seuemail@dominio.com">
+                </label>
+                <div class="modal-actions">
+                  <button id="usersSmtpTestBtn" class="btn ghost" type="button">Testar SMTP</button>
+                </div>
+              </div>
+              <p id="usersSmtpTestMessage" class="message"></p>
+            </section>
           </section>
           <form id="usersChurchForm" class="stack hide">
             <section id="usersChurchGeneralGroup" class="stack">
@@ -2930,6 +3293,7 @@
         <button id="eventsNavPaymentsBtn" class="nav-btn" type="button">Pagamentos</button>
         <button id="eventsNavAnalyticsBtn" class="nav-btn" type="button">Analytics</button>
         <button id="eventsNavNotificationsBtn" class="nav-btn" type="button">Notificações</button>
+        <button id="eventsNavCheckinBtn" class="nav-btn" type="button">Check-in</button>
       </aside>
       <section class="events-content-stack">
         <p id="eventsMessage" class="message"></p>
@@ -3252,6 +3616,7 @@
                   <option value="">Todos</option>
                   <option value="queued">Na fila</option>
                   <option value="sent">Enviado</option>
+                  <option value="failed">Falhou</option>
                 </select>
               </label>
             </div>
@@ -3262,6 +3627,36 @@
                 <tr><th>Canal</th><th>Destinatário</th><th>Template</th><th>Status</th><th>Erro</th><th>Enviado em</th></tr>
               </thead>
               <tbody id="eventsNotificationsBody"><tr><td colspan="6">Selecione um evento.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="eventsCheckinView" class="panel events-view hide">
+          <div class="section-title">
+            <h3>Check-in</h3>
+            <div class="module-actions">
+              <button id="eventsCheckinRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+            </div>
+          </div>
+          <p class="tiny" id="eventsCheckinHint">Selecione um evento na agenda e leia o QR Code para registrar a entrada.</p>
+          <section class="dash-filters">
+            <div class="dash-filters-grid">
+              <label>Token do QR Code
+                <input type="text" id="eventsCheckinTokenInput" placeholder="Cole aqui o token lido do QR Code">
+              </label>
+            </div>
+            <div class="dash-filters-actions">
+              <button id="eventsCheckinSubmitBtn" class="btn" type="button">Confirmar check-in</button>
+              <button id="eventsCheckinClearBtn" class="btn ghost btn-mini" type="button">Limpar</button>
+            </div>
+          </section>
+          <p id="eventsCheckinResult" class="message"></p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Participante</th><th>Email</th><th>Registrado em</th><th>Operador</th></tr>
+              </thead>
+              <tbody id="eventsCheckinBody"><tr><td colspan="4">Selecione um evento.</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -3375,17 +3770,74 @@
     </div>
   </div>
 
+  <div id="kidsQrScannerModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(560px, 96vw);">
+      <div class="modal-header">
+        <strong>Ler QR Code</strong>
+        <button id="kidsQrScannerCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <video id="kidsQrScannerVideo" style="width:100%; border-radius:14px; border:1px solid var(--line); background:#111;" autoplay playsinline muted></video>
+        <p id="kidsQrScannerStatus" class="tiny" style="margin-top:0.6rem;">Aponte a camera para o QR da carteirinha.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="kidsCheckinResultModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(560px, 96vw);">
+      <div class="modal-header">
+        <strong>Check-in confirmado</strong>
+        <button id="kidsCheckinResultCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <div id="kidsCheckinResultBody" class="tiny"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="kidsCheckinResultPrintBtn" class="btn" type="button">Imprimir etiqueta/pulseira</button>
+        <button id="kidsCheckinResultNewScanBtn" class="btn ghost" type="button">Ler outro QR</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="kidsCheckoutModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(640px, 96vw);">
+      <div class="modal-header">
+        <strong>Retirada (check-out)</strong>
+        <button id="kidsCheckoutCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <p id="kidsCheckoutHint" class="tiny">Leia o QR da pulseira (responsavel) ou informe o codigo de seguranca.</p>
+        <div class="grid-form cells-form" style="margin-top:0;">
+          <label>QR token / Codigo
+            <div class="inline-field-group">
+              <input id="kidsCheckoutToken" type="text" placeholder="Aponte a camera para o QR da pulseira">
+              <button id="kidsCheckoutScanBtn" class="btn ghost btn-inline" type="button">Ler QR</button>
+            </div>
+          </label>
+          <label>Responsavel autorizado
+            <select id="kidsCheckoutGuardianSelect"></select>
+          </label>
+          <label>Quem esta retirando?
+            <input id="kidsCheckoutPickupName" type="text" placeholder="Opcional">
+          </label>
+        </div>
+        <p id="kidsCheckoutMessage" class="message"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="kidsCheckoutCancelBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="kidsCheckoutConfirmBtn" class="btn" type="button">Confirmar retirada</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
-  <script src="/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="/app.js?v=20260415-reconciliation-1"></script>
   <script src="/cells-module.js"></script>
+  <script src="/child-checkin-module.js?v=20260417-kids-dev-10"></script>
   <script src="/school-module.js"></script>
   <script src="/events-module.js?v=20260408-events-admin-1"></script>
   <script src="/users-module.js?v=20260401-users-actions-fix-2"></script>
 </body>
 </html>
-
-
-
-
-

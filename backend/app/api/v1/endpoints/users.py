@@ -1,6 +1,6 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
@@ -14,13 +14,25 @@ router = APIRouter()
 
 @router.get("/", response_model=List[UserResponse])
 def list_users(
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    q: str | None = Query(None, alias="q"),
+    role_id: int | None = Query(None, ge=1),
+    is_active: bool | None = Query(None),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[User]:
-    return user_service.get_users_for_tenant(db, current_tenant.id, skip=skip, limit=limit)
+    return user_service.get_users_for_tenant(
+        db,
+        current_tenant.id,
+        skip=skip,
+        limit=limit,
+        search=q,
+        role_id=role_id,
+        is_active=is_active,
+        membership_active_only=False,
+    )
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

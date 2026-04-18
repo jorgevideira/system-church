@@ -7,10 +7,25 @@ services:
     ports:
       - "${REDIS_PORT}:6379"
 
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT}:11434"
+    restart: unless-stopped
+
   backend:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
+    environment:
+      ENVIRONMENT: development
+      CHILD_CHECKIN_DEV_ENABLED: "true"
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "${BACKEND_PORT}:8000"
@@ -19,6 +34,25 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
+    environment:
+      ENVIRONMENT: development
+      CHILD_CHECKIN_DEV_ENABLED: "true"
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS}
+
+  celery_beat:
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    environment:
+      ENVIRONMENT: development
+      CHILD_CHECKIN_DEV_ENABLED: "true"
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS}
 
   nginx:
     volumes:
@@ -35,3 +69,6 @@ services:
 networks:
   proxy_manager:
     external: true
+
+volumes:
+  ollama_data:

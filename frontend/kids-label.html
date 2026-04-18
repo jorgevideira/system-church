@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppKids | Etiquetas</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="kids-label-shell">
+    <header class="kids-label-header">
+      <div>
+        <h1>Etiquetas do check-in</h1>
+        <p id="kidsLabelHint" class="tiny">Carregando etiquetas...</p>
+      </div>
+      <button id="kidsLabelPrintBtn" class="btn" type="button">Imprimir</button>
+    </header>
+
+    <p id="kidsLabelMessage" class="message"></p>
+    <div class="kids-label-sections">
+      <section id="kidsLabelSectionLabel" class="kids-label-section">
+        <h2 class="kids-label-section-title">Etiqueta</h2>
+        <div id="kidsLabelGrid" class="kids-label-grid"></div>
+      </section>
+      <section id="kidsLabelSectionBand" class="kids-label-section">
+        <h2 class="kids-label-section-title">Pulseira</h2>
+        <div id="kidsBandGrid" class="kids-band-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/kids-label.js"></script>
+</body>
+</html>

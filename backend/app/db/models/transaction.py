@@ -115,6 +115,8 @@ class Transaction(Base):
         lower_name = original_filename.lower()
         if "pagseguro" in lower_name:
             return "PagSeguro"
+        if "pagbank" in lower_name:
+            return "PagSeguro"
         if "bradesco" in lower_name:
             return "Bradesco"
         if "itau" in lower_name or "itaú" in lower_name:
@@ -123,8 +125,24 @@ class Transaction(Base):
             return "Santander"
         if "caixa" in lower_name:
             return "Caixa"
+        if "mercado pago" in lower_name or "mercadopago" in lower_name:
+            return "Mercado Pago"
+        if "mercado livre" in lower_name or "mercadolivre" in lower_name:
+            return "Mercado Pago"
+        if "sicoob" in lower_name:
+            return "Sicoob"
+        if "sicredi" in lower_name:
+            return "Sicredi"
+        if "banco inter" in lower_name or re.search(r"\binter\b", lower_name):
+            return "Inter"
+        if "c6 bank" in lower_name or "bco c6" in lower_name or re.search(r"\bc6\b", lower_name):
+            return "C6 Bank"
         if "nubank" in lower_name:
             return "Nubank"
+        if re.match(r"^nu[_-]", lower_name):
+            return "Nubank"
+        if re.match(r"^mp[_-]", lower_name):
+            return "Mercado Pago"
         if "banco do brasil" in lower_name or re.search(r"\bbb\b", lower_name):
             return "Banco do Brasil"
 

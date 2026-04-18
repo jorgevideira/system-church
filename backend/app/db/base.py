@@ -11,6 +11,7 @@ from app.db.models.bank_account import BankAccount  # noqa: F401
 from app.db.models.statement_file import StatementFile  # noqa: F401
 from app.db.models.transaction import Transaction  # noqa: F401
 from app.db.models.payable import Payable  # noqa: F401
+from app.db.models.payable_notification import PayableNotification  # noqa: F401
 from app.db.models.receivable import Receivable  # noqa: F401
 from app.db.models.budget import Budget  # noqa: F401
 from app.db.models.transaction_attachment import TransactionAttachment  # noqa: F401
@@ -34,4 +35,18 @@ from app.db.models.event import Event  # noqa: F401
 from app.db.models.event_registration import EventRegistration  # noqa: F401
 from app.db.models.event_payment import EventPayment  # noqa: F401
 from app.db.models.event_notification import EventNotification  # noqa: F401
+from app.db.models.event_checkin import EventCheckIn  # noqa: F401
+from app.db.models.event_checkin_attempt import EventCheckInAttempt  # noqa: F401
 from app.db.models.tenant_invitation import TenantInvitation  # noqa: F401
+from app.db.models.tenant_smtp_settings import TenantSmtpSettings  # noqa: F401
+from app.db.models.child_checkin import (  # noqa: F401
+	ChildCheckinFamily,
+	ChildCheckinChild,
+	ChildCheckinGuardian,
+	ChildCheckinRecord,
+	ChildCheckinAudit,
+	ChildCheckinNotification,
+	ChildCheckinRoom,
+	ChildCheckinRoomScope,
+	ChildCheckinSettings,
+)

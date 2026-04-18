@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="820" viewBox="0 0 420 820" role="img" aria-label="Saida">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff2aa5"/>
+      <stop offset="1" stop-color="#8d0a62"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect x="56" y="18" width="308" height="784" rx="54" fill="#0f1115" filter="url(#shadow)"/>
+  <rect x="74" y="42" width="272" height="736" rx="40" fill="url(#g)"/>
+  <rect x="150" y="28" width="120" height="22" rx="11" fill="#1b1f29"/>
+  <rect x="92" y="98" width="236" height="92" rx="20" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.22)"/>
+  <rect x="110" y="122" width="170" height="14" rx="7" fill="rgba(255,255,255,0.88)"/>
+  <rect x="110" y="150" width="110" height="12" rx="6" fill="rgba(255,255,255,0.66)"/>
+  <rect x="92" y="214" width="236" height="266" rx="20" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.18)"/>
+  <rect x="110" y="244" width="152" height="12" rx="6" fill="rgba(255,255,255,0.62)"/>
+  <rect x="110" y="268" width="186" height="12" rx="6" fill="rgba(255,255,255,0.44)"/>
+  <rect x="110" y="314" width="174" height="12" rx="6" fill="rgba(255,255,255,0.62)"/>
+  <rect x="110" y="338" width="132" height="12" rx="6" fill="rgba(255,255,255,0.44)"/>
+  <rect x="110" y="384" width="160" height="12" rx="6" fill="rgba(255,255,255,0.62)"/>
+  <rect x="110" y="408" width="120" height="12" rx="6" fill="rgba(255,255,255,0.44)"/>
+  <rect x="104" y="530" width="212" height="66" rx="22" fill="rgba(255,255,255,0.92)"/>
+  <path d="M154 563h88" stroke="#6e064c" stroke-width="10" stroke-linecap="round"/>
+  <path d="M252 546l18 18-18 18" stroke="#6e064c" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

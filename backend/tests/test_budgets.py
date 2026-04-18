@@ -10,7 +10,7 @@ from app.core.security import get_password_hash
 from app.db.models.category import Category
 from app.db.models.ministry import Ministry
 from app.db.models.user import User
-from tests.conftest import auth_headers
+from tests.conftest import auth_headers, ensure_membership, get_or_create_test_tenant
 
 
 @pytest.fixture
@@ -19,16 +19,19 @@ def editor_user(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == email).first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     user = User(
         email=email,
         full_name="Budget Editor",
         role="editor",
         hashed_password=get_password_hash("editorpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(user)
     test_db.commit()
     test_db.refresh(user)
+    ensure_membership(test_db, user, tenant, role="editor", is_default=True)
     return user
 
 
@@ -38,23 +41,28 @@ def other_editor_user(test_db: Session) -> User:
     existing = test_db.query(User).filter(User.email == email).first()
     if existing:
         return existing
+    tenant = get_or_create_test_tenant(test_db)
     user = User(
         email=email,
         full_name="Budget Editor 2",
         role="editor",
         hashed_password=get_password_hash("editorpass123"),
         is_active=True,
+        active_tenant_id=tenant.id,
     )
     test_db.add(user)
     test_db.commit()
     test_db.refresh(user)
+    ensure_membership(test_db, user, tenant, role="editor", is_default=True)
     return user
 
 
 @pytest.fixture
 def expense_category(test_db: Session) -> Category:
     name = f"BudgetCat-{uuid.uuid4().hex[:8]}"
+    tenant = get_or_create_test_tenant(test_db)
     category = Category(
+        tenant_id=tenant.id,
         name=name,
         description="Category for budget tests",
         type="expense",
@@ -70,7 +78,9 @@ def expense_category(test_db: Session) -> Category:
 @pytest.fixture
 def ministry(test_db: Session) -> Ministry:
     name = f"BudgetMin-{uuid.uuid4().hex[:8]}"
+    tenant = get_or_create_test_tenant(test_db)
     ministry = Ministry(
+        tenant_id=tenant.id,
         name=name,
         description="Ministry for budget tests",
         is_active=True,

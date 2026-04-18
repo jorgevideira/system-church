@@ -8,6 +8,7 @@ from app.db.models.bank_account import BankAccount
 from app.db.models.statement_file import StatementFile
 from app.db.models.transaction import Transaction
 from app.db.models.payable import Payable
+from app.db.models.payable_notification import PayableNotification
 from app.db.models.receivable import Receivable
 from app.db.models.budget import Budget
 from app.db.models.transaction_attachment import TransactionAttachment
@@ -34,6 +35,17 @@ from app.db.models.event_payment import EventPayment
 from app.db.models.event_notification import EventNotification
 from app.db.models.tenant_invitation import TenantInvitation
 from app.db.models.payment_account import PaymentAccount
+from app.db.models.child_checkin import (
+    ChildCheckinFamily,
+    ChildCheckinChild,
+    ChildCheckinGuardian,
+    ChildCheckinRecord,
+    ChildCheckinAudit,
+    ChildCheckinNotification,
+    ChildCheckinRoom,
+    ChildCheckinRoomScope,
+    ChildCheckinSettings,
+)
 
 __all__ = [
     "User",
@@ -47,6 +59,7 @@ __all__ = [
     "StatementFile",
     "Transaction",
     "Payable",
+    "PayableNotification",
     "Receivable",
     "Budget",
     "TransactionAttachment",
@@ -73,4 +86,13 @@ __all__ = [
     "EventNotification",
     "TenantInvitation",
     "PaymentAccount",
+    "ChildCheckinFamily",
+    "ChildCheckinChild",
+    "ChildCheckinGuardian",
+    "ChildCheckinRecord",
+    "ChildCheckinAudit",
+    "ChildCheckinNotification",
+    "ChildCheckinRoom",
+    "ChildCheckinRoomScope",
+    "ChildCheckinSettings",
 ]

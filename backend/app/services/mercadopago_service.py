@@ -1,6 +1,7 @@
 import hashlib
 import hmac
-from datetime import datetime, timezone
+import json
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Optional
 
@@ -13,6 +14,34 @@ from app.services import payment_account_service, tenant_service
 
 
 MERCADOPAGO_API_BASE_URL = "https://api.mercadopago.com"
+
+
+def _extract_error_message(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        cause = payload.get("cause")
+        if isinstance(cause, list) and cause:
+            first = cause[0]
+            if isinstance(first, dict):
+                description = str(first.get("description") or first.get("code") or "").strip()
+                if description:
+                    return description
+        for key in ("message", "error", "status"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        serialized = json.dumps(payload, ensure_ascii=False)
+        if serialized:
+            return serialized
+    return response.text.strip() or f"HTTP {response.status_code}"
+
+
+def _format_mp_datetime(value: datetime) -> str:
+    formatted = value.astimezone().strftime("%Y-%m-%dT%H:%M:%S.000%z")
+    return f"{formatted[:-2]}:{formatted[-2:]}"
 
 
 def _resolve_access_token(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> str | None:
@@ -48,7 +77,12 @@ def is_enabled(tenant: Tenant | None = None, payment_account: PaymentAccount | N
     return provider == "mercadopago" and bool(_resolve_access_token(tenant, payment_account))
 
 
-def _build_headers(tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> dict[str, str]:
+def _build_headers(
+    tenant: Tenant | None = None,
+    payment_account: PaymentAccount | None = None,
+    *,
+    idempotency_key: str | None = None,
+) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {_resolve_access_token(tenant, payment_account)}",
         "Content-Type": "application/json",
@@ -56,6 +90,8 @@ def _build_headers(tenant: Tenant | None = None, payment_account: PaymentAccount
     integrator_id = _resolve_integrator_id(tenant, payment_account)
     if integrator_id:
         headers["x-integrator-id"] = integrator_id
+    if idempotency_key:
+        headers["X-Idempotency-Key"] = idempotency_key
     return headers
 
 
@@ -127,6 +163,71 @@ def create_checkout_preference(
         )
         response.raise_for_status()
         return response.json()
+
+
+def create_pix_payment(
+    tenant: Tenant,
+    payment_account: PaymentAccount | None,
+    *,
+    event_title: str,
+    registration_code: str,
+    checkout_reference: str,
+    amount: Decimal,
+    attendee_name: str,
+    attendee_email: str,
+) -> dict[str, Any]:
+    if not is_enabled(tenant, payment_account):
+        raise ValueError("Mercado Pago is not configured")
+
+    notification_url = f"{settings.APP_BASE_URL}{settings.API_V1_STR}/events/public/payments/webhook"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    first_name, _, last_name = attendee_name.strip().partition(" ")
+    payload = {
+        "transaction_amount": float(amount),
+        "description": f"{event_title} - {registration_code}",
+        "payment_method_id": "pix",
+        "external_reference": checkout_reference,
+        "notification_url": notification_url,
+        "date_of_expiration": _format_mp_datetime(expires_at),
+        "payer": {
+            "email": attendee_email,
+            "first_name": first_name or attendee_name.strip(),
+            "last_name": last_name or "-",
+        },
+    }
+
+    with httpx.Client(timeout=20.0) as client:
+        response = client.post(
+            f"{MERCADOPAGO_API_BASE_URL}/v1/payments",
+            headers=_build_headers(tenant, payment_account, idempotency_key=checkout_reference),
+            json=payload,
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            error_message = _extract_error_message(exc.response)
+            raise ValueError(f"Mercado Pago recusou o PIX transparente: {error_message}") from exc
+        return response.json()
+
+
+def extract_pix_payment_data(payment_data: dict[str, Any]) -> dict[str, str | None]:
+    point_of_interaction = payment_data.get("point_of_interaction") or {}
+    transaction_data = point_of_interaction.get("transaction_data") or {}
+    return {
+        "qr_code": transaction_data.get("qr_code"),
+        "qr_code_base64": transaction_data.get("qr_code_base64"),
+        "ticket_url": transaction_data.get("ticket_url"),
+    }
+
+
+def parse_expires_at(payment_data: dict[str, Any]) -> Optional[datetime]:
+    raw = payment_data.get("date_of_expiration")
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def fetch_payment(payment_id: str, tenant: Tenant | None = None, payment_account: PaymentAccount | None = None) -> dict[str, Any]:
