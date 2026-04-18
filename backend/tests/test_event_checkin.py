@@ -8,6 +8,7 @@ from app.db.models.event import Event
 from app.db.models.event_checkin import EventCheckIn
 from app.db.models.event_checkin_attempt import EventCheckInAttempt
 from app.db.models.event_registration import EventRegistration
+from app.db.models.event_registration_attendee import EventRegistrationAttendee
 from app.db.models.user import User
 from tests.conftest import auth_headers, get_or_create_test_tenant
 
@@ -74,6 +75,18 @@ def _seed_event_and_registration(
     test_db.add(registration)
     test_db.commit()
     test_db.refresh(registration)
+
+    # Create the per-attendee ticket row used by the QR check-in flow.
+    attendee = EventRegistrationAttendee(
+        tenant_id=tenant_id,
+        event_id=registration.event_id,
+        registration_id=registration.id,
+        attendee_index=1,
+        attendee_name=registration.attendee_name,
+        public_token=registration.public_token,
+    )
+    test_db.add(attendee)
+    test_db.commit()
     return registration
 
 

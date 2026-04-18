@@ -106,10 +106,16 @@
     eventsCheckinRefreshBtn: document.getElementById("eventsCheckinRefreshBtn"),
     eventsCheckinHint: document.getElementById("eventsCheckinHint"),
     eventsCheckinTokenInput: document.getElementById("eventsCheckinTokenInput"),
+    eventsCheckinScanBtn: document.getElementById("eventsCheckinScanBtn"),
     eventsCheckinSubmitBtn: document.getElementById("eventsCheckinSubmitBtn"),
     eventsCheckinClearBtn: document.getElementById("eventsCheckinClearBtn"),
     eventsCheckinResult: document.getElementById("eventsCheckinResult"),
     eventsCheckinBody: document.getElementById("eventsCheckinBody"),
+
+    eventsQrScannerModal: document.getElementById("eventsQrScannerModal"),
+    eventsQrScannerCloseBtn: document.getElementById("eventsQrScannerCloseBtn"),
+    eventsQrScannerVideo: document.getElementById("eventsQrScannerVideo"),
+    eventsQrScannerStatus: document.getElementById("eventsQrScannerStatus"),
   };
 
   const state = {
@@ -608,7 +614,9 @@ function populatePaymentAccountOptions() {
     state.registrations = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/registrations`, { headers: buildHeaders(false) }, "Falha ao carregar inscricoes.");
     const filteredRegistrations = state.registrations.filter((registration) => {
       if (state.filters.registrationsSearch) {
-        const haystack = `${registration.registration_code || ""} ${registration.attendee_name || ""} ${registration.attendee_email || ""}`;
+        const attendees = Array.isArray(registration.attendees) ? registration.attendees : [];
+        const attendeeNames = attendees.map((row) => row && row.attendee_name ? row.attendee_name : "").join(" ");
+        const haystack = `${registration.registration_code || ""} ${registration.attendee_name || ""} ${attendeeNames} ${registration.attendee_email || ""}`;
         if (!includesText(haystack, state.filters.registrationsSearch)) return false;
       }
       if (state.filters.registrationsStatus && registration.status !== state.filters.registrationsStatus) return false;
@@ -620,17 +628,30 @@ function populatePaymentAccountOptions() {
       el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Nenhuma inscricao ate o momento.</td></tr>";
       return;
     }
-    el.eventsRegistrationsBody.innerHTML = filteredRegistrations.map((registration) => `
-      <tr>
-        <td>${escapeHtml(registration.registration_code)}</td>
-        <td>${escapeHtml(registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
-        <td>${escapeHtml(String(registration.quantity || 0))}</td>
-        <td>${escapeHtml(statusLabel(registration.status))}</td>
-        <td>${escapeHtml(statusLabel(registration.payment_status))}</td>
-        <td>${escapeHtml(formatMoney(registration.total_amount, registration.currency || "BRL"))}</td>
-        <td>${escapeHtml(formatDateTime(registration.created_at))}</td>
-      </tr>
-    `).join("");
+    const rows = [];
+    filteredRegistrations.forEach((registration) => {
+      const attendees = Array.isArray(registration.attendees) && registration.attendees.length
+        ? registration.attendees
+        : [{ attendee_index: 1, attendee_name: registration.attendee_name }];
+      const qty = Number(registration.quantity || attendees.length || 1) || 1;
+      const perTicket = qty > 0 ? Number(registration.total_amount || 0) / qty : Number(registration.total_amount || 0);
+      attendees.forEach((attendee) => {
+        const idx = Number(attendee && attendee.attendee_index ? attendee.attendee_index : 1) || 1;
+        const badge = `${idx}/${qty}`;
+        rows.push(`
+          <tr>
+            <td>${escapeHtml(registration.registration_code)}</td>
+            <td>${escapeHtml(attendee && attendee.attendee_name ? attendee.attendee_name : registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
+            <td>${escapeHtml(badge)}</td>
+            <td>${escapeHtml(statusLabel(registration.status))}</td>
+            <td>${escapeHtml(statusLabel(registration.payment_status))}</td>
+            <td>${escapeHtml(formatMoney(perTicket, registration.currency || "BRL"))}</td>
+            <td>${escapeHtml(formatDateTime(registration.created_at))}</td>
+          </tr>
+        `);
+      });
+    });
+    el.eventsRegistrationsBody.innerHTML = rows.join("");
   }
 
   async function loadPayments() {
@@ -854,6 +875,140 @@ function populatePaymentAccountOptions() {
     } catch (error) {
       setCheckinResult(error && error.message ? error.message : "Falha ao realizar check-in.", true);
     }
+  }
+
+  let eventsQrStream = null;
+  let eventsQrActive = false;
+  let eventsQrDetector = null;
+  let eventsQrMode = "";
+  let eventsQrCanvas = null;
+  let eventsQrCtx = null;
+  let eventsQrLastScanAt = 0;
+
+  function eventsHasJsQr() {
+    return typeof window.jsQR === "function";
+  }
+
+  function eventsEnsureQrCanvas() {
+    if (eventsQrCanvas && eventsQrCtx) return;
+    eventsQrCanvas = document.createElement("canvas");
+    eventsQrCtx = eventsQrCanvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  async function openEventsQrScanner() {
+    if (!el.eventsQrScannerModal || !el.eventsQrScannerVideo) return;
+    if (!("mediaDevices" in navigator) || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      setCheckinResult("Este navegador nao suporta camera. Cole o token manualmente.", true);
+      return;
+    }
+
+    eventsQrDetector = null;
+    eventsQrMode = "";
+    if ("BarcodeDetector" in window) {
+      try {
+        eventsQrDetector = new window.BarcodeDetector({ formats: ["qr_code"] });
+        eventsQrMode = "native";
+      } catch (_error) {
+        eventsQrDetector = null;
+        eventsQrMode = "";
+      }
+    }
+    if (!eventsQrMode && eventsHasJsQr()) {
+      eventsEnsureQrCanvas();
+      eventsQrMode = "jsqr";
+    }
+    if (!eventsQrMode) {
+      setCheckinResult("Leitor de QR indisponivel neste navegador. Cole o token manualmente.", true);
+      return;
+    }
+
+    el.eventsQrScannerModal.classList.remove("hide");
+    el.eventsQrScannerModal.setAttribute("aria-hidden", "false");
+    if (el.eventsQrScannerStatus) el.eventsQrScannerStatus.textContent = "Abrindo camera...";
+
+    try {
+      eventsQrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    } catch (error) {
+      const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
+      const hint =
+        name === "NotAllowedError" ? "Permissao negada para camera." :
+        name === "NotFoundError" ? "Camera nao encontrada." :
+        "Falha ao abrir camera.";
+      setCheckinResult(`${hint} Cole o token manualmente.`, true);
+      closeEventsQrScanner();
+      return;
+    }
+
+    el.eventsQrScannerVideo.srcObject = eventsQrStream;
+    eventsQrActive = true;
+    eventsQrLastScanAt = 0;
+    if (el.eventsQrScannerStatus) {
+      el.eventsQrScannerStatus.textContent = "Aponte para o QR Code.";
+    }
+    requestAnimationFrame(scanEventsQrFrame);
+  }
+
+  function closeEventsQrScanner() {
+    eventsQrActive = false;
+    if (el.eventsQrScannerModal) {
+      el.eventsQrScannerModal.classList.add("hide");
+      el.eventsQrScannerModal.setAttribute("aria-hidden", "true");
+    }
+    if (el.eventsQrScannerVideo) {
+      el.eventsQrScannerVideo.pause();
+      el.eventsQrScannerVideo.srcObject = null;
+    }
+    if (eventsQrStream) {
+      const tracks = eventsQrStream.getTracks ? eventsQrStream.getTracks() : [];
+      tracks.forEach((track) => track.stop());
+    }
+    eventsQrStream = null;
+    eventsQrDetector = null;
+    eventsQrMode = "";
+    if (el.eventsQrScannerStatus) el.eventsQrScannerStatus.textContent = "Aponte a camera para o QR da inscrição.";
+  }
+
+  async function scanEventsQrFrame() {
+    if (!eventsQrActive || !el.eventsQrScannerVideo) return;
+    try {
+      const now = Date.now();
+      if (eventsQrLastScanAt && now - eventsQrLastScanAt < 120) {
+        requestAnimationFrame(scanEventsQrFrame);
+        return;
+      }
+      eventsQrLastScanAt = now;
+
+      let raw = "";
+      if (eventsQrMode === "native" && eventsQrDetector) {
+        const barcodes = await eventsQrDetector.detect(el.eventsQrScannerVideo);
+        if (Array.isArray(barcodes) && barcodes.length) raw = String(barcodes[0] && barcodes[0].rawValue || "").trim();
+      } else if (eventsQrMode === "jsqr" && eventsHasJsQr() && eventsQrCtx && eventsQrCanvas) {
+        const vw = Number(el.eventsQrScannerVideo.videoWidth || 0);
+        const vh = Number(el.eventsQrScannerVideo.videoHeight || 0);
+        if (vw > 0 && vh > 0) {
+          const maxSide = 720;
+          const scale = Math.min(1, maxSide / Math.max(vw, vh));
+          const tw = Math.max(1, Math.round(vw * scale));
+          const th = Math.max(1, Math.round(vh * scale));
+          eventsQrCanvas.width = tw;
+          eventsQrCanvas.height = th;
+          eventsQrCtx.drawImage(el.eventsQrScannerVideo, 0, 0, tw, th);
+          const imageData = eventsQrCtx.getImageData(0, 0, tw, th);
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+          if (code && code.data) raw = String(code.data).trim();
+        }
+      }
+
+      if (raw) {
+        closeEventsQrScanner();
+        if (el.eventsCheckinTokenInput) el.eventsCheckinTokenInput.value = raw;
+        await submitCheckinToken();
+        return;
+      }
+    } catch (_error) {
+      if (el.eventsQrScannerStatus) el.eventsQrScannerStatus.textContent = "Falha ao ler. Tente aproximar o QR.";
+    }
+    requestAnimationFrame(scanEventsQrFrame);
   }
 
   async function refreshCurrentView() {
@@ -1112,6 +1267,7 @@ function populatePaymentAccountOptions() {
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinRefreshBtn) el.eventsCheckinRefreshBtn.addEventListener("click", () => loadCheckins().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinSubmitBtn) el.eventsCheckinSubmitBtn.addEventListener("click", () => submitCheckinToken().catch((error) => setMessage(error.message, true)));
+    if (el.eventsCheckinScanBtn) el.eventsCheckinScanBtn.addEventListener("click", () => openEventsQrScanner().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinTokenInput) {
       el.eventsCheckinTokenInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -1120,6 +1276,7 @@ function populatePaymentAccountOptions() {
         }
       });
     }
+    if (el.eventsQrScannerCloseBtn) el.eventsQrScannerCloseBtn.addEventListener("click", closeEventsQrScanner);
     if (el.eventsCheckinClearBtn && el.eventsCheckinTokenInput) {
       el.eventsCheckinClearBtn.addEventListener("click", () => {
         el.eventsCheckinTokenInput.value = "";

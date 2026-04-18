@@ -128,6 +128,9 @@ class EventRegistrationPublicCreate(BaseModel):
     attendee_phone: Optional[str] = None
     attendee_document: Optional[str] = None
     quantity: int = 1
+    # Optional: explicit names for each ticket/inscricao.
+    # If omitted, we will assume all tickets are in `attendee_name`.
+    attendee_names: Optional[list[str]] = None
     payment_method: Optional[str] = None
     notes: Optional[str] = None
 
@@ -137,6 +140,30 @@ class EventRegistrationPublicCreate(BaseModel):
         if value < 1:
             raise ValueError("quantity must be at least 1")
         return value
+
+    @model_validator(mode="after")
+    def validate_attendee_names(self) -> "EventRegistrationPublicCreate":
+        if self.attendee_names is None:
+            return self
+        names = [str(name or "").strip() for name in self.attendee_names]
+        if not names:
+            raise ValueError("attendee_names must not be empty")
+        if len(names) != int(self.quantity or 0):
+            raise ValueError("attendee_names length must match quantity")
+        for name in names:
+            if len(name) < 2:
+                raise ValueError("each attendee name must have at least 2 characters")
+        self.attendee_names = names
+        return self
+
+
+class EventRegistrationAttendeeResponse(BaseModel):
+    id: int
+    attendee_index: int
+    attendee_name: str
+    public_token: str
+
+    model_config = {"from_attributes": True}
 
     @field_validator("payment_method")
     @classmethod
@@ -166,6 +193,7 @@ class EventRegistrationResponse(BaseModel):
     currency: str
     notes: Optional[str] = None
     confirmed_at: Optional[datetime] = None
+    attendees: list[EventRegistrationAttendeeResponse] = []
     created_at: datetime
     updated_at: datetime
 

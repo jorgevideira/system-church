@@ -141,6 +141,10 @@ const el = {
   publicDetailEmail: document.getElementById("publicDetailEmail"),
   publicDetailPhone: document.getElementById("publicDetailPhone"),
   publicDetailQuantity: document.getElementById("publicDetailQuantity"),
+  publicAttendeeModeSelf: document.getElementById("publicAttendeeModeSelf"),
+  publicAttendeeModeList: document.getElementById("publicAttendeeModeList"),
+  publicDetailAttendeesBlock: document.getElementById("publicDetailAttendeesBlock"),
+  publicDetailAttendeesList: document.getElementById("publicDetailAttendeesList"),
   publicDetailPaymentMethod: document.getElementById("publicDetailPaymentMethod"),
   publicDetailNotes: document.getElementById("publicDetailNotes"),
   publicDetailSubmitBtn: document.getElementById("publicDetailSubmitBtn"),
@@ -164,6 +168,8 @@ const el = {
   publicCopyPixBtn: document.getElementById("publicCopyPixBtn"),
   publicCheckoutBlock: document.getElementById("publicCheckoutBlock"),
   publicCheckoutLink: document.getElementById("publicCheckoutLink"),
+  publicEntryQrBlock: document.getElementById("publicEntryQrBlock"),
+  publicEntryQrList: document.getElementById("publicEntryQrList"),
   publicRefreshStatusBtn: document.getElementById("publicRefreshStatusBtn"),
   publicInviteTitle: document.getElementById("publicInviteTitle"),
   publicInviteSummary: document.getElementById("publicInviteSummary"),
@@ -1309,6 +1315,55 @@ function renderPixQrCode(pixCode, qrCodeBase64 = "") {
   });
 }
 
+function publicAttendeeListModeEnabled() {
+  return Boolean(el.publicAttendeeModeList && el.publicAttendeeModeList.checked);
+}
+
+function parsePublicQuantity() {
+  const raw = Number(el.publicDetailQuantity && el.publicDetailQuantity.value ? el.publicDetailQuantity.value : 1);
+  if (!Number.isFinite(raw) || raw < 1) return 1;
+  return Math.floor(raw);
+}
+
+function buildPublicAttendeeInputs(quantity) {
+  if (!el.publicDetailAttendeesList) return;
+  const qty = Math.max(1, Math.min(50, Number(quantity || 1) || 1));
+  const currentName = el.publicDetailName ? String(el.publicDetailName.value || "").trim() : "";
+
+  const inputs = [];
+  for (let i = 0; i < qty; i += 1) {
+    const idx = i + 1;
+    const value = i === 0 ? currentName : "";
+    inputs.push(`
+      <label class="tiny">Participante ${idx}
+        <input type="text" data-public-attendee-name="1" data-attendee-index="${idx}" ${i === 0 ? 'data-sync-from-buyer="1"' : ""} value="${escapeHtml(value)}" placeholder="Nome completo" required>
+      </label>
+    `);
+  }
+  el.publicDetailAttendeesList.innerHTML = inputs.join("");
+
+  // Disable auto-sync if the first attendee name is manually edited.
+  const first = el.publicDetailAttendeesList.querySelector('input[data-sync-from-buyer="1"]');
+  if (first) {
+    first.addEventListener("input", () => {
+      first.dataset.syncFromBuyer = "0";
+    });
+  }
+}
+
+function updatePublicAttendeeUi() {
+  if (!el.publicDetailAttendeesBlock) return;
+  const qty = parsePublicQuantity();
+  const shouldShow = publicAttendeeListModeEnabled() && qty > 1;
+  el.publicDetailAttendeesBlock.classList.toggle("hide", !shouldShow);
+  if (!shouldShow) return;
+
+  const existing = el.publicDetailAttendeesList ? el.publicDetailAttendeesList.querySelectorAll("input[data-public-attendee-name]") : [];
+  if (!existing || existing.length !== qty) {
+    buildPublicAttendeeInputs(qty);
+  }
+}
+
 function renderPublicPaymentStatus(payload) {
   const { event, registration, payment } = payload;
   const providerPayload = payment && typeof payment.provider_payload === "object" && payment.provider_payload
@@ -1359,6 +1414,28 @@ function renderPublicPaymentStatus(payload) {
   el.publicCheckoutBlock.classList.toggle("hide", !hasCheckoutUrl);
   if (hasCheckoutUrl) {
     el.publicCheckoutLink.href = payment.checkout_url;
+  }
+
+  const attendees = Array.isArray(registration.attendees) && registration.attendees.length
+    ? registration.attendees
+    : [{ attendee_name: registration.attendee_name, public_token: registration.public_token, attendee_index: 1 }];
+  const showEntryQr = paymentStatus === "paid" && attendees.length > 0 && Boolean(el.publicEntryQrBlock && el.publicEntryQrList);
+  if (el.publicEntryQrBlock) el.publicEntryQrBlock.classList.toggle("hide", !showEntryQr);
+  if (showEntryQr && el.publicEntryQrList) {
+    el.publicEntryQrList.innerHTML = attendees.map((attendee) => {
+      const token = attendee && attendee.public_token ? String(attendee.public_token) : "";
+      const name = attendee && attendee.attendee_name ? String(attendee.attendee_name) : "";
+      const img = token
+        ? `<img alt="QR Code de entrada" src="/api/v1/events/public/registrations/${encodeURIComponent(token)}/qr.png" style="width:128px;height:128px;border-radius:12px;border:1px solid var(--line);background:#fff;object-fit:contain;">`
+        : `<div style="width:128px;height:128px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff;">-</div>`;
+      return `
+        <article class="public-event-metric">
+          <span>${escapeHtml(name || "Participante")}</span>
+          <div style="margin-top:0.5rem;display:flex;justify-content:center;">${img}</div>
+          <div class="tiny" style="margin-top:0.5rem;word-break:break-all;">${escapeHtml(token)}</div>
+        </article>
+      `;
+    }).join("");
   }
 
   if (paymentStatus === "pending") {
@@ -1736,6 +1813,7 @@ function renderPublicEventDetail(payload) {
   el.publicEventRegistrationForm.dataset.tenantSlug = tenantSlug;
   el.publicEventRegistrationForm.dataset.eventSlug = event.slug;
   el.publicDetailQuantity.max = String(event.max_registrations_per_order || 1);
+  updatePublicAttendeeUi();
 }
 
 async function initializePublicEventDetailApp() {
@@ -4848,14 +4926,26 @@ el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
       throw new Error("Evento público não carregado.");
     }
 
+    const quantity = Number(el.publicDetailQuantity.value || 1);
     const payload = {
       attendee_name: el.publicDetailName.value.trim(),
       attendee_email: el.publicDetailEmail.value.trim(),
       attendee_phone: el.publicDetailPhone.value.trim() || null,
-      quantity: Number(el.publicDetailQuantity.value || 1),
+      quantity,
       payment_method: el.publicDetailPaymentMethod.value,
       notes: el.publicDetailNotes.value.trim() || null,
     };
+    if (publicAttendeeListModeEnabled() && quantity > 1) {
+      const inputs = el.publicDetailAttendeesList ? Array.from(el.publicDetailAttendeesList.querySelectorAll("input[data-public-attendee-name]")) : [];
+      if (!inputs.length || inputs.length !== quantity) {
+        throw new Error("Informe o nome de cada participante.");
+      }
+      const names = inputs.map((node) => String(node.value || "").trim()).filter(Boolean);
+      if (names.length !== quantity) {
+        throw new Error("Preencha o nome de todos os participantes.");
+      }
+      payload.attendee_names = names;
+    }
 
     const response = await fetch(`${API_PREFIX}/events/public/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventSlug)}/registrations`, {
       method: "POST",
@@ -4876,6 +4966,25 @@ el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
   } catch (error) {
     el.publicDetailMessage.textContent = error.message;
   }
+});
+
+function syncFirstPublicAttendeeName() {
+  if (!el.publicDetailAttendeesList) return;
+  const first = el.publicDetailAttendeesList.querySelector('input[data-sync-from-buyer="1"]');
+  if (!first) return;
+  if (first.dataset.syncFromBuyer === "0") return;
+  first.value = el.publicDetailName ? String(el.publicDetailName.value || "").trim() : "";
+}
+
+if (el.publicDetailQuantity) {
+  el.publicDetailQuantity.addEventListener("input", updatePublicAttendeeUi);
+  el.publicDetailQuantity.addEventListener("change", updatePublicAttendeeUi);
+}
+if (el.publicAttendeeModeSelf) el.publicAttendeeModeSelf.addEventListener("change", updatePublicAttendeeUi);
+if (el.publicAttendeeModeList) el.publicAttendeeModeList.addEventListener("change", updatePublicAttendeeUi);
+if (el.publicDetailName) el.publicDetailName.addEventListener("input", () => {
+  updatePublicAttendeeUi();
+  syncFirstPublicAttendeeName();
 });
 
 if (el.publicInviteAcceptForm) {

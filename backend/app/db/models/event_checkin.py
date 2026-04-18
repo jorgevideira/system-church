@@ -8,7 +8,7 @@ from app.db.base_class import Base
 
 class EventCheckIn(Base):
     __tablename__ = "event_checkins"
-    __table_args__ = (UniqueConstraint("registration_id", name="uq_event_checkins_registration"),)
+    __table_args__ = (UniqueConstraint("attendee_id", name="uq_event_checkins_attendee"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     tenant_id: Mapped[int | None] = mapped_column(
@@ -27,6 +27,12 @@ class EventCheckIn(Base):
         Integer,
         ForeignKey("event_registrations.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    attendee_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("event_registration_attendees.id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     checked_in_at: Mapped[datetime] = mapped_column(

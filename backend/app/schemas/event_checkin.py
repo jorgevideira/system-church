@@ -12,7 +12,8 @@ class EventCheckInResponse(BaseModel):
     message: str
     event_id: int | None = None
     registration_id: int | None = None
+    attendee_id: int | None = None
+    attendee_index: int | None = None
     attendee_name: str | None = None
     attendee_email: str | None = None
     checked_in_at: datetime | None = None
-

@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
@@ -171,7 +171,7 @@ def check_in_participant(
 ) -> EventCheckInResponse:
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
-    status_key, registration, checkin = event_checkin_service.check_in_by_public_token(
+    status_key, registration, checkin, attendee = event_checkin_service.check_in_by_public_token(
         db,
         tenant_id=current_tenant.id,
         public_token=payload.token,
@@ -188,7 +188,9 @@ def check_in_participant(
             message="Inscrição não está confirmada (pagamento pendente).",
             event_id=registration.event_id if registration else None,
             registration_id=registration.id if registration else None,
-            attendee_name=registration.attendee_name if registration else None,
+            attendee_id=attendee.id if attendee else None,
+            attendee_index=attendee.attendee_index if attendee else None,
+            attendee_name=attendee.attendee_name if attendee else (registration.attendee_name if registration else None),
             attendee_email=str(registration.attendee_email) if registration else None,
         )
     if status_key == "duplicate":
@@ -197,7 +199,9 @@ def check_in_participant(
             message="Check-in já registrado para esta inscrição.",
             event_id=registration.event_id if registration else None,
             registration_id=registration.id if registration else None,
-            attendee_name=registration.attendee_name if registration else None,
+            attendee_id=attendee.id if attendee else None,
+            attendee_index=attendee.attendee_index if attendee else None,
+            attendee_name=attendee.attendee_name if attendee else (registration.attendee_name if registration else None),
             attendee_email=str(registration.attendee_email) if registration else None,
             checked_in_at=checkin.checked_in_at if checkin else None,
         )
@@ -206,7 +210,9 @@ def check_in_participant(
         message="Check-in confirmado.",
         event_id=registration.event_id if registration else None,
         registration_id=registration.id if registration else None,
-        attendee_name=registration.attendee_name if registration else None,
+        attendee_id=attendee.id if attendee else None,
+        attendee_index=attendee.attendee_index if attendee else None,
+        attendee_name=attendee.attendee_name if attendee else (registration.attendee_name if registration else None),
         attendee_email=str(registration.attendee_email) if registration else None,
         checked_in_at=checkin.checked_in_at if checkin else None,
     )
@@ -232,12 +238,26 @@ def list_event_checkins(
             .all()
         )
     registrations_by_id = {reg.id: reg for reg in registrations}
+    attendee_ids = [row.attendee_id for row in rows if row.attendee_id]
+    attendees = []
+    if attendee_ids:
+        from app.db.models.event_registration_attendee import EventRegistrationAttendee
+
+        attendees = (
+            db.query(EventRegistrationAttendee)
+            .filter(EventRegistrationAttendee.tenant_id == current_tenant.id, EventRegistrationAttendee.id.in_(attendee_ids))
+            .all()
+        )
+    attendees_by_id = {a.id: a for a in attendees}
     return [
         {
             "id": row.id,
             "event_id": row.event_id,
             "registration_id": row.registration_id,
-            "attendee_name": getattr(registrations_by_id.get(row.registration_id), "attendee_name", None),
+            "attendee_id": row.attendee_id,
+            "attendee_index": getattr(attendees_by_id.get(row.attendee_id), "attendee_index", None),
+            "attendee_name": getattr(attendees_by_id.get(row.attendee_id), "attendee_name", None)
+            or getattr(registrations_by_id.get(row.registration_id), "attendee_name", None),
             "attendee_email": getattr(registrations_by_id.get(row.registration_id), "attendee_email", None),
             "checked_in_at": row.checked_in_at,
             "checked_in_by_user_id": row.checked_in_by_user_id,
@@ -245,6 +265,28 @@ def list_event_checkins(
         }
         for row in rows
     ]
+
+
+@router.get("/public/registrations/{public_token}/qr.png", response_class=Response)
+def public_registration_qr_png(public_token: str, db: Session = Depends(get_db)) -> Response:
+    # Backwards compatible: accept old registration tokens or new attendee tokens.
+    token = (public_token or "").strip()
+    if not token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    from app.services import qr_service
+    from app.db.models.event_registration_attendee import EventRegistrationAttendee
+
+    attendee = db.query(EventRegistrationAttendee).filter(EventRegistrationAttendee.public_token == token).first()
+    if attendee is None:
+        reg = db.query(EventRegistration).filter(EventRegistration.public_token == token).first()
+        if reg is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        png = qr_service.build_qr_png(reg.public_token)
+        return Response(content=png, media_type="image/png")
+
+    png = qr_service.build_qr_png(attendee.public_token)
+    return Response(content=png, media_type="image/png")
 
 
 @router.get("/public/registrations/{public_token}", response_model=EventRegistrationResponse)

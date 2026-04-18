@@ -240,6 +240,21 @@
           <label>Quantidade
             <input id="publicDetailQuantity" type="number" min="1" value="1" required>
           </label>
+          <div class="stack" style="gap:0.5rem;">
+            <div class="tiny" style="color:var(--muted);">Participantes</div>
+            <label class="tiny" style="display:flex; align-items:center; gap:0.6rem;">
+              <input type="radio" id="publicAttendeeModeSelf" name="publicAttendeeMode" value="self" checked>
+              Colocar todas as inscrições no meu nome
+            </label>
+            <label class="tiny" style="display:flex; align-items:center; gap:0.6rem;">
+              <input type="radio" id="publicAttendeeModeList" name="publicAttendeeMode" value="list">
+              Informar nomes dos participantes
+            </label>
+            <div id="publicDetailAttendeesBlock" class="hide">
+              <div class="tiny" style="color:var(--muted);">Nomes (um por inscrição)</div>
+              <div id="publicDetailAttendeesList" class="stack"></div>
+            </div>
+          </div>
           <label>Forma de pagamento
             <select id="publicDetailPaymentMethod" required>
               <option value="pix">PIX</option>
@@ -307,6 +322,12 @@
           <div class="public-payment-actions">
             <a id="publicCheckoutLink" class="btn" href="#" target="_blank" rel="noopener noreferrer">Abrir pagamento</a>
           </div>
+        </div>
+
+        <div id="publicEntryQrBlock" class="public-payment-block hide">
+          <p class="public-payment-label">QR Codes de entrada</p>
+          <div id="publicEntryQrList" class="public-catalog-grid"></div>
+          <p class="tiny" style="margin-top:0.6rem;">Apresente estes QR Codes no check-in do evento.</p>
         </div>
 
         <div class="public-payment-actions public-payment-actions-footer">
@@ -3509,7 +3530,7 @@
           <div class="table-wrap">
             <table class="table">
               <thead>
-                <tr><th>Código</th><th>Participante</th><th>Qtd</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
+                <tr><th>Código</th><th>Participante</th><th>Ingresso</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
               </thead>
               <tbody id="eventsRegistrationsBody"><tr><td colspan="7">Selecione um evento.</td></tr></tbody>
             </table>
@@ -3646,6 +3667,7 @@
               </label>
             </div>
             <div class="dash-filters-actions">
+              <button id="eventsCheckinScanBtn" class="btn ghost" type="button">Ler QR pelo celular</button>
               <button id="eventsCheckinSubmitBtn" class="btn" type="button">Confirmar check-in</button>
               <button id="eventsCheckinClearBtn" class="btn ghost btn-mini" type="button">Limpar</button>
             </div>
@@ -3783,6 +3805,19 @@
     </div>
   </div>
 
+  <div id="eventsQrScannerModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card" style="width:min(560px, 96vw);">
+      <div class="modal-header">
+        <strong>Ler QR Code (Eventos)</strong>
+        <button id="eventsQrScannerCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div class="modal-body">
+        <video id="eventsQrScannerVideo" style="width:100%; border-radius:14px; border:1px solid var(--line); background:#111;" autoplay playsinline muted></video>
+        <p id="eventsQrScannerStatus" class="tiny" style="margin-top:0.6rem;">Aponte a camera para o QR da inscrição.</p>
+      </div>
+    </div>
+  </div>
+
   <div id="kidsCheckinResultModal" class="modal-overlay hide" aria-hidden="true">
     <div class="modal-card" style="width:min(560px, 96vw);">
       <div class="modal-header">
@@ -3831,8 +3866,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script src="/vendor/jsqr.min.js"></script>
   <script src="/app.js?v=20260415-reconciliation-1"></script>
   <script src="/cells-module.js"></script>
   <script src="/child-checkin-module.js?v=20260417-kids-dev-10"></script>

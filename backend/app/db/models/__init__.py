@@ -31,6 +31,7 @@ from app.db.models.bible_school_student import BibleSchoolStudent
 from app.db.models.bible_school_attendance import BibleSchoolAttendance
 from app.db.models.event import Event
 from app.db.models.event_registration import EventRegistration
+from app.db.models.event_registration_attendee import EventRegistrationAttendee
 from app.db.models.event_payment import EventPayment
 from app.db.models.event_notification import EventNotification
 from app.db.models.tenant_invitation import TenantInvitation
@@ -82,6 +83,7 @@ __all__ = [
     "BibleSchoolAttendance",
     "Event",
     "EventRegistration",
+    "EventRegistrationAttendee",
     "EventPayment",
     "EventNotification",
     "TenantInvitation",

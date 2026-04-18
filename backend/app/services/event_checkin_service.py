@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models.event_checkin import EventCheckIn
 from app.db.models.event_checkin_attempt import EventCheckInAttempt
 from app.db.models.event_registration import EventRegistration
+from app.db.models.event_registration_attendee import EventRegistrationAttendee
 
 
 def _utc_now() -> datetime:
@@ -58,14 +59,53 @@ def check_in_by_public_token(
     checked_in_by_user_id: int | None,
     ip_address: str | None = None,
     user_agent: str | None = None,
-) -> tuple[str, Optional[EventRegistration], Optional[EventCheckIn]]:
+) -> tuple[str, Optional[EventRegistration], Optional[EventCheckIn], Optional[EventRegistrationAttendee]]:
     token = (public_token or "").strip()
-    registration = (
-        db.query(EventRegistration)
-        .filter(EventRegistration.tenant_id == tenant_id, EventRegistration.public_token == token)
+    attendee = (
+        db.query(EventRegistrationAttendee)
+        .filter(EventRegistrationAttendee.tenant_id == tenant_id, EventRegistrationAttendee.public_token == token)
         .first()
     )
+    registration = None
+    if attendee is not None:
+        registration = (
+            db.query(EventRegistration)
+            .filter(EventRegistration.tenant_id == tenant_id, EventRegistration.id == attendee.registration_id)
+            .first()
+        )
     if registration is None:
+        # Backwards compatible: allow scanning the old "order/registration" token.
+        registration = (
+            db.query(EventRegistration)
+            .filter(EventRegistration.tenant_id == tenant_id, EventRegistration.public_token == token)
+            .first()
+        )
+        if registration is not None:
+            attendee = (
+                db.query(EventRegistrationAttendee)
+                .filter(
+                    EventRegistrationAttendee.tenant_id == tenant_id,
+                    EventRegistrationAttendee.registration_id == registration.id,
+                )
+                .order_by(EventRegistrationAttendee.attendee_index.asc(), EventRegistrationAttendee.id.asc())
+                .all()
+            )
+            # Pick the first attendee without a check-in (supports multi-ticket orders).
+            attendee_by_id = {row.id: row for row in attendee}
+            checked = (
+                db.query(EventCheckIn.attendee_id)
+                .filter(
+                    EventCheckIn.tenant_id == tenant_id,
+                    EventCheckIn.registration_id == registration.id,
+                    EventCheckIn.attendee_id.isnot(None),
+                )
+                .all()
+            )
+            checked_ids = {row.attendee_id for row in checked if row.attendee_id}
+            candidate = next((row for row in attendee if row.id not in checked_ids), None)
+            attendee = candidate
+
+    if registration is None or attendee is None:
         _log_attempt(
             db,
             tenant_id=tenant_id,
@@ -79,7 +119,7 @@ def check_in_by_public_token(
             user_agent=user_agent,
         )
         db.commit()
-        return "invalid_token", None, None
+        return "invalid_token", None, None, None
 
     if registration.payment_status != "paid" or registration.status != "confirmed":
         _log_attempt(
@@ -95,11 +135,11 @@ def check_in_by_public_token(
             user_agent=user_agent,
         )
         db.commit()
-        return "not_paid", registration, None
+        return "not_paid", registration, None, attendee
 
     existing = (
         db.query(EventCheckIn)
-        .filter(EventCheckIn.tenant_id == tenant_id, EventCheckIn.registration_id == registration.id)
+        .filter(EventCheckIn.tenant_id == tenant_id, EventCheckIn.attendee_id == attendee.id)
         .first()
     )
     if existing is not None:
@@ -116,12 +156,13 @@ def check_in_by_public_token(
             user_agent=user_agent,
         )
         db.commit()
-        return "duplicate", registration, existing
+        return "duplicate", registration, existing, attendee
 
     checkin = EventCheckIn(
         tenant_id=tenant_id,
         event_id=registration.event_id,
         registration_id=registration.id,
+        attendee_id=attendee.id,
         checked_in_at=_utc_now(),
         checked_in_by_user_id=checked_in_by_user_id,
         source="qr",
@@ -147,12 +188,12 @@ def check_in_by_public_token(
         # A concurrent check-in might have won the race.
         existing = (
             db.query(EventCheckIn)
-            .filter(EventCheckIn.tenant_id == tenant_id, EventCheckIn.registration_id == registration.id)
+            .filter(EventCheckIn.tenant_id == tenant_id, EventCheckIn.attendee_id == attendee.id)
             .first()
         )
-        return "duplicate", registration, existing
+        return "duplicate", registration, existing, attendee
     db.refresh(checkin)
-    return "success", registration, checkin
+    return "success", registration, checkin, attendee
 
 
 def list_event_checkins(db: Session, *, tenant_id: int, event_id: int) -> list[EventCheckIn]:

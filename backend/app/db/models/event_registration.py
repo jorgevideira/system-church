@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
 
@@ -47,4 +47,12 @@ class EventRegistration(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+    attendees: Mapped[list["EventRegistrationAttendee"]] = relationship(
+        "EventRegistrationAttendee",
+        primaryjoin="EventRegistrationAttendee.registration_id == EventRegistration.id",
+        order_by="EventRegistrationAttendee.attendee_index.asc()",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

@@ -5,12 +5,13 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.category import Category
 from app.db.models.event import Event
 from app.db.models.event_payment import EventPayment
 from app.db.models.event_registration import EventRegistration
+from app.db.models.event_registration_attendee import EventRegistrationAttendee
 from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
 from app.core.config import settings
@@ -138,6 +139,7 @@ def list_event_registrations(db: Session, event_id: int, tenant_id: int) -> list
     return (
         db.query(EventRegistration)
         .filter(EventRegistration.tenant_id == tenant_id, EventRegistration.event_id == event_id)
+        .options(selectinload(EventRegistration.attendees))
         .order_by(EventRegistration.created_at.desc(), EventRegistration.id.desc())
         .all()
     )
@@ -157,7 +159,12 @@ def get_payment(db: Session, payment_id: int, tenant_id: int) -> Optional[EventP
 
 
 def get_registration_by_public_token(db: Session, public_token: str) -> Optional[EventRegistration]:
-    return db.query(EventRegistration).filter(EventRegistration.public_token == public_token).first()
+    return (
+        db.query(EventRegistration)
+        .options(selectinload(EventRegistration.attendees))
+        .filter(EventRegistration.public_token == public_token)
+        .first()
+    )
 
 
 def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Optional[Tenant], Optional[Event]]:
@@ -264,6 +271,10 @@ def create_public_registration(
     if available_slots is not None and payload.quantity > available_slots:
         raise ValueError("Not enough available slots for this event")
 
+    attendee_names = payload.attendee_names
+    if attendee_names is None:
+        attendee_names = [payload.attendee_name] * int(payload.quantity or 1)
+
     total_amount = Decimal(event.price_per_registration) * payload.quantity
     payment_required = event.require_payment or total_amount > Decimal("0.00")
     payment_method = payload.payment_method
@@ -290,6 +301,19 @@ def create_public_registration(
     )
     db.add(registration)
     db.flush()
+
+    # Create one attendee per ticket to allow individual check-in and listing.
+    for idx, name in enumerate(attendee_names, start=1):
+        token = registration.public_token if idx == 1 else _generate_public_token()
+        attendee = EventRegistrationAttendee(
+            tenant_id=tenant.id,
+            event_id=event.id,
+            registration_id=registration.id,
+            attendee_index=idx,
+            attendee_name=str(name or "").strip() or payload.attendee_name,
+            public_token=token,
+        )
+        db.add(attendee)
 
     payment_account = _resolve_event_payment_account(db, tenant.id, event.payment_account_id)
     payment = None
@@ -451,6 +475,7 @@ def get_public_payment_status(
         return None, None, None, None
     registration = (
         db.query(EventRegistration)
+        .options(selectinload(EventRegistration.attendees))
         .filter(
             EventRegistration.id == payment.registration_id,
             EventRegistration.tenant_id == payment.tenant_id,
