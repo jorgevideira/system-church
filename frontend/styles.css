@@ -3633,6 +3633,17 @@ th {
   gap: 1rem;
 }
 
+.events-analytics-filter {
+  display: grid;
+  gap: 0.25rem;
+  min-width: min(420px, 56vw);
+}
+
+.events-analytics-filter select {
+  width: 100%;
+  min-width: 220px;
+}
+
 .events-analytics-grid .cells-chart-box {
   height: 260px;
 }

@@ -88,6 +88,7 @@
     eventsPaymentsBody: document.getElementById("eventsPaymentsBody"),
     eventsAnalyticsRefreshBtn: document.getElementById("eventsAnalyticsRefreshBtn"),
     eventsAnalyticsHint: document.getElementById("eventsAnalyticsHint"),
+    eventsAnalyticsEventSelect: document.getElementById("eventsAnalyticsEventSelect"),
     eventsReservedSlots: document.getElementById("eventsReservedSlots"),
     eventsConfirmedRegistrations: document.getElementById("eventsConfirmedRegistrations"),
     eventsPendingRegistrations: document.getElementById("eventsPendingRegistrations"),
@@ -384,6 +385,12 @@
     if (el.eventsSelectedBadge) {
       el.eventsSelectedBadge.textContent = event ? `Selecionado: ${event.title}` : "Nenhum evento selecionado";
     }
+    if (el.eventsAnalyticsEventSelect) {
+      const desired = event ? String(event.id) : "";
+      if (el.eventsAnalyticsEventSelect.value !== desired) {
+        el.eventsAnalyticsEventSelect.value = desired;
+      }
+    }
     if (el.eventsRegistrationsHint) {
       el.eventsRegistrationsHint.textContent = event
         ? `Inscrições de ${event.title}.`
@@ -420,6 +427,33 @@
       return aTime - bTime;
     });
     return sorted[0] ? sorted[0].id : null;
+  }
+
+  function buildEventSelectLabel(event) {
+    const dt = new Date(event.start_at || event.created_at || 0);
+    const dateStr = Number.isNaN(dt.getTime()) ? "" : dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const head = dateStr ? `${dateStr} · ` : "";
+    return `${head}${event.title || "Evento"}`;
+  }
+
+  function renderAnalyticsEventSelect() {
+    if (!el.eventsAnalyticsEventSelect) return;
+    const now = Date.now();
+    const sorted = [...state.events].sort((a, b) => {
+      const aTime = new Date(a.start_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.start_at || b.created_at || 0).getTime();
+      const aPast = aTime && aTime < now ? 1 : 0;
+      const bPast = bTime && bTime < now ? 1 : 0;
+      if (aPast !== bPast) return aPast - bPast; // upcoming first
+      return bTime - aTime; // newest first inside bucket
+    });
+
+    const options = ['<option value="">Selecione um evento</option>'];
+    sorted.forEach((event) => {
+      options.push(`<option value="${event.id}">${escapeHtml(buildEventSelectLabel(event))}</option>`);
+    });
+    el.eventsAnalyticsEventSelect.innerHTML = options.join("");
+    if (state.selectedEventId) el.eventsAnalyticsEventSelect.value = String(state.selectedEventId);
   }
 
   function ensureSelectedEvent() {
@@ -583,6 +617,7 @@
     ensureSelectedEvent();
     renderEvents();
     renderCalendar();
+    renderAnalyticsEventSelect();
     setMessage("");
   }
 
@@ -733,8 +768,9 @@ function populatePaymentAccountOptions() {
   }
 
   async function loadAnalytics() {
+    renderAnalyticsEventSelect();
     if (!state.selectedEventId) {
-      el.eventsAnalyticsHint.textContent = "Selecione um evento na agenda para ver ocupacao, receita e conversao.";
+      if (el.eventsAnalyticsHint) el.eventsAnalyticsHint.textContent = "Selecione um evento no filtro acima para ver ocupacao, receita e conversao.";
       return;
     }
     state.analytics = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/analytics`, { headers: buildHeaders(false) }, "Falha ao carregar analytics do evento.");
@@ -1325,6 +1361,7 @@ function populatePaymentAccountOptions() {
       el.eventsNavAnalyticsBtn.addEventListener("click", () => {
         ensureSelectedEvent();
         setView("analytics");
+        renderAnalyticsEventSelect();
         loadAnalytics().catch((error) => setMessage(error.message, true));
       });
     }
@@ -1369,6 +1406,19 @@ function populatePaymentAccountOptions() {
     if (el.eventsRegistrationsRefreshBtn) el.eventsRegistrationsRefreshBtn.addEventListener("click", () => loadRegistrations().catch((error) => setMessage(error.message, true)));
     if (el.eventsPaymentsRefreshBtn) el.eventsPaymentsRefreshBtn.addEventListener("click", () => loadPayments().catch((error) => setMessage(error.message, true)));
     if (el.eventsAnalyticsRefreshBtn) el.eventsAnalyticsRefreshBtn.addEventListener("click", () => loadAnalytics().catch((error) => setMessage(error.message, true)));
+    if (el.eventsAnalyticsEventSelect) {
+      el.eventsAnalyticsEventSelect.addEventListener("change", () => {
+        const raw = String(el.eventsAnalyticsEventSelect.value || "").trim();
+        const id = raw ? Number(raw) : 0;
+        if (!id) {
+          state.selectedEventId = null;
+          updateSelectedBadge();
+          if (el.eventsAnalyticsHint) el.eventsAnalyticsHint.textContent = "Selecione um evento no filtro acima para ver ocupacao, receita e conversao.";
+          return;
+        }
+        selectEvent(id).catch((error) => setMessage(error.message, true));
+      });
+    }
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinRefreshBtn) el.eventsCheckinRefreshBtn.addEventListener("click", () => loadCheckins().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinSubmitBtn) el.eventsCheckinSubmitBtn.addEventListener("click", () => submitCheckinToken().catch((error) => setMessage(error.message, true)));
