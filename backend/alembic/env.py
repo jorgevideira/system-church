@@ -48,9 +48,18 @@ def _ensure_alembic_version_column_size(connection) -> None:
             return
         if int(max_len) < 255:
             connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);"))
+        # SQLAlchemy 2.x starts an implicit transaction even for SELECTs. If we
+        # leave that transaction open, Alembic will treat it as "externally
+        # managed" and will not commit the migration transaction, causing an
+        # automatic ROLLBACK on connection close.
+        connection.commit()
     except Exception:
         # Never block migrations due to preflight errors; worst case the upgrade
         # will fail later with a clear error.
+        try:
+            connection.rollback()
+        except Exception:
+            pass
         return
 
 
