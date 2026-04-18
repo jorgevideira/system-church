@@ -273,8 +273,16 @@ def get_user_room_scopes(db: Session, tenant_id: int, user_id: int) -> set[str]:
     return {str(row.room_name).strip().lower() for row in rows if row.room_name}
 
 
-def list_families(db: Session, tenant_id: int, query: str | None = None) -> list[ChildCheckinFamily]:
+def list_families(
+    db: Session,
+    tenant_id: int,
+    query: str | None = None,
+    *,
+    include_inactive: bool = False,
+) -> list[ChildCheckinFamily]:
     q = db.query(ChildCheckinFamily).filter(ChildCheckinFamily.tenant_id == tenant_id)
+    if not include_inactive:
+        q = q.filter(ChildCheckinFamily.is_active.is_(True))
     if query:
         term = f"%{query.strip()}%"
         q = q.filter(

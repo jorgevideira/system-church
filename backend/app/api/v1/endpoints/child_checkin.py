@@ -768,6 +768,7 @@ def public_set_guardian_photo(
 @router.get("/families", response_model=list[ChildCheckinFamilyResponse])
 def list_families(
     q: str | None = Query(None),
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     current_membership: TenantMembership = Depends(get_current_membership),
@@ -776,7 +777,7 @@ def list_families(
     _ensure_dev_enabled()
     if not _can_view(current_user, current_membership):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return child_checkin_service.list_families(db, current_tenant.id, q)
+    return child_checkin_service.list_families(db, current_tenant.id, q, include_inactive=include_inactive)
 
 
 @router.post("/families", response_model=ChildCheckinFamilyResponse, status_code=status.HTTP_201_CREATED)
