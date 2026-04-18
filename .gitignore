@@ -24,3 +24,11 @@ build/
 .coverage
 htmlcov/
 *.log
+
+# Local artifacts (avoid accidental commits)
+/.codex
+backend/celerybeat-schedule
+/*.csv
+/*.pdf
+/*.CSV
+/*.PDF
