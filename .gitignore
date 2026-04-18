@@ -28,6 +28,7 @@ htmlcov/
 # Local artifacts (avoid accidental commits)
 /.codex
 backend/celerybeat-schedule
+/backups/
 /*.csv
 /*.pdf
 /*.CSV

@@ -2,7 +2,7 @@
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 from alembic import context
 
@@ -19,6 +19,39 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+def _ensure_alembic_version_column_size(connection) -> None:
+    """
+    Our revision IDs are long (e.g. '024_event_checkins_and_smtp_settings'), but
+    Alembic's default `alembic_version.version_num` column is VARCHAR(32).
+
+    If it stays at 32, upgrades will fail when Alembic tries to update the
+    version number. Make this change idempotently before running migrations.
+    """
+    try:
+        row = connection.execute(
+            text(
+                """
+                SELECT character_maximum_length
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'alembic_version'
+                  AND column_name = 'version_num'
+                """
+            )
+        ).fetchone()
+        if not row:
+            return
+        max_len = row[0]
+        if max_len is None:
+            return
+        if int(max_len) < 255:
+            connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);"))
+    except Exception:
+        # Never block migrations due to preflight errors; worst case the upgrade
+        # will fail later with a clear error.
+        return
 
 
 def run_migrations_offline() -> None:
@@ -48,6 +81,7 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        _ensure_alembic_version_column_size(connection)
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()

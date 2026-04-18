@@ -16,8 +16,14 @@ Exit codes:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
+
+_ROOT = Path(__file__).resolve().parents[1]
+# When executed as a script, Python sets sys.path[0] to the script directory
+# (e.g. /app/scripts). Add the project root so `import app...` works.
+sys.path.insert(0, str(_ROOT))
 
 from app.core.config import settings
 
@@ -75,4 +81,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -20,8 +20,8 @@ Este guia foca em colocar em producao as mudancas que adicionam o AppKids e dema
    - A migration `030_child_checkin_email_unique_and_recovery` cria um indice unico em:
      - `(tenant_id, lower(email))` para `child_checkin_families`
    - Se existir email duplicado por tenant (case-insensitive), o upgrade falha.
-   - Rode:
-     - `docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python backend/scripts/preflight_child_checkin_email_uniqueness.py`
+  - Rode:
+     - `docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec backend python scripts/preflight_child_checkin_email_uniqueness.py`
    - Se der erro, corrija as duplicidades antes de continuar (ex.: ajustar email, ou deixar vazio em um dos registros).
 
 4. Rode as migrations
@@ -53,4 +53,3 @@ Para envio de carteirinha e recuperacao de senha, configure SMTP (global ou por 
    - `psql` com o `backup_pre_migracao.sql`
 
 Observacao: downgrade Alembic nem sempre e seguro em producao; backup e o caminho mais confiavel.
-

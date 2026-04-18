@@ -10,12 +10,12 @@ echo ""
 if [ -f "/.dockerenv" ]; then
     echo "✅ Executando dentro do container Docker"
     cd /app
-    python -m alembic upgrade head
+    alembic upgrade head
 else
     echo "❌ Erro: Este script deve ser executado dentro do container Docker"
     echo ""
     echo "Para executar as migrações, use:"
-    echo "  docker-compose exec backend bash ./run_migrations.sh"
+    echo "  docker compose exec backend bash ./run_migrations.sh"
     echo ""
     exit 1
 fi
