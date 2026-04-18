@@ -42,6 +42,8 @@
     kidsQrScannerVideo: document.getElementById("kidsQrScannerVideo"),
     kidsQrScannerCloseBtn: document.getElementById("kidsQrScannerCloseBtn"),
     kidsQrScannerStatus: document.getElementById("kidsQrScannerStatus"),
+    kidsQrScannerPhotoBtn: document.getElementById("kidsQrScannerPhotoBtn"),
+    kidsQrScannerFile: document.getElementById("kidsQrScannerFile"),
     kidsCheckinResultModal: document.getElementById("kidsCheckinResultModal"),
     kidsCheckinResultCloseBtn: document.getElementById("kidsCheckinResultCloseBtn"),
     kidsCheckinResultBody: document.getElementById("kidsCheckinResultBody"),
@@ -409,14 +411,86 @@
     qrScannerCtx = qrScannerCanvas.getContext("2d", { willReadFrequently: true });
   }
 
+  function canUseLiveCamera() {
+    if (!window.isSecureContext) return false;
+    if (!("mediaDevices" in navigator)) return false;
+    return typeof navigator.mediaDevices.getUserMedia === "function";
+  }
+
+  function setQrVideoVisible(visible) {
+    if (!el.kidsQrScannerVideo) return;
+    el.kidsQrScannerVideo.style.display = visible ? "block" : "none";
+  }
+
+  async function decodeQrFromFile(file) {
+    if (!file || !hasJsQr()) return "";
+    ensureQrCanvas();
+    if (!qrScannerCanvas || !qrScannerCtx) return "";
+
+    const maxSide = 1024;
+    const tryBitmap = typeof window.createImageBitmap === "function";
+    if (tryBitmap) {
+      try {
+        const bitmap = await window.createImageBitmap(file);
+        const w = bitmap.width || 0;
+        const h = bitmap.height || 0;
+        if (!w || !h) return "";
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * scale));
+        const th = Math.max(1, Math.round(h * scale));
+        qrScannerCanvas.width = tw;
+        qrScannerCanvas.height = th;
+        qrScannerCtx.drawImage(bitmap, 0, 0, tw, th);
+        const imageData = qrScannerCtx.getImageData(0, 0, tw, th);
+        const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+        return code && code.data ? String(code.data).trim() : "";
+      } catch (_error) {
+        // fall through to <img> decode
+      }
+    }
+
+    return await new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || 0;
+          const h = img.naturalHeight || 0;
+          if (!w || !h) {
+            resolve("");
+            return;
+          }
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const tw = Math.max(1, Math.round(w * scale));
+          const th = Math.max(1, Math.round(h * scale));
+          qrScannerCanvas.width = tw;
+          qrScannerCanvas.height = th;
+          qrScannerCtx.drawImage(img, 0, 0, tw, th);
+          const imageData = qrScannerCtx.getImageData(0, 0, tw, th);
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+          resolve(code && code.data ? String(code.data).trim() : "");
+        } catch (_err) {
+          resolve("");
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve("");
+      };
+      img.src = url;
+    });
+  }
+
   async function openQrScanner(opts) {
-    if (!el.kidsQrScannerModal || !el.kidsQrScannerVideo) return;
+    if (!el.kidsQrScannerModal) return;
     qrScannerOnResult = opts && typeof opts.onResult === "function" ? opts.onResult : null;
 
-    if (!("mediaDevices" in navigator) || typeof navigator.mediaDevices.getUserMedia !== "function") {
-      setMessage("Este navegador nao suporta camera. Digite o QR payload manualmente.", true);
-      return;
-    }
+    el.kidsQrScannerModal.classList.remove("hide");
+    el.kidsQrScannerModal.setAttribute("aria-hidden", "false");
+    if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Preparando leitor...";
+    setQrVideoVisible(true);
 
     qrScannerDetector = null;
     qrScannerMode = "";
@@ -436,11 +510,15 @@
     }
     if (!qrScannerMode) {
       setMessage("Leitor de QR indisponivel neste navegador. Digite o QR payload manualmente.", true);
+      if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Leitor indisponivel. Digite manualmente.";
+      setQrVideoVisible(false);
       return;
     }
-
-    el.kidsQrScannerModal.classList.remove("hide");
-    el.kidsQrScannerModal.setAttribute("aria-hidden", "false");
+    if (!canUseLiveCamera()) {
+      if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Camera ao vivo indisponivel. Use 'Ler por foto' ou digite manualmente.";
+      setQrVideoVisible(false);
+      return;
+    }
     if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Abrindo camera...";
 
     try {
@@ -454,7 +532,9 @@
         name === "NotAllowedError" ? "Permissao negada para camera." :
         name === "NotFoundError" ? "Camera nao encontrada." :
         "Falha ao abrir camera.";
-      setMessage(`${hint} Digite o QR payload manualmente.`, true);
+      setMessage(`${hint} Use 'Ler por foto' ou digite o QR payload manualmente.`, true);
+      if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = `${hint} Use 'Ler por foto'.`;
+      setQrVideoVisible(false);
       return;
     }
     el.kidsQrScannerVideo.srcObject = qrScannerStream;
@@ -477,6 +557,7 @@
     if (el.kidsQrScannerVideo) {
       el.kidsQrScannerVideo.pause();
       el.kidsQrScannerVideo.srcObject = null;
+      el.kidsQrScannerVideo.style.display = "block";
     }
     if (qrScannerStream) {
       const tracks = qrScannerStream.getTracks ? qrScannerStream.getTracks() : [];
@@ -486,6 +567,38 @@
     qrScannerDetector = null;
     qrScannerMode = "";
     if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Aponte a camera para o QR da carteirinha.";
+  }
+
+  async function handleKidsQrFilePicked() {
+    if (!el.kidsQrScannerFile) return;
+    const files = el.kidsQrScannerFile.files;
+    const file = files && files.length ? files[0] : null;
+    el.kidsQrScannerFile.value = "";
+    if (!file) return;
+
+    if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Lendo foto do QR...";
+    const raw = await decodeQrFromFile(file);
+    if (!raw) {
+      setMessage("Nao foi possivel ler o QR nesta foto. Tente aproximar e focar.", true);
+      if (el.kidsQrScannerStatus) el.kidsQrScannerStatus.textContent = "Nao consegui ler. Tente outra foto.";
+      return;
+    }
+
+    const cb = qrScannerOnResult;
+    closeQrScanner();
+    if (cb) {
+      cb(raw);
+      return;
+    }
+    if (el.kidsQuickQrPayload) el.kidsQuickQrPayload.value = raw;
+    suggestRoomFromQrPayload(raw);
+    setMessage("QR lido com sucesso.", false);
+    if (el.kidsOpsContextName && !String(el.kidsOpsContextName.value || "").trim()) {
+      setOpsContextName(lastContextName());
+    }
+    if (el.kidsQuickQrForm && typeof el.kidsQuickQrForm.requestSubmit === "function") {
+      el.kidsQuickQrForm.requestSubmit();
+    }
   }
 
   async function scanQrFrame() {
@@ -1221,6 +1334,16 @@
   if (el.kidsQrScannerCloseBtn) {
     el.kidsQrScannerCloseBtn.addEventListener("click", function () {
       closeQrScanner();
+    });
+  }
+  if (el.kidsQrScannerPhotoBtn && el.kidsQrScannerFile) {
+    el.kidsQrScannerPhotoBtn.addEventListener("click", function () {
+      el.kidsQrScannerFile.click();
+    });
+    el.kidsQrScannerFile.addEventListener("change", function () {
+      handleError(function () {
+        return handleKidsQrFilePicked();
+      }, "Falha ao ler o QR pela foto.");
     });
   }
 

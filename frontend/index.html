@@ -3800,7 +3800,12 @@
       </div>
       <div class="modal-body">
         <video id="kidsQrScannerVideo" style="width:100%; border-radius:14px; border:1px solid var(--line); background:#111;" autoplay playsinline muted></video>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+          <button id="kidsQrScannerPhotoBtn" class="btn ghost" type="button">Ler por foto</button>
+          <input id="kidsQrScannerFile" type="file" accept="image/*" capture="environment" style="display:none;">
+        </div>
         <p id="kidsQrScannerStatus" class="tiny" style="margin-top:0.6rem;">Aponte a camera para o QR da carteirinha.</p>
+        <p class="tiny" style="margin-top:0.35rem; color:var(--muted);">Dica: a camera ao vivo pode exigir HTTPS. Se nao abrir, use "Ler por foto".</p>
       </div>
     </div>
   </div>
@@ -3813,7 +3818,12 @@
       </div>
       <div class="modal-body">
         <video id="eventsQrScannerVideo" style="width:100%; border-radius:14px; border:1px solid var(--line); background:#111;" autoplay playsinline muted></video>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+          <button id="eventsQrScannerPhotoBtn" class="btn ghost" type="button">Ler por foto</button>
+          <input id="eventsQrScannerFile" type="file" accept="image/*" capture="environment" style="display:none;">
+        </div>
         <p id="eventsQrScannerStatus" class="tiny" style="margin-top:0.6rem;">Aponte a camera para o QR da inscrição.</p>
+        <p class="tiny" style="margin-top:0.35rem; color:var(--muted);">Dica: a camera ao vivo pode exigir HTTPS. Se nao abrir, use "Ler por foto".</p>
       </div>
     </div>
   </div>
