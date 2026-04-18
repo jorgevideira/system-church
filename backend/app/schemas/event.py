@@ -156,15 +156,6 @@ class EventRegistrationPublicCreate(BaseModel):
         self.attendee_names = names
         return self
 
-
-class EventRegistrationAttendeeResponse(BaseModel):
-    id: int
-    attendee_index: int
-    attendee_name: str
-    public_token: str
-
-    model_config = {"from_attributes": True}
-
     @field_validator("payment_method")
     @classmethod
     def validate_payment_method(cls, value: Optional[str]) -> Optional[str]:
@@ -173,6 +164,15 @@ class EventRegistrationAttendeeResponse(BaseModel):
         if value not in EVENT_PAYMENT_METHODS:
             raise ValueError("payment_method must be pix or card")
         return value
+
+
+class EventRegistrationAttendeeResponse(BaseModel):
+    id: int
+    attendee_index: int
+    attendee_name: str
+    public_token: str
+
+    model_config = {"from_attributes": True}
 
 
 class EventRegistrationResponse(BaseModel):
