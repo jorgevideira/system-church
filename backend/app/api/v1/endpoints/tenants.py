@@ -191,7 +191,7 @@ def get_public_tenant_branding(
     tenant_slug: str,
     db: Session = Depends(get_db),
 ) -> TenantBrandingResponse:
-    tenant = tenant_service.get_tenant_by_slug(db, tenant_slug)
+    tenant = tenant_service.resolve_public_tenant(db, tenant_slug)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     return tenant

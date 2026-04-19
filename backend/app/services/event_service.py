@@ -168,7 +168,7 @@ def get_registration_by_public_token(db: Session, public_token: str) -> Optional
 
 
 def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Optional[Tenant], Optional[Event]]:
-    tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug, Tenant.is_active.is_(True)).first()
+    tenant = tenant_service.resolve_public_tenant(db, tenant_slug)
     if tenant is None:
         return None, None
     event = (
@@ -187,7 +187,7 @@ def get_public_event(db: Session, tenant_slug: str, event_slug: str) -> tuple[Op
 
 
 def list_public_events(db: Session, tenant_slug: str) -> tuple[Optional[Tenant], list[Event]]:
-    tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug, Tenant.is_active.is_(True)).first()
+    tenant = tenant_service.resolve_public_tenant(db, tenant_slug)
     if tenant is None:
         return None, []
     events = (

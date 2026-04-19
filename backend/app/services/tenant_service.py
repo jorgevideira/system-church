@@ -47,6 +47,35 @@ def get_tenant_by_slug(db: Session, slug: str) -> Optional[Tenant]:
     return db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active.is_(True)).first()
 
 
+def resolve_public_tenant(db: Session, tenant_slug: str) -> Optional[Tenant]:
+    """
+    Resolve the tenant for public (unauthenticated) pages.
+
+    The frontend defaults to the slug "default" on first visit. In single-tenant
+    deployments that slug may not exist (e.g. "videira-sertaozinho"), which
+    breaks branding/logo loading. To keep the UX smooth, we fallback to the only
+    active tenant when and only when there is exactly one.
+    """
+    normalized = str(tenant_slug or "").strip()
+    if normalized:
+        tenant = get_tenant_by_slug(db, normalized)
+        if tenant is not None:
+            return tenant
+
+    if normalized not in {"", "default"}:
+        return None
+
+    tenants = (
+        db.query(Tenant)
+        .filter(Tenant.is_active.is_(True))
+        .order_by(Tenant.id.asc())
+        .all()
+    )
+    if len(tenants) == 1:
+        return tenants[0]
+    return None
+
+
 def get_payment_provider(tenant: Tenant | None) -> str:
     provider = ""
     if tenant is not None:
