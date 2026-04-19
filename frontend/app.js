@@ -1424,6 +1424,11 @@ function renderPublicPaymentStatus(payload) {
     el.publicPaymentMessage.textContent = "Seu pagamento ainda nao foi concluido. Revise os dados e tente novamente se necessario.";
   }
 
+  const transparentPixError = String(providerPayload.transparent_pix_error || "").trim();
+  if (paymentStatus === "pending" && String(payment.payment_method || "").toLowerCase() === "pix" && transparentPixError) {
+    el.publicPaymentMessage.textContent = "O Mercado Pago nao liberou o PIX direto nesta tela. Use o botao 'Abrir pagamento' e, depois de pagar, clique em 'Atualizar status' para ver o QR Code de entrada.";
+  }
+
   const resolvedPixCode = String(payment.pix_copy_paste || transactionData.qr_code || "").trim();
   const hasPix = Boolean(resolvedPixCode);
   el.publicPixBlock.classList.toggle("hide", !hasPix);

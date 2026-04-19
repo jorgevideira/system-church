@@ -493,6 +493,58 @@ def get_public_payment_status(
         .first()
     )
     tenant = db.query(Tenant).filter(Tenant.id == payment.tenant_id, Tenant.is_active.is_(True)).first()
+
+    # Best-effort reconciliation for Mercado Pago Checkout Pro.
+    # When the payment is created on Mercado Pago and webhooks are delayed, we
+    # still want the public "status" screen to converge quickly after the user
+    # completes payment in the redirect checkout.
+    if (
+        tenant is not None
+        and payment is not None
+        and payment.provider == "mercadopago"
+        and payment.status == "pending"
+        and payment.checkout_reference
+    ):
+        try:
+            provider_payload = payment.provider_payload if isinstance(payment.provider_payload, dict) else {}
+            last_polled = provider_payload.get("_last_polled_at")
+            now = datetime.now(timezone.utc)
+            should_poll = True
+            if last_polled:
+                try:
+                    parsed = datetime.fromisoformat(str(last_polled).replace("Z", "+00:00"))
+                    should_poll = (now - parsed).total_seconds() >= 10
+                except ValueError:
+                    should_poll = True
+
+            if should_poll:
+                account = None
+                if payment.payment_account_id is not None:
+                    account = db.query(PaymentAccount).filter(PaymentAccount.id == payment.payment_account_id).first()
+                if account is not None and mercadopago_service.is_enabled(tenant, account):
+                    latest = mercadopago_service.search_latest_payment_by_external_reference(
+                        payment.checkout_reference,
+                        tenant,
+                        account,
+                    )
+                    if latest and latest.get("id") is not None:
+                        webhook_payload = EventPaymentWebhookPayload(
+                            checkout_reference=payment.checkout_reference,
+                            status=mercadopago_service.map_payment_status(latest.get("status")),
+                            provider_reference=str(latest.get("id")),
+                            paid_at=mercadopago_service.parse_paid_at(latest),
+                            provider_payload=latest,
+                        )
+                        # This updates registration + creates income transaction when approved.
+                        payment = apply_payment_webhook(db, webhook_payload) or payment
+                provider_payload = payment.provider_payload if isinstance(payment.provider_payload, dict) else {}
+                provider_payload["_last_polled_at"] = now.isoformat()
+                payment.provider_payload = provider_payload
+                db.commit()
+        except Exception:
+            # Do not break the public page if Mercado Pago is unavailable.
+            pass
+
     return tenant, event, registration, payment
 
 

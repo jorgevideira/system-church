@@ -242,6 +242,43 @@ def fetch_payment(payment_id: str, tenant: Tenant | None = None, payment_account
         return response.json()
 
 
+def search_latest_payment_by_external_reference(
+    external_reference: str,
+    tenant: Tenant | None = None,
+    payment_account: PaymentAccount | None = None,
+) -> dict[str, Any] | None:
+    """
+    Mercado Pago Checkout Pro returns a "preference" immediately and only later
+    creates the actual payment. When webhooks are delayed/misconfigured, we can
+    still reconcile by searching payments by external_reference.
+
+    Returns the most recent payment or None when nothing is found.
+    """
+    if not is_enabled(tenant, payment_account):
+        raise ValueError("Mercado Pago is not configured")
+    ref = str(external_reference or "").strip()
+    if not ref:
+        return None
+    with httpx.Client(timeout=20.0) as client:
+        response = client.get(
+            f"{MERCADOPAGO_API_BASE_URL}/v1/payments/search",
+            headers=_build_headers(tenant, payment_account),
+            params={
+                "external_reference": ref,
+                "sort": "date_created",
+                "criteria": "desc",
+                "limit": 1,
+            },
+        )
+        response.raise_for_status()
+        payload = response.json() or {}
+        results = payload.get("results") if isinstance(payload, dict) else None
+        if not isinstance(results, list) or not results:
+            return None
+        candidate = results[0]
+        return candidate if isinstance(candidate, dict) else None
+
+
 def map_payment_status(provider_status: str) -> str:
     normalized = (provider_status or "").lower()
     if normalized == "approved":
