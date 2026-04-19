@@ -56,10 +56,42 @@ def resolve_public_tenant(db: Session, tenant_slug: str) -> Optional[Tenant]:
     breaks branding/logo loading. To keep the UX smooth, we fallback to the only
     active tenant when and only when there is exactly one.
     """
+    def has_branding(tenant: Tenant) -> bool:
+        return bool(
+            tenant.public_display_name
+            or tenant.logo_url
+            or tenant.public_description
+            or tenant.support_email
+            or tenant.support_whatsapp
+            or tenant.primary_color
+            or tenant.secondary_color
+        )
+
     normalized = str(tenant_slug or "").strip()
     if normalized:
         tenant = get_tenant_by_slug(db, normalized)
         if tenant is not None:
+            # Many installs end up with a placeholder "Default Church" tenant
+            # with slug "default" and no branding, while the real tenant has a
+            # different slug. If the request asks for "default", prefer the
+            # real tenant when it is unambiguous.
+            if normalized == "default":
+                name_key = str(tenant.name or "").strip().lower()
+                is_placeholder = name_key in {"default church", "default tenant", "default"} and not has_branding(tenant)
+                if is_placeholder:
+                    others = (
+                        db.query(Tenant)
+                        .filter(Tenant.is_active.is_(True), Tenant.id != tenant.id)
+                        .order_by(Tenant.id.asc())
+                        .all()
+                    )
+                    if len(others) == 1:
+                        return others[0]
+                    branded = [row for row in others if has_branding(row)]
+                    if len(branded) == 1:
+                        return branded[0]
+                    if branded:
+                        return branded[0]
             return tenant
 
     if normalized not in {"", "default"}:
