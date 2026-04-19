@@ -882,6 +882,34 @@ function getDefaultFaviconHref() {
   return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23232323'/%3E%3Cpath d='M32 12l8 8h-5v12h12v-5l8 8-8 8v-5H35v12h5l-8 8-8-8h5V38H17v5l-8-8 8-8v5h12V20h-5l8-8z' fill='%239fba45'/%3E%3C/svg%3E";
 }
 
+function isPngUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return false;
+  try {
+    const parsed = new URL(value, window.location.origin);
+    return parsed.pathname.toLowerCase().endsWith(".png");
+  } catch (_error) {
+    return value.toLowerCase().split("?")[0].endsWith(".png");
+  }
+}
+
+function setBrandImage(img, url) {
+  if (!img) return;
+
+  img.onerror = () => {
+    img.classList.add("hide");
+    img.removeAttribute("src");
+  };
+
+  const value = String(url || "").trim();
+  img.classList.toggle("hide", !value);
+  if (value) {
+    img.src = value;
+  } else {
+    img.removeAttribute("src");
+  }
+}
+
 function updateShellBranding(branding = {}) {
   const displayName = branding.public_display_name || branding.name || "Church Finance Console";
   const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
@@ -892,17 +920,20 @@ function updateShellBranding(branding = {}) {
   }
 
   if (el.appShellLogo) {
-    el.appShellLogo.classList.toggle("hide", !logoUrl);
-    if (logoUrl) {
-      el.appShellLogo.src = logoUrl;
-    } else {
-      el.appShellLogo.removeAttribute("src");
-    }
+    setBrandImage(el.appShellLogo, logoUrl);
   }
 
   document.title = displayName;
   if (el.appFavicon) {
-    el.appFavicon.href = logoUrl || getDefaultFaviconHref();
+    const faviconHref = logoUrl || getDefaultFaviconHref();
+    el.appFavicon.href = faviconHref;
+    if (faviconHref && faviconHref.startsWith("data:")) {
+      el.appFavicon.type = "image/svg+xml";
+    } else if (isPngUrl(faviconHref)) {
+      el.appFavicon.type = "image/png";
+    } else {
+      el.appFavicon.type = "image/svg+xml";
+    }
   }
 }
 
@@ -987,12 +1018,7 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
   }
   if (el.loginBrandLogo) {
     const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
-    el.loginBrandLogo.classList.toggle("hide", !logoUrl);
-    if (logoUrl) {
-      el.loginBrandLogo.src = logoUrl;
-    } else {
-      el.loginBrandLogo.removeAttribute("src");
-    }
+    setBrandImage(el.loginBrandLogo, logoUrl);
   }
   syncTenantLinks(tenantSlug);
   if (el.loginPublicCatalogLink) el.loginPublicCatalogLink.classList.toggle("hide", !tenantSlug);
@@ -1167,12 +1193,7 @@ function applyTenantBranding(branding = {}) {
   logos.forEach((logoNode) => {
     if (!logoNode) return;
     const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
-    logoNode.classList.toggle("hide", !logoUrl);
-    if (logoUrl) {
-      logoNode.src = logoUrl;
-    } else {
-      logoNode.removeAttribute("src");
-    }
+    setBrandImage(logoNode, logoUrl);
   });
 
   if (el.publicCatalogSupport) {
