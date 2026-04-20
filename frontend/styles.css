@@ -1906,6 +1906,8 @@ select:focus {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 14px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .tx-filters {
@@ -2574,7 +2576,8 @@ th {
   }
 
   .tenant-landing-topbar {
-    justify-items: start;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .tenant-landing-services-grid,
@@ -2684,6 +2687,23 @@ th {
   .tenant-landing-nav {
     flex-direction: column;
     gap: 0.45rem;
+  }
+
+  .events-analytics-filter,
+  .events-analytics-filter select {
+    min-width: 0;
+  }
+
+  .kids-public-hero-top {
+    flex-direction: column;
+  }
+
+  .kids-ops-toolbar {
+    align-items: flex-start;
+  }
+
+  .kids-ops-context-control {
+    flex-basis: 100%;
   }
 
   .tenant-landing-topbar {
@@ -3341,6 +3361,49 @@ th {
 
 .kids-context-presets .btn {
   padding: 0.38rem 0.55rem;
+}
+
+.metric-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.metric-summary-full {
+  grid-column: 1 / -1;
+}
+
+.compact-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.kids-ops-toolbar {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.kids-ops-context-group,
+.kids-ops-print-group {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.kids-ops-context-control {
+  display: flex;
+  flex: 1 1 260px;
+  min-width: min(260px, 100%);
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.kids-ops-context-name {
+  width: 100%;
+  min-width: 0;
 }
 
 .events-content-stack {

@@ -1203,7 +1203,7 @@
           <section class="dashboard-grid">
             <article id="cellsCellInfoCard" class="dashboard-card">
               <h4 id="cellsCellInfoName">Célula</h4>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+              <div class="metric-summary-grid">
                 <div>
                   <span style="font-size: 0.85rem; color: #666;">Membros</span>
                   <strong id="cellsCellInfoMembers" style="display: block; font-size: 1.5rem;">0</strong>
@@ -1216,7 +1216,7 @@
                   <span style="font-size: 0.85rem; color: #666;">Visitantes</span>
                   <strong id="cellsCellInfoVisitors" style="display: block; font-size: 1.5rem;">0</strong>
                 </div>
-                <div style="grid-column: 1 / -1;">
+                <div class="metric-summary-full">
                   <span style="font-size: 0.85rem; color: #666;">Lider</span>
                   <strong id="cellsCellInfoLeader" style="display: block;">-</strong>
                 </div>
@@ -1303,7 +1303,7 @@
             </section>
             <section class="panel">
               <h4>Ovelhas perdidas da Célula</h4>
-              <div class="kpis" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 0.5rem;">
+              <div class="kpis compact-kpi-grid" style="margin-bottom: 0.5rem;">
                 <article class="kpi-card" style="padding: 0.45rem;">
                   <span>Pendentes</span>
                   <strong id="cellsDashboardLostSheepPending">0</strong>
@@ -1768,11 +1768,11 @@
 	              <p class="tiny">Fluxo simplificado para recepcao, check-in e retirada.</p>
 	            </div>
 	            <p class="tiny">Auto-cadastro das familias: <a id="kidsPublicPageLink" href="/kids-public.html" target="_blank" rel="noopener">abrir pagina publica</a>.</p>
-	            <div class="tiny" style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center; margin-top:0.35rem;">
-	              <label style="display:flex; gap:0.4rem; align-items:center;">
+	            <div class="tiny kids-ops-toolbar">
+	              <label class="kids-ops-context-group">
 	                <strong style="white-space:nowrap;">Culto atual:</strong>
-	                <div style="display:flex; flex-direction:column; gap:0.4rem;">
-	                  <input id="kidsOpsContextName" type="text" list="kidsOpsContextSuggestions" placeholder="Ex: Culto Domingo 19h" required style="min-width:240px;">
+	                <div class="kids-ops-context-control">
+	                  <input id="kidsOpsContextName" class="kids-ops-context-name" type="text" list="kidsOpsContextSuggestions" placeholder="Ex: Culto Domingo 19h" required>
 	                  <datalist id="kidsOpsContextSuggestions"></datalist>
 	                  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
 	                    <div id="kidsOpsPresets" class="kids-context-presets" aria-label="Atalhos de culto"></div>
@@ -1781,7 +1781,7 @@
 	                </div>
 	              </label>
 	              <strong>Impressao:</strong>
-	              <label style="display:flex; gap:0.4rem; align-items:center;">
+	              <label class="kids-ops-print-group">
 	                <span class="tiny">Modo</span>
 	                <select id="kidsPrinterModeSelect">
 	                  <option value="both">Etiqueta + Pulseira</option>
