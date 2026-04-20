@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.category import Category
@@ -14,6 +15,7 @@ from app.db.models.event_registration import EventRegistration
 from app.db.models.event_registration_attendee import EventRegistrationAttendee
 from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
+from app.db.models.transaction import Transaction
 from app.core.config import settings
 from app.schemas.event import EventCreate, EventPaymentWebhookPayload, EventRegistrationPublicCreate, EventUpdate
 from app.schemas.transaction import TransactionCreate
@@ -87,6 +89,47 @@ def _attach_payment_account_summary(db: Session, events: list[Event], tenant_id:
         setattr(event, "payment_account_label", account.label if account else None)
 
 
+def _attach_registration_event_summary(db: Session, registrations: list[EventRegistration], tenant_id: int) -> None:
+    event_ids = {registration.event_id for registration in registrations}
+    if not event_ids:
+        return
+    events = (
+        db.query(Event.id, Event.title)
+        .filter(Event.tenant_id == tenant_id, Event.id.in_(event_ids))
+        .all()
+    )
+    titles_by_id = {event_id: title for event_id, title in events}
+    for registration in registrations:
+        setattr(registration, "event_title", titles_by_id.get(registration.event_id))
+
+
+def _can_refund_payment(payment: EventPayment) -> bool:
+    status = str(getattr(payment, "status", "") or "").strip().lower()
+    provider = str(getattr(payment, "provider", "") or "").strip().lower()
+    provider_reference = str(getattr(payment, "provider_reference", "") or "").strip()
+    if status != "paid":
+        return False
+    if provider in {"mercadopago", "pagbank"}:
+        return bool(provider_reference)
+    return True
+
+
+def _attach_payment_event_summary(db: Session, payments: list[EventPayment], tenant_id: int) -> None:
+    event_ids = {payment.event_id for payment in payments}
+    if event_ids:
+        events = (
+            db.query(Event.id, Event.title)
+            .filter(Event.tenant_id == tenant_id, Event.id.in_(event_ids))
+            .all()
+        )
+        titles_by_id = {event_id: title for event_id, title in events}
+    else:
+        titles_by_id = {}
+    for payment in payments:
+        setattr(payment, "event_title", titles_by_id.get(payment.event_id))
+        setattr(payment, "can_refund", _can_refund_payment(payment))
+
+
 def _resolve_event_payment_account(db: Session, tenant_id: int, payment_account_id: int | None) -> PaymentAccount | None:
     if payment_account_id is None:
         return None
@@ -136,22 +179,120 @@ def delete_event(db: Session, event: Event) -> None:
 
 
 def list_event_registrations(db: Session, event_id: int, tenant_id: int) -> list[EventRegistration]:
-    return (
+    registrations = (
         db.query(EventRegistration)
         .filter(EventRegistration.tenant_id == tenant_id, EventRegistration.event_id == event_id)
         .options(selectinload(EventRegistration.attendees))
         .order_by(EventRegistration.created_at.desc(), EventRegistration.id.desc())
         .all()
     )
+    _attach_registration_event_summary(db, registrations, tenant_id)
+    return registrations
+
+
+def list_registrations_paginated(
+    db: Session,
+    tenant_id: int,
+    *,
+    event_id: int | None = None,
+    search: str | None = None,
+    status: str | None = None,
+    payment_status: str | None = None,
+    page: int = 1,
+    size: int = 25,
+) -> tuple[list[EventRegistration], int]:
+    query = db.query(EventRegistration).filter(EventRegistration.tenant_id == tenant_id)
+    if event_id is not None:
+        query = query.filter(EventRegistration.event_id == event_id)
+    if status:
+        query = query.filter(EventRegistration.status == status)
+    if payment_status:
+        query = query.filter(EventRegistration.payment_status == payment_status)
+
+    normalized_search = str(search or "").strip()
+    if normalized_search:
+        like = f"%{normalized_search}%"
+        query = query.filter(
+            or_(
+                EventRegistration.registration_code.ilike(like),
+                EventRegistration.attendee_name.ilike(like),
+                EventRegistration.attendee_email.ilike(like),
+                EventRegistration.attendee_phone.ilike(like),
+            )
+        )
+
+    total = query.count()
+    items = (
+        query.options(selectinload(EventRegistration.attendees))
+        .order_by(EventRegistration.created_at.desc(), EventRegistration.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    _attach_registration_event_summary(db, items, tenant_id)
+    return items, total
 
 
 def list_event_payments(db: Session, event_id: int, tenant_id: int) -> list[EventPayment]:
-    return (
+    payments = (
         db.query(EventPayment)
         .filter(EventPayment.tenant_id == tenant_id, EventPayment.event_id == event_id)
         .order_by(EventPayment.created_at.desc(), EventPayment.id.desc())
         .all()
     )
+    _attach_payment_event_summary(db, payments, tenant_id)
+    return payments
+
+
+def list_payments_paginated(
+    db: Session,
+    tenant_id: int,
+    *,
+    event_id: int | None = None,
+    search: str | None = None,
+    status: str | None = None,
+    payment_method: str | None = None,
+    page: int = 1,
+    size: int = 25,
+) -> tuple[list[EventPayment], int]:
+    query = (
+        db.query(EventPayment)
+        .outerjoin(
+            EventRegistration,
+            (EventRegistration.id == EventPayment.registration_id)
+            & (EventRegistration.tenant_id == EventPayment.tenant_id),
+        )
+        .filter(EventPayment.tenant_id == tenant_id)
+    )
+    if event_id is not None:
+        query = query.filter(EventPayment.event_id == event_id)
+    if status:
+        query = query.filter(EventPayment.status == status)
+    if payment_method:
+        query = query.filter(EventPayment.payment_method == payment_method)
+
+    normalized_search = str(search or "").strip()
+    if normalized_search:
+        like = f"%{normalized_search}%"
+        query = query.filter(
+            or_(
+                EventPayment.checkout_reference.ilike(like),
+                EventPayment.provider_reference.ilike(like),
+                EventRegistration.registration_code.ilike(like),
+                EventRegistration.attendee_name.ilike(like),
+                EventRegistration.attendee_email.ilike(like),
+            )
+        )
+
+    total = query.count()
+    items = (
+        query.order_by(EventPayment.created_at.desc(), EventPayment.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    _attach_payment_event_summary(db, items, tenant_id)
+    return items, total
 
 
 def get_payment(db: Session, payment_id: int, tenant_id: int) -> Optional[EventPayment]:
@@ -582,6 +723,43 @@ def _ensure_income_transaction(db: Session, event: Event, registration: EventReg
     payment.transaction_id = transaction.id
 
 
+def _build_refund_reference(payment: EventPayment) -> str:
+    return f"event_refund:{payment.id}"
+
+
+def _ensure_refund_transaction(db: Session, event: Event, registration: EventRegistration, payment: EventPayment) -> None:
+    reference = _build_refund_reference(payment)
+    existing = (
+        db.query(Transaction)
+        .filter(Transaction.tenant_id == event.tenant_id, Transaction.reference == reference)
+        .first()
+    )
+    if existing is not None:
+        provider_payload = dict(payment.provider_payload) if isinstance(payment.provider_payload, dict) else {}
+        provider_payload.setdefault("refund_transaction_id", existing.id)
+        payment.provider_payload = provider_payload
+        return
+
+    category = _find_events_income_category(db, event.tenant_id)
+    refund_transaction = transaction_service.create_transaction(
+        db,
+        TransactionCreate(
+            description=f"Extorno inscricao evento: {event.title}",
+            amount=Decimal(payment.amount),
+            transaction_type="expense",
+            transaction_date=datetime.now(timezone.utc).date(),
+            category_id=category.id if category else None,
+            reference=reference,
+            notes=f"Extorno da inscricao {registration.registration_code} - {registration.attendee_name}",
+        ),
+        user_id=event.created_by_user_id,
+        tenant_id=event.tenant_id,
+    )
+    provider_payload = dict(payment.provider_payload) if isinstance(payment.provider_payload, dict) else {}
+    provider_payload["refund_transaction_id"] = refund_transaction.id
+    payment.provider_payload = provider_payload
+
+
 def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> Optional[EventPayment]:
     payment = get_payment_by_reference(db, payload.checkout_reference)
     if payment is None:
@@ -640,10 +818,57 @@ def apply_payment_webhook(db: Session, payload: EventPaymentWebhookPayload) -> O
             registration.status = "expired" if payload.status == "expired" else "cancelled"
         elif payload.status == "refunded":
             registration.status = "refunded"
+            _ensure_refund_transaction(db, event, registration, payment)
 
     db.commit()
     db.refresh(payment)
     return payment
+
+
+def refund_payment(db: Session, payment: EventPayment) -> EventPayment:
+    current_status = str(payment.status or "").strip().lower()
+    if current_status == "refunded":
+        raise ValueError("Payment has already been refunded")
+    if current_status != "paid":
+        raise ValueError("Only paid payments can be refunded")
+
+    tenant = db.query(Tenant).filter(Tenant.id == payment.tenant_id).first()
+    if tenant is None:
+        raise ValueError("Tenant not found for this payment")
+
+    payment_account = None
+    if payment.payment_account_id is not None:
+        payment_account = payment_account_service.get_payment_account(db, payment.payment_account_id, payment.tenant_id)
+
+    provider = str(payment.provider or "internal").strip().lower()
+    provider_payload: dict = {"source": "manual_admin_refund", "provider": provider}
+
+    if provider == "mercadopago":
+        if not payment.provider_reference:
+            raise ValueError("Mercado Pago payment reference not found for refund")
+        refund_response = mercadopago_service.refund_payment(str(payment.provider_reference), tenant, payment_account)
+        provider_payload["provider_refund"] = refund_response
+    elif provider == "pagbank":
+        if payment_account is None or not pagbank_service.is_enabled(tenant, payment_account):
+            raise ValueError("PagBank account is not configured for refund")
+        if not payment.provider_reference:
+            raise ValueError("PagBank payment reference not found for refund")
+        refund_response = pagbank_service.refund_payment(str(payment.provider_reference), payment_account)
+        provider_payload["provider_refund"] = refund_response
+    else:
+        provider_payload["mode"] = "manual"
+
+    webhook_payload = EventPaymentWebhookPayload(
+        checkout_reference=payment.checkout_reference,
+        status="refunded",
+        provider_reference=payment.provider_reference,
+        provider_payload=provider_payload,
+    )
+    updated_payment = apply_payment_webhook(db, webhook_payload)
+    if updated_payment is None:
+        raise ValueError("Payment not found")
+    _attach_payment_event_summary(db, [updated_payment], payment.tenant_id)
+    return updated_payment
 
 
 def apply_mercadopago_webhook(db: Session, provider_payment_id: str) -> Optional[EventPayment]:

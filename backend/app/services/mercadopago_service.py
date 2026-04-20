@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Optional
@@ -239,6 +240,27 @@ def fetch_payment(payment_id: str, tenant: Tenant | None = None, payment_account
             headers=_build_headers(tenant, payment_account),
         )
         response.raise_for_status()
+        return response.json()
+
+
+def refund_payment(
+    payment_id: str,
+    tenant: Tenant | None = None,
+    payment_account: PaymentAccount | None = None,
+) -> dict[str, Any]:
+    if not is_enabled(tenant, payment_account):
+        raise ValueError("Mercado Pago is not configured")
+    with httpx.Client(timeout=20.0) as client:
+        response = client.post(
+            f"{MERCADOPAGO_API_BASE_URL}/v1/payments/{payment_id}/refunds",
+            headers=_build_headers(tenant, payment_account, idempotency_key=secrets.token_hex(16)),
+            json={},
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            error_message = _extract_error_message(exc.response)
+            raise ValueError(f"Mercado Pago recusou o extorno: {error_message}") from exc
         return response.json()
 
 

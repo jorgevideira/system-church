@@ -38,6 +38,19 @@ def _build_headers(payment_account: PaymentAccount | None = None) -> dict[str, s
     }
 
 
+def _extract_error_message(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        for key in ("message", "error", "detail"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return response.text.strip() or f"HTTP {response.status_code}"
+
+
 def _parse_phone(phone: str | None) -> dict[str, str] | None:
     digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if len(digits) < 10:
@@ -125,6 +138,24 @@ def create_checkout(
             json=payload,
         )
         response.raise_for_status()
+        return response.json()
+
+
+def refund_payment(payment_id: str, payment_account: PaymentAccount) -> dict[str, Any]:
+    if not is_enabled(None, payment_account):
+        raise ValueError("PagBank is not configured")
+
+    with httpx.Client(timeout=20.0) as client:
+        response = client.post(
+            f"{_resolve_api_base_url(payment_account)}/payments/{payment_id}/refunds",
+            headers=_build_headers(payment_account),
+            json={},
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            error_message = _extract_error_message(exc.response)
+            raise ValueError(f"PagBank recusou o extorno: {error_message}") from exc
         return response.json()
 
 
