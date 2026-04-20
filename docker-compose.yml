@@ -111,7 +111,16 @@ services:
     depends_on:
       backend:
         condition: service_started
+    networks:
+      default:
+      proxy_manager:
+        aliases:
+          - system-church-prod-nginx-1
     restart: unless-stopped
+
+networks:
+  proxy_manager:
+    external: true
 
 volumes:
   postgres_data:
