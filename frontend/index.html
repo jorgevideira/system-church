@@ -2496,6 +2496,7 @@
         <button id="usersNavLandingBtn" class="nav-btn" type="button">Landing Page</button>
         <button id="usersNavPaymentsBtn" class="nav-btn" type="button">Pagamentos</button>
         <button id="usersNavSmtpBtn" class="nav-btn" type="button">SMTP</button>
+        <button id="usersNavWhatsappBtn" class="nav-btn" type="button">WhatsApp</button>
       </aside>
       <section class="users-content-stack">
         <section class="panel view show" id="usersUsersView">
@@ -2756,6 +2757,73 @@
                 </div>
               </div>
               <p id="usersSmtpTestMessage" class="message"></p>
+            </section>
+          </section>
+          <section id="usersWhatsappOverviewSection" class="dashboard-card settings-overview-panel hide">
+            <div class="section-title">
+              <h4>WhatsApp</h4>
+              <span class="tiny">Conecte o número de disparo em dev e leia o QR Code sem sair do sistema.</span>
+            </div>
+            <div id="usersChurchWhatsappSection" class="settings-anchor"></div>
+            <p id="usersWhatsappMessage" class="message"></p>
+            <div class="stats-grid settings-overview-grid">
+              <article class="stat-card">
+                <div class="stat-label">Status</div>
+                <div id="usersWhatsappStatus" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Instância</div>
+                <div id="usersWhatsappInstance" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">Último evento</div>
+                <div id="usersWhatsappLastEvent" class="settings-overview-value">-</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-label">QR atualizado</div>
+                <div id="usersWhatsappQrUpdatedAt" class="settings-overview-value">-</div>
+              </article>
+            </div>
+            <div class="events-form-row">
+              <label>Número opcional para pairing code
+                <input id="usersWhatsappPairingNumber" type="text" maxlength="40" placeholder="5511999999999">
+              </label>
+              <label>Pairing code
+                <input id="usersWhatsappPairingCode" type="text" readonly placeholder="Será exibido aqui quando disponível">
+              </label>
+            </div>
+            <div class="modal-actions">
+              <button id="usersWhatsappSetupBtn" class="btn" type="button">Preparar instância</button>
+              <button id="usersWhatsappConnectBtn" class="btn ghost" type="button">Gerar QR</button>
+              <button id="usersWhatsappRefreshBtn" class="btn ghost" type="button">Atualizar</button>
+              <button id="usersWhatsappLogoutBtn" class="btn ghost" type="button">Desconectar</button>
+            </div>
+            <div class="dashboard-card" style="margin-top: 1rem;">
+              <div class="section-title compact-section-title">
+                <h4>QR Code</h4>
+                <span class="tiny">Escaneie com o WhatsApp do celular que fará os disparos.</span>
+              </div>
+              <div id="usersWhatsappQrWrap" style="min-height: 320px; border: 2px dashed rgba(159,186,69,0.35); border-radius: 18px; padding: 1rem; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.7);">
+                <div id="usersWhatsappQrEmpty" class="tiny" style="text-align:center;">Clique em <strong>Gerar QR</strong> para iniciar a conexão do WhatsApp em dev.</div>
+                <img id="usersWhatsappQrImage" class="hide" alt="QR Code do WhatsApp" style="max-width: 320px; width: 100%; height: auto; border-radius: 12px;">
+                <iframe id="usersWhatsappManagerFrame" class="hide" title="Painel do WhatsApp em dev" style="width: 100%; min-height: 540px; border: 0; border-radius: 12px; background: #ffffff;"></iframe>
+              </div>
+              <p id="usersWhatsappLastError" class="message" style="margin-top: 0.75rem;"></p>
+            </div>
+            <section class="dashboard-card" style="margin-top: 1rem;">
+              <div class="section-title compact-section-title">
+                <h4>Teste rápido</h4>
+                <span class="tiny">Envie uma mensagem simples para validar o disparo do WhatsApp em dev.</span>
+              </div>
+              <div class="events-form-row">
+                <label>Telefone de destino
+                  <input id="usersWhatsappTestPhone" type="text" maxlength="30" placeholder="5511999999999">
+                </label>
+                <div class="modal-actions">
+                  <button id="usersWhatsappTestBtn" class="btn ghost" type="button">Enviar teste</button>
+                </div>
+              </div>
+              <p id="usersWhatsappTestMessage" class="message"></p>
             </section>
           </section>
           <form id="usersChurchForm" class="stack hide">

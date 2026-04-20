@@ -22,8 +22,16 @@ from app.schemas.smtp_settings import (
     TenantSmtpTestRequest,
     TenantSmtpTestResponse,
 )
+from app.schemas.whatsapp_settings import (
+    TenantWhatsappActionResponse,
+    TenantWhatsappConnectRequest,
+    TenantWhatsappStatusResponse,
+    TenantWhatsappTestRequest,
+    TenantWhatsappTestResponse,
+)
 from app.services import tenant_service
 from app.services import smtp_settings_service
+from app.services import whatsapp_gateway_service
 
 router = APIRouter()
 
@@ -184,6 +192,93 @@ def test_current_tenant_smtp_settings(
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return TenantSmtpTestResponse(status="sent", message="E-mail de teste enviado.")
+
+
+@router.get("/current/whatsapp", response_model=TenantWhatsappStatusResponse)
+def get_current_tenant_whatsapp_status(
+    _user: User = Depends(get_current_active_user),
+    _current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantWhatsappStatusResponse:
+    try:
+        return TenantWhatsappStatusResponse(**whatsapp_gateway_service.get_status())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/current/whatsapp/setup", response_model=TenantWhatsappActionResponse)
+def setup_current_tenant_whatsapp(
+    _admin: User = Depends(require_admin),
+    _current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantWhatsappActionResponse:
+    try:
+        result = whatsapp_gateway_service.setup_instance()
+        status_payload = result.get("status") if isinstance(result, dict) else None
+        return TenantWhatsappActionResponse(
+            accepted=True,
+            message="Instância do WhatsApp preparada com sucesso.",
+            response=result,
+            status=TenantWhatsappStatusResponse(**status_payload) if isinstance(status_payload, dict) else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/current/whatsapp/connect", response_model=TenantWhatsappActionResponse)
+def connect_current_tenant_whatsapp(
+    payload: TenantWhatsappConnectRequest,
+    _admin: User = Depends(require_admin),
+    _current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantWhatsappActionResponse:
+    try:
+        result = whatsapp_gateway_service.connect_instance(payload.number)
+        status_payload = result.get("status") if isinstance(result, dict) else None
+        return TenantWhatsappActionResponse(
+            accepted=True,
+            message="Solicitação de QR Code enviada.",
+            response=result,
+            status=TenantWhatsappStatusResponse(**status_payload) if isinstance(status_payload, dict) else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/current/whatsapp/logout", response_model=TenantWhatsappActionResponse)
+def logout_current_tenant_whatsapp(
+    _admin: User = Depends(require_admin),
+    _current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantWhatsappActionResponse:
+    try:
+        result = whatsapp_gateway_service.logout_instance()
+        status_payload = result.get("status") if isinstance(result, dict) else None
+        return TenantWhatsappActionResponse(
+            accepted=True,
+            message="Instância do WhatsApp desconectada.",
+            response=result,
+            status=TenantWhatsappStatusResponse(**status_payload) if isinstance(status_payload, dict) else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/current/whatsapp/test", response_model=TenantWhatsappTestResponse)
+def test_current_tenant_whatsapp(
+    payload: TenantWhatsappTestRequest,
+    _admin: User = Depends(require_admin),
+    _current_tenant: Tenant = Depends(get_current_tenant),
+) -> TenantWhatsappTestResponse:
+    try:
+        result = whatsapp_gateway_service.send_test_message(payload.to_phone)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    response_payload = result if isinstance(result, dict) else {}
+    return TenantWhatsappTestResponse(
+        accepted=bool(response_payload.get("accepted", True)),
+        message="Mensagem de teste enviada com sucesso.",
+        recipient=str(response_payload.get("recipient") or payload.to_phone),
+        provider=str(response_payload["provider"]) if response_payload.get("provider") else None,
+        gateway_message_id=str(response_payload["gateway_message_id"]) if response_payload.get("gateway_message_id") else None,
+    )
 
 
 @router.get("/public/{tenant_slug}/branding", response_model=TenantBrandingResponse)

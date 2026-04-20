@@ -3,6 +3,21 @@ services:
     ports:
       - "${DB_PORT}:5432"
 
+  evolution-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${EVOLUTION_DB_USER:-evolution}
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:-change-evolution-dev-password}
+      POSTGRES_DB: ${EVOLUTION_DB_NAME:-evolution_dev}
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVOLUTION_DB_USER:-evolution} -d ${EVOLUTION_DB_NAME:-evolution_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   redis:
     ports:
       - "${REDIS_PORT}:6379"
@@ -54,6 +69,73 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS}
 
+  evolution-api:
+    image: atendai/evolution-api:latest
+    depends_on:
+      evolution-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-dev-evolution-api-key}
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: ${EVOLUTION_SERVER_URL:-http://localhost:8092}
+      DEL_INSTANCE: false
+      DATABASE_ENABLED: true
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${EVOLUTION_DB_USER:-evolution}:${EVOLUTION_DB_PASSWORD:-change-evolution-dev-password}@evolution-db:5432/${EVOLUTION_DB_NAME:-evolution_dev}
+      DATABASE_CONNECTION_CLIENT_NAME: system_church_dev_evolution
+      DATABASE_SAVE_DATA_INSTANCE: true
+      DATABASE_SAVE_DATA_NEW_MESSAGE: false
+      DATABASE_SAVE_MESSAGE_UPDATE: false
+      DATABASE_SAVE_DATA_CONTACTS: false
+      DATABASE_SAVE_DATA_CHATS: false
+      DATABASE_SAVE_DATA_LABELS: false
+      DATABASE_SAVE_DATA_HISTORIC: true
+      CACHE_REDIS_ENABLED: true
+      CACHE_REDIS_URI: redis://redis:6379/5
+      CACHE_REDIS_PREFIX_KEY: ${EVOLUTION_REDIS_PREFIX:-system_church_dev_evolution}
+      CACHE_REDIS_SAVE_INSTANCES: false
+      CACHE_LOCAL_ENABLED: false
+      RABBITMQ_ENABLED: false
+      SQS_ENABLED: false
+      WEBSOCKET_ENABLED: false
+      TELEMETRY: false
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: true
+      WEBHOOK_GLOBAL_ENABLED: true
+      WEBHOOK_GLOBAL_URL: http://whatsapp-gateway:8090/evolution/webhook
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: false
+      WEBHOOK_EVENTS_QRCODE_UPDATED: true
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: true
+      WEBHOOK_EVENTS_SEND_MESSAGE: true
+      CONFIG_SESSION_PHONE_CLIENT: System Church Dev
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: 60
+      LOG_LEVEL: ERROR,WARN,INFO,LOG
+      LANGUAGE: pt
+    volumes:
+      - evolution_instances_data:/evolution/instances
+    ports:
+      - "${EVOLUTION_PORT}:8080"
+    restart: unless-stopped
+
+  whatsapp-gateway:
+    build:
+      context: ./tools/whatsapp_gateway_dev
+    environment:
+      GATEWAY_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN}
+      GATEWAY_DATA_DIR: /data
+      WHATSAPP_WEBJS_CLIENT_ID: ${WHATSAPP_WEBJS_CLIENT_ID:-system-church-dev}
+      WHATSAPP_WEBJS_CONNECT_WAIT_MS: ${WHATSAPP_WEBJS_CONNECT_WAIT_MS:-15000}
+      WHATSAPP_WEBJS_AUTOLOAD: ${WHATSAPP_WEBJS_AUTOLOAD:-true}
+    volumes:
+      - whatsapp_gateway_data:/data
+    ports:
+      - "${WHATSAPP_GATEWAY_PORT}:8090"
+    shm_size: "1gb"
+    restart: unless-stopped
+
   nginx:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -72,3 +154,6 @@ networks:
 
 volumes:
   ollama_data:
+  evolution_db_data:
+  evolution_instances_data:
+  whatsapp_gateway_data:

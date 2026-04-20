@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp Dev Bootstrap</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f6f7f1;
+        color: #254441;
+        font: 16px/1.4 system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Preparando painel do WhatsApp em dev...</p>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var apiUrl = params.get("apiUrl") || (window.location.origin + "/dev-whatsapp-manager-api");
+        var token = params.get("apiKey") || "";
+        var version = params.get("version") || "2.1.1";
+        var target = params.get("target") || "/dev-whatsapp-manager/";
+
+        try {
+          localStorage.setItem("apiUrl", apiUrl.replace(/\/+$/, ""));
+          if (token) localStorage.setItem("token", token);
+          if (version) localStorage.setItem("version", version);
+        } catch (_error) {
+        }
+
+        window.location.replace(target);
+      })();
+    </script>
+  </body>
+</html>
