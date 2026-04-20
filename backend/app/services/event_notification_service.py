@@ -1,4 +1,5 @@
 import smtplib
+import base64
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from typing import Optional
@@ -99,6 +100,7 @@ def enqueue_registration_notifications(
         registration=registration,
         phase=phase,
     )
+    whatsapp_media = _build_whatsapp_qr_media(registration) if qr_data else []
 
     # Avoid duplicate sends if webhook retries or admin confirms twice.
     existing_email = (
@@ -117,6 +119,7 @@ def enqueue_registration_notifications(
         if existing_email.status == "failed":
             existing_email.status = "queued"
             existing_email.error_message = None
+            existing_email.payload = payload
             notifications.append(existing_email)
     else:
         payload = {"subject": email_subject, "body": email_body}
@@ -135,6 +138,15 @@ def enqueue_registration_notifications(
             )
         )
 
+    whatsapp_payload = {"message": whatsapp_message}
+    if whatsapp_media:
+        whatsapp_payload["message"] = (
+            f"{whatsapp_message}\n\nSegue o QR Code de check-in do evento."
+            if len(whatsapp_media) == 1
+            else f"{whatsapp_message}\n\nSeguem os QR Codes de check-in dos participantes."
+        )
+        whatsapp_payload["media"] = whatsapp_media
+
     if registration.attendee_phone:
         existing_whatsapp = (
             db.query(EventNotification)
@@ -152,6 +164,7 @@ def enqueue_registration_notifications(
             if existing_whatsapp.status == "failed":
                 existing_whatsapp.status = "queued"
                 existing_whatsapp.error_message = None
+                existing_whatsapp.payload = whatsapp_payload
                 notifications.append(existing_whatsapp)
         else:
             notifications.append(
@@ -163,7 +176,7 @@ def enqueue_registration_notifications(
                     template_key=phase,
                     recipient=registration.attendee_phone,
                     status="queued",
-                    payload={"message": whatsapp_message},
+                    payload=whatsapp_payload,
                 )
             )
 
@@ -223,6 +236,38 @@ def _build_notification_content(*, event: Event, registration: EventRegistration
         f"Conclua o pagamento para confirmar sua vaga."
     )
     return subject, body, whatsapp, None
+
+
+def _build_whatsapp_qr_media(registration: EventRegistration) -> list[dict]:
+    attendees = list(getattr(registration, "attendees", []) or [])
+    if not attendees and registration.public_token:
+        attendees = [registration]
+
+    media_items: list[dict] = []
+    multiple_attendees = len(attendees) > 1
+
+    for index, attendee in enumerate(attendees, start=1):
+        public_token = str(getattr(attendee, "public_token", "") or "").strip()
+        if not public_token:
+            continue
+
+        attendee_name = str(
+            getattr(attendee, "attendee_name", None)
+            or registration.attendee_name
+            or f"Participante {index}"
+        ).strip()
+        qr_png = qr_service.build_qr_png(public_token)
+        filename = f"checkin-{registration.registration_code.lower()}-{index}.png"
+        item = {
+            "mime_type": "image/png",
+            "filename": filename,
+            "data_base64": base64.b64encode(qr_png).decode("ascii"),
+        }
+        if multiple_attendees:
+            item["caption"] = f"QR de check-in: {attendee_name}"
+        media_items.append(item)
+
+    return media_items
 
 
 def dispatch_notification(db: Session, notification: EventNotification) -> None:
@@ -307,6 +352,7 @@ def _send_whatsapp(notification: EventNotification) -> None:
             json={
                 "to": notification.recipient,
                 "message": (notification.payload or {}).get("message") or "Notificacao de evento",
+                "media": (notification.payload or {}).get("media") or [],
                 "event_notification_id": notification.id,
             },
         )

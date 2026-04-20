@@ -9,6 +9,11 @@
   const tenantPaymentsEndpoint = `${apiPrefix}/tenants/current/payments`;
   const tenantSmtpEndpoint = `${apiPrefix}/tenants/current/smtp`;
   const tenantSmtpTestEndpoint = `${apiPrefix}/tenants/current/smtp/test`;
+  const tenantWhatsappEndpoint = `${apiPrefix}/tenants/current/whatsapp`;
+  const tenantWhatsappSetupEndpoint = `${apiPrefix}/tenants/current/whatsapp/setup`;
+  const tenantWhatsappConnectEndpoint = `${apiPrefix}/tenants/current/whatsapp/connect`;
+  const tenantWhatsappLogoutEndpoint = `${apiPrefix}/tenants/current/whatsapp/logout`;
+  const tenantWhatsappTestEndpoint = `${apiPrefix}/tenants/current/whatsapp/test`;
   const paymentAccountsEndpoint = `${apiPrefix}/payment-accounts/`;
   const usersLinkExistingEndpoint = `${apiPrefix}/users/link-existing`;
   const tenantInvitationsEndpoint = `${apiPrefix}/tenant-invitations/`;
@@ -240,6 +245,7 @@
     usersNavLandingBtn: document.getElementById("usersNavLandingBtn"),
     usersNavPaymentsBtn: document.getElementById("usersNavPaymentsBtn"),
     usersNavSmtpBtn: document.getElementById("usersNavSmtpBtn"),
+    usersNavWhatsappBtn: document.getElementById("usersNavWhatsappBtn"),
     openChurchProfileModalBtn: document.getElementById("openChurchProfileModalBtn"),
     openChurchPaymentsModalBtn: document.getElementById("openChurchPaymentsModalBtn"),
     openPaymentAccountModalBtn: document.getElementById("openPaymentAccountModalBtn"),
@@ -252,6 +258,7 @@
     usersLandingOverviewSection: document.getElementById("usersLandingOverviewSection"),
     usersPaymentsOverviewSection: document.getElementById("usersPaymentsOverviewSection"),
     usersSmtpOverviewSection: document.getElementById("usersSmtpOverviewSection"),
+    usersWhatsappOverviewSection: document.getElementById("usersWhatsappOverviewSection"),
 
     usersSmtpMessage: document.getElementById("usersSmtpMessage"),
     usersSmtpForm: document.getElementById("usersSmtpForm"),
@@ -266,6 +273,26 @@
     usersSmtpTestToEmail: document.getElementById("usersSmtpTestToEmail"),
     usersSmtpTestBtn: document.getElementById("usersSmtpTestBtn"),
     usersSmtpTestMessage: document.getElementById("usersSmtpTestMessage"),
+    usersChurchWhatsappSection: document.getElementById("usersChurchWhatsappSection"),
+    usersWhatsappMessage: document.getElementById("usersWhatsappMessage"),
+    usersWhatsappStatus: document.getElementById("usersWhatsappStatus"),
+    usersWhatsappInstance: document.getElementById("usersWhatsappInstance"),
+    usersWhatsappLastEvent: document.getElementById("usersWhatsappLastEvent"),
+    usersWhatsappQrUpdatedAt: document.getElementById("usersWhatsappQrUpdatedAt"),
+    usersWhatsappPairingNumber: document.getElementById("usersWhatsappPairingNumber"),
+    usersWhatsappPairingCode: document.getElementById("usersWhatsappPairingCode"),
+    usersWhatsappSetupBtn: document.getElementById("usersWhatsappSetupBtn"),
+    usersWhatsappConnectBtn: document.getElementById("usersWhatsappConnectBtn"),
+    usersWhatsappRefreshBtn: document.getElementById("usersWhatsappRefreshBtn"),
+    usersWhatsappLogoutBtn: document.getElementById("usersWhatsappLogoutBtn"),
+    usersWhatsappTestPhone: document.getElementById("usersWhatsappTestPhone"),
+    usersWhatsappTestBtn: document.getElementById("usersWhatsappTestBtn"),
+    usersWhatsappTestMessage: document.getElementById("usersWhatsappTestMessage"),
+    usersWhatsappQrWrap: document.getElementById("usersWhatsappQrWrap"),
+    usersWhatsappQrEmpty: document.getElementById("usersWhatsappQrEmpty"),
+    usersWhatsappQrImage: document.getElementById("usersWhatsappQrImage"),
+    usersWhatsappManagerFrame: document.getElementById("usersWhatsappManagerFrame"),
+    usersWhatsappLastError: document.getElementById("usersWhatsappLastError"),
 
     usersMessage: document.getElementById("usersMessage"),
     usersSearchInput: document.getElementById("usersSearchInput"),
@@ -487,6 +514,7 @@
     tenantProfile: null,
     tenantPaymentSettings: null,
     tenantSmtpSettings: null,
+    tenantWhatsappStatus: null,
     paymentAccounts: [],
     permissionSet: new Set(),
     isAdmin: false,
@@ -496,6 +524,7 @@
     editingRoleId: null,
     deletingUserId: null,
     churchDraftLogoPreviewUrl: "",
+    whatsappStatusPollId: null,
     userFilters: {
       q: "",
       isActive: "all",
@@ -557,6 +586,14 @@
     el.rolesMessage.textContent = message || "";
     el.rolesMessage.style.color = isError ? "#b42318" : "#5f6b6d";
     if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
+  }
+
+  function setWhatsappMessage(message, isError, options = {}) {
+    if (!el.usersWhatsappMessage) return;
+    const silent = Boolean(options.silent);
+    el.usersWhatsappMessage.textContent = message || "";
+    el.usersWhatsappMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && !silent && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
   function setFormMessage(message, isError) {
@@ -626,6 +663,13 @@
     if (!el.usersSmtpTestMessage) return;
     el.usersSmtpTestMessage.textContent = message || "";
     el.usersSmtpTestMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+    if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
+  }
+
+  function setWhatsappTestMessage(message, isError) {
+    if (!el.usersWhatsappTestMessage) return;
+    el.usersWhatsappTestMessage.textContent = message || "";
+    el.usersWhatsappTestMessage.style.color = isError ? "#b42318" : "#5f6b6d";
     if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
   }
 
@@ -1174,6 +1218,8 @@
     const isEvents = moduleName === "events";
     const isUsers = moduleName === "users";
 
+    if (!isUsers) stopWhatsappStatusPolling();
+
     if (el.financeBtn) el.financeBtn.classList.toggle("active", isFinance);
     if (el.cellsBtn) el.cellsBtn.classList.toggle("active", isCells);
     if (el.kidsBtn) el.kidsBtn.classList.toggle("active", isKids);
@@ -1198,6 +1244,7 @@
       landing: "users_roles_view",
       payments: "users_roles_view",
       smtp: "users_roles_view",
+      whatsapp: "users_roles_view",
     };
 
     const requiredPermission = viewPermissions[viewName];
@@ -1213,11 +1260,12 @@
     state.currentView = viewName;
     const isUsersView = viewName === "users";
     const isRolesView = viewName === "roles";
-    const isChurchView = ["church", "appearance", "landing", "payments", "smtp"].includes(viewName);
+    const isChurchView = ["church", "appearance", "landing", "payments", "smtp", "whatsapp"].includes(viewName);
     const isAppearanceView = viewName === "appearance";
     const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
     const isSmtpView = viewName === "smtp";
+    const isWhatsappView = viewName === "whatsapp";
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("active", isUsersView);
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("active", isRolesView);
@@ -1226,16 +1274,24 @@
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("active", isLandingView);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("active", isPaymentsView);
     if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("active", isSmtpView);
+    if (el.usersNavWhatsappBtn) el.usersNavWhatsappBtn.classList.toggle("active", isWhatsappView);
     if (el.usersUsersView) el.usersUsersView.classList.toggle("hide", !isUsersView);
     if (el.usersRolesView) el.usersRolesView.classList.toggle("hide", !isRolesView);
     if (el.usersChurchView) el.usersChurchView.classList.toggle("hide", !isChurchView);
-    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView);
+    if (el.usersChurchOverviewSection) el.usersChurchOverviewSection.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView || isWhatsappView);
     if (el.usersAppearanceOverviewSection) el.usersAppearanceOverviewSection.classList.toggle("hide", !isAppearanceView);
     if (el.usersLandingOverviewSection) el.usersLandingOverviewSection.classList.toggle("hide", !isLandingView);
     if (el.usersPaymentsOverviewSection) el.usersPaymentsOverviewSection.classList.toggle("hide", !isPaymentsView);
     if (el.usersPaymentsManagementSection) el.usersPaymentsManagementSection.classList.toggle("hide", !isPaymentsView);
     if (el.usersSmtpOverviewSection) el.usersSmtpOverviewSection.classList.toggle("hide", !isSmtpView);
+    if (el.usersWhatsappOverviewSection) el.usersWhatsappOverviewSection.classList.toggle("hide", !isWhatsappView);
     applyChurchFormFocus(viewName);
+
+    if (!isWhatsappView) {
+      stopWhatsappStatusPolling();
+    } else {
+      scheduleWhatsappStatusPolling();
+    }
 
     const targetSection = isAppearanceView
       ? el.usersChurchAppearanceSection
@@ -1245,6 +1301,8 @@
         ? el.usersChurchPaymentsSection
         : isSmtpView
           ? el.usersChurchSmtpSection
+        : isWhatsappView
+          ? el.usersChurchWhatsappSection
         : el.usersChurchGeneralSection;
     if (isChurchView && targetSection) {
       window.setTimeout(() => {
@@ -1258,8 +1316,9 @@
     const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
     const isSmtpView = viewName === "smtp";
-    const isChurchView = ["church", "appearance", "landing", "payments", "smtp"].includes(viewName);
-    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView);
+    const isWhatsappView = viewName === "whatsapp";
+    const isChurchView = ["church", "appearance", "landing", "payments", "smtp", "whatsapp"].includes(viewName);
+    if (el.usersChurchGeneralGroup) el.usersChurchGeneralGroup.classList.toggle("hide", !isChurchView || isAppearanceView || isLandingView || isPaymentsView || isSmtpView || isWhatsappView);
     if (el.usersChurchAppearanceGroup) el.usersChurchAppearanceGroup.classList.toggle("hide", !isChurchView || !isAppearanceView);
     if (el.usersChurchLandingGroup) el.usersChurchLandingGroup.classList.toggle("hide", !isChurchView || !isLandingView);
   }
@@ -1311,6 +1370,7 @@
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("hide", !state.isAdmin);
+    if (el.usersNavWhatsappBtn) el.usersNavWhatsappBtn.classList.toggle("hide", !state.isAdmin);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.classList.toggle("hide", !hasPermission("users_users_create"));
@@ -1554,6 +1614,224 @@
       setSmtpTestMessage(result && result.message ? result.message : "E-mail de teste enviado.", false);
     } catch (error) {
       setSmtpTestMessage(error instanceof Error ? error.message : "Falha ao enviar e-mail de teste.", true);
+    }
+  }
+
+  function formatWhatsappTimestamp(value) {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString("pt-BR");
+  }
+
+  function getWhatsappInstanceName(status) {
+    if (!status || typeof status !== "object") return "-";
+    if (typeof status.instance_name === "string" && status.instance_name) return status.instance_name;
+    if (status.instance && typeof status.instance === "object") {
+      if (typeof status.instance.instanceName === "string" && status.instance.instanceName) return status.instance.instanceName;
+      if (typeof status.instance.name === "string" && status.instance.name) return status.instance.name;
+    }
+    return "-";
+  }
+
+  function getWhatsappStatusLabel(status) {
+    if (!status || typeof status !== "object") return "Não configurado";
+    if (status.enabled === false) return "Desativado neste ambiente";
+    if (status.configured === false) return "Gateway não configurado";
+    if (status.reachable === false) return "Gateway indisponível";
+    if (status.instance_exists === false) return "Instância pendente";
+
+    const connectionState = String(status.connection_state || "").toLowerCase();
+    if (!connectionState) return "Pronto para conectar";
+    if (["open", "connected"].includes(connectionState)) return "Conectado";
+    if (["connecting", "pairing", "qr", "qrcode"].includes(connectionState)) return "Aguardando leitura";
+    if (["close", "closed", "disconnected", "logout"].includes(connectionState)) return "Desconectado";
+    return String(status.connection_state);
+  }
+
+  function getWhatsappManagerEmbedUrl(status) {
+    if (!status || typeof status !== "object") return "";
+    const apiKey = typeof status.manager_api_key === "string" ? status.manager_api_key.trim() : "";
+    if (!apiKey) return "";
+
+    const params = new URLSearchParams({
+      apiUrl: `${window.location.origin}/dev-whatsapp-manager-api`,
+      apiKey,
+      version: "2.1.1",
+      target: "/manager/",
+    });
+    return `${window.location.origin}/dev-whatsapp-manager/bootstrap.html?${params.toString()}`;
+  }
+
+  function renderTenantWhatsappStatus() {
+    const status = state.tenantWhatsappStatus || {};
+    const hasQrImage = Boolean(status.qr_image);
+    const managerUrl = getWhatsappManagerEmbedUrl(status);
+    const isEmbeddedManagerMode = status.mode !== "whatsapp-web.js";
+    const shouldShowManager = isEmbeddedManagerMode && !hasQrImage && Boolean(managerUrl);
+    const lastEventLabel = status.last_event || "-";
+    const lastEventAt = formatWhatsappTimestamp(status.last_event_at);
+    const qrUpdatedAt = formatWhatsappTimestamp(status.qr_updated_at);
+    const lastError = status.last_error || "";
+    const pairingCode = status.pairing_code || "";
+
+    if (el.usersWhatsappStatus) el.usersWhatsappStatus.textContent = getWhatsappStatusLabel(status);
+    if (el.usersWhatsappInstance) el.usersWhatsappInstance.textContent = getWhatsappInstanceName(status);
+    if (el.usersWhatsappLastEvent) {
+      el.usersWhatsappLastEvent.textContent = lastEventAt !== "-" && lastEventLabel !== "-"
+        ? `${lastEventLabel} · ${lastEventAt}`
+        : lastEventLabel;
+    }
+    if (el.usersWhatsappQrUpdatedAt) el.usersWhatsappQrUpdatedAt.textContent = qrUpdatedAt;
+    if (el.usersWhatsappPairingCode) el.usersWhatsappPairingCode.value = pairingCode;
+    if (el.usersWhatsappLastError) {
+      el.usersWhatsappLastError.textContent = lastError;
+      el.usersWhatsappLastError.style.color = lastError ? "#b42318" : "#5f6b6d";
+    }
+
+    if (el.usersWhatsappQrImage) {
+      el.usersWhatsappQrImage.classList.toggle("hide", !hasQrImage);
+      el.usersWhatsappQrImage.src = hasQrImage ? status.qr_image : "";
+    }
+
+    if (el.usersWhatsappManagerFrame) {
+      el.usersWhatsappManagerFrame.classList.toggle("hide", !shouldShowManager);
+      if (shouldShowManager) {
+        if (el.usersWhatsappManagerFrame.src !== managerUrl) {
+          el.usersWhatsappManagerFrame.src = managerUrl;
+        }
+      } else if (el.usersWhatsappManagerFrame.src) {
+        el.usersWhatsappManagerFrame.src = "";
+      }
+    }
+
+    if (el.usersWhatsappQrEmpty) {
+      let placeholder = "Clique em Gerar QR para iniciar a conexão do WhatsApp.";
+      if (hasQrImage) {
+        placeholder = "";
+      } else if (shouldShowManager) {
+        placeholder = "O painel do WhatsApp foi carregado abaixo. Leia o QR Code diretamente dentro desta tela.";
+      } else if (status.mode === "whatsapp-web.js" && status.instance_exists) {
+        placeholder = "Aguardando o QR Code do WhatsApp Web aparecer nesta tela.";
+      } else if (status.instance_exists && !status.connection_state) {
+        placeholder = "A instância está pronta. Clique em Gerar QR para solicitar uma nova leitura.";
+      } else if (status.enabled === false) {
+        placeholder = "O gateway de WhatsApp está desativado neste ambiente.";
+      } else if (status.reachable === false) {
+        placeholder = "O gateway de WhatsApp não está respondendo neste ambiente.";
+      }
+      el.usersWhatsappQrEmpty.textContent = placeholder;
+      el.usersWhatsappQrEmpty.classList.toggle("hide", !placeholder);
+    }
+
+    const actionsDisabled = status.enabled === false || status.configured === false;
+    const testDisabled = actionsDisabled || status.connection_state !== "open";
+    if (el.usersWhatsappSetupBtn) el.usersWhatsappSetupBtn.disabled = actionsDisabled;
+    if (el.usersWhatsappConnectBtn) el.usersWhatsappConnectBtn.disabled = actionsDisabled;
+    if (el.usersWhatsappRefreshBtn) el.usersWhatsappRefreshBtn.disabled = false;
+    if (el.usersWhatsappLogoutBtn) el.usersWhatsappLogoutBtn.disabled = actionsDisabled || !status.instance_exists;
+    if (el.usersWhatsappTestBtn) el.usersWhatsappTestBtn.disabled = testDisabled;
+  }
+
+  function stopWhatsappStatusPolling() {
+    if (state.whatsappStatusPollId) {
+      window.clearInterval(state.whatsappStatusPollId);
+      state.whatsappStatusPollId = null;
+    }
+  }
+
+  function scheduleWhatsappStatusPolling() {
+    if (state.currentView !== "whatsapp" || !state.isAdmin) return;
+    stopWhatsappStatusPolling();
+    state.whatsappStatusPollId = window.setInterval(() => {
+      loadTenantWhatsappStatus({ silent: true }).catch(() => {});
+    }, 7000);
+  }
+
+  async function loadTenantWhatsappStatus(options = {}) {
+    const silent = Boolean(options.silent);
+    if (!state.isAdmin) return;
+
+    try {
+      if (!silent) setWhatsappMessage("Atualizando status do WhatsApp...", false);
+      state.tenantWhatsappStatus = await fetchJson(
+        tenantWhatsappEndpoint,
+        { headers: buildHeaders(false) },
+        "Falha ao carregar o status do WhatsApp."
+      );
+      renderTenantWhatsappStatus();
+      if (!silent) setWhatsappMessage("", false);
+      if (state.currentView === "whatsapp") scheduleWhatsappStatusPolling();
+    } catch (error) {
+      stopWhatsappStatusPolling();
+      const message = error instanceof Error ? error.message : "Falha ao carregar o status do WhatsApp.";
+      state.tenantWhatsappStatus = {
+        enabled: false,
+        configured: false,
+        reachable: false,
+        instance_exists: false,
+        last_error: message,
+      };
+      renderTenantWhatsappStatus();
+      setWhatsappMessage(message, true, { silent });
+    }
+  }
+
+  async function performWhatsappAction(url, body, pendingMessage, successMessage, fallbackErrorMessage) {
+    if (!state.isAdmin) {
+      setWhatsappMessage("Acesso negado: somente administradores podem configurar o WhatsApp.", true);
+      return;
+    }
+
+    try {
+      setWhatsappMessage(pendingMessage, false);
+      const requestOptions = {
+        method: "POST",
+        headers: buildHeaders(true),
+      };
+      if (body) requestOptions.body = JSON.stringify(body);
+      const result = await fetchJson(url, requestOptions, fallbackErrorMessage);
+      if (result && result.status) {
+        state.tenantWhatsappStatus = result.status;
+        renderTenantWhatsappStatus();
+      } else {
+        await loadTenantWhatsappStatus({ silent: true });
+      }
+      setWhatsappMessage((result && result.message) || successMessage, false);
+      if (state.currentView === "whatsapp") scheduleWhatsappStatusPolling();
+    } catch (error) {
+      setWhatsappMessage(error instanceof Error ? error.message : fallbackErrorMessage, true);
+    }
+  }
+
+  async function testTenantWhatsapp() {
+    if (!state.isAdmin) {
+      setWhatsappTestMessage("Acesso negado: somente administradores podem enviar teste de WhatsApp.", true);
+      return;
+    }
+
+    const rawPhone = el.usersWhatsappTestPhone ? el.usersWhatsappTestPhone.value.trim() : "";
+    const sanitizedPhone = rawPhone.replace(/\D+/g, "");
+    if (!sanitizedPhone) {
+      setWhatsappTestMessage("Informe o telefone que vai receber a mensagem de teste.", true);
+      return;
+    }
+
+    try {
+      setWhatsappTestMessage("Enviando mensagem de teste no WhatsApp...", false);
+      const result = await fetchJson(
+        tenantWhatsappTestEndpoint,
+        { method: "POST", headers: buildHeaders(true), body: JSON.stringify({ to_phone: sanitizedPhone }) },
+        "Falha ao enviar a mensagem de teste do WhatsApp."
+      );
+      const recipient = result && result.recipient ? ` para ${result.recipient}` : "";
+      const baseMessage = result && result.message ? result.message : "Mensagem de teste enviada com sucesso";
+      setWhatsappTestMessage(`${baseMessage}${recipient}.`, false);
+    } catch (error) {
+      setWhatsappTestMessage(
+        error instanceof Error ? error.message : "Falha ao enviar a mensagem de teste do WhatsApp.",
+        true
+      );
     }
   }
 
@@ -2579,6 +2857,7 @@
     await loadTenantProfile();
     await loadTenantPaymentSettings();
     await loadTenantSmtpSettings();
+    await loadTenantWhatsappStatus({ silent: viewName !== "whatsapp" });
     await loadPaymentAccounts();
     resetPaymentAccountForm();
     await loadPublicEventsForChurch();
@@ -2796,6 +3075,7 @@
     if (el.usersNavLandingBtn) el.usersNavLandingBtn.addEventListener("click", () => openChurchView("landing").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.addEventListener("click", () => openChurchView("payments").catch((error) => setChurchMessage(error.message, true)));
     if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.addEventListener("click", () => openChurchView("smtp").catch((error) => setSmtpMessage(error.message, true)));
+    if (el.usersNavWhatsappBtn) el.usersNavWhatsappBtn.addEventListener("click", () => openChurchView("whatsapp").catch((error) => setWhatsappMessage(error.message, true)));
     if (el.openChurchProfileModalBtn) {
       el.openChurchProfileModalBtn.addEventListener("click", () => openChurchProfileModal(state.currentView || "church"));
     }
@@ -2852,6 +3132,47 @@
     if (el.usersChurchPaymentsForm) el.usersChurchPaymentsForm.addEventListener("submit", submitChurchPaymentsForm);
     if (el.usersSmtpForm) el.usersSmtpForm.addEventListener("submit", submitTenantSmtpSettings);
     if (el.usersSmtpTestBtn) el.usersSmtpTestBtn.addEventListener("click", () => testTenantSmtpSettings());
+    if (el.usersWhatsappRefreshBtn) {
+      el.usersWhatsappRefreshBtn.addEventListener("click", () => {
+        loadTenantWhatsappStatus().catch((error) => setWhatsappMessage(error.message, true));
+      });
+    }
+    if (el.usersWhatsappSetupBtn) {
+      el.usersWhatsappSetupBtn.addEventListener("click", () => {
+        performWhatsappAction(
+          tenantWhatsappSetupEndpoint,
+          null,
+          "Preparando instância do WhatsApp...",
+          "Instância do WhatsApp preparada com sucesso.",
+          "Falha ao preparar a instância do WhatsApp."
+        );
+      });
+    }
+    if (el.usersWhatsappConnectBtn) {
+      el.usersWhatsappConnectBtn.addEventListener("click", () => {
+        const rawNumber = el.usersWhatsappPairingNumber ? el.usersWhatsappPairingNumber.value.trim() : "";
+        const sanitizedNumber = rawNumber.replace(/\D+/g, "");
+        performWhatsappAction(
+          tenantWhatsappConnectEndpoint,
+          sanitizedNumber ? { number: sanitizedNumber } : {},
+          "Solicitando QR Code do WhatsApp...",
+          "Solicitação de QR Code enviada.",
+          "Falha ao solicitar o QR Code do WhatsApp."
+        );
+      });
+    }
+    if (el.usersWhatsappLogoutBtn) {
+      el.usersWhatsappLogoutBtn.addEventListener("click", () => {
+        performWhatsappAction(
+          tenantWhatsappLogoutEndpoint,
+          null,
+          "Desconectando instância do WhatsApp...",
+          "Instância do WhatsApp desconectada.",
+          "Falha ao desconectar a instância do WhatsApp."
+        );
+      });
+    }
+    if (el.usersWhatsappTestBtn) el.usersWhatsappTestBtn.addEventListener("click", () => testTenantWhatsapp());
     if (el.usersPaymentAccountForm) el.usersPaymentAccountForm.addEventListener("submit", submitPaymentAccountForm);
     if (el.usersPaymentAccountResetBtn) {
       el.usersPaymentAccountResetBtn.addEventListener("click", () => {

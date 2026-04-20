@@ -88,6 +88,22 @@ services:
     command: celery -A app.tasks.celery_app beat --loglevel=info
     restart: unless-stopped
 
+  whatsapp-gateway:
+    build:
+      context: ./tools/whatsapp_gateway_dev
+    env_file:
+      - ${APP_ENV_FILE}
+    environment:
+      GATEWAY_TOKEN: ${WHATSAPP_WEBHOOK_TOKEN}
+      GATEWAY_DATA_DIR: /data
+      WHATSAPP_WEBJS_CLIENT_ID: ${WHATSAPP_WEBJS_CLIENT_ID:-system-church-prod}
+      WHATSAPP_WEBJS_CONNECT_WAIT_MS: ${WHATSAPP_WEBJS_CONNECT_WAIT_MS:-15000}
+      WHATSAPP_WEBJS_AUTOLOAD: ${WHATSAPP_WEBJS_AUTOLOAD:-true}
+    volumes:
+      - whatsapp_gateway_data:/data
+    shm_size: "1gb"
+    restart: unless-stopped
+
   nginx:
     build:
       context: .
@@ -101,3 +117,4 @@ volumes:
   postgres_data:
   uploads_data:
   redis_data:
+  whatsapp_gateway_data:

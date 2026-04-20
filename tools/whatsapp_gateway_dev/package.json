@@ -1,0 +1,14 @@
+{
+  "name": "system-church-dev-whatsapp-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dev-only WhatsApp Web gateway for System Church",
+  "main": "app.js",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "express": "4.21.2",
+    "qrcode": "1.5.4",
+    "whatsapp-web.js": "1.34.6"
+  }
+}
+
