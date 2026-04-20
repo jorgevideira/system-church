@@ -3501,6 +3501,11 @@
           <p class="tiny" id="eventsRegistrationsHint">Selecione um evento na agenda para ver as inscrições.</p>
           <section class="dash-filters">
             <div class="dash-filters-grid">
+              <label>Evento
+                <select id="eventsRegistrationsEventFilter">
+                  <option value="">Todos os eventos</option>
+                </select>
+              </label>
               <label>Buscar participante
                 <input type="text" id="eventsRegistrationsSearchInput" placeholder="Nome, email ou codigo">
               </label>
@@ -3526,14 +3531,33 @@
                 </select>
               </label>
             </div>
+            <div class="dash-filters-actions">
+              <span id="eventsRegistrationsResultCount" class="tx-result-count"></span>
+            </div>
           </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
-                <tr><th>Código</th><th>Participante</th><th>Ingresso</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
+                <tr><th>Evento</th><th>Código</th><th>Participante</th><th>Ingresso</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
               </thead>
-              <tbody id="eventsRegistrationsBody"><tr><td colspan="7">Selecione um evento.</td></tr></tbody>
+              <tbody id="eventsRegistrationsBody"><tr><td colspan="8">Selecione um evento.</td></tr></tbody>
             </table>
+          </div>
+          <div class="tx-pagination" aria-label="Paginacao de inscricoes">
+            <span class="tx-shortcuts-hint">Filtre por evento para navegar pelas inscrições com menos carga.</span>
+            <div class="tx-pagination-actions">
+              <label class="tx-page-size-label">Itens
+                <select id="eventsRegistrationsPageSize">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button id="eventsRegistrationsPrevBtn" class="btn ghost btn-mini" type="button">Anterior</button>
+              <span id="eventsRegistrationsPageInfo" class="tx-result-count"></span>
+              <button id="eventsRegistrationsNextBtn" class="btn ghost btn-mini" type="button">Proxima</button>
+            </div>
           </div>
         </section>
 
@@ -3547,6 +3571,11 @@
           <p class="tiny" id="eventsPaymentsHint">Selecione um evento na agenda para acompanhar pagamentos PIX e cartão.</p>
           <section class="dash-filters">
             <div class="dash-filters-grid">
+              <label>Evento
+                <select id="eventsPaymentsEventFilter">
+                  <option value="">Todos os eventos</option>
+                </select>
+              </label>
               <label>Buscar referencia
                 <input type="text" id="eventsPaymentsSearchInput" placeholder="Checkout, provider ou valor">
               </label>
@@ -3569,14 +3598,33 @@
                 </select>
               </label>
             </div>
+            <div class="dash-filters-actions">
+              <span id="eventsPaymentsResultCount" class="tx-result-count"></span>
+            </div>
           </section>
           <div class="table-wrap">
             <table class="table">
               <thead>
-                <tr><th>Referência</th><th>Método</th><th>Status</th><th>Valor</th><th>Checkout</th><th>Ações</th></tr>
+                <tr><th>Evento</th><th>Referência</th><th>Método</th><th>Status</th><th>Valor</th><th>Checkout</th><th>Ações</th></tr>
               </thead>
-              <tbody id="eventsPaymentsBody"><tr><td colspan="6">Selecione um evento.</td></tr></tbody>
+              <tbody id="eventsPaymentsBody"><tr><td colspan="7">Selecione um evento.</td></tr></tbody>
             </table>
+          </div>
+          <div class="tx-pagination" aria-label="Paginacao de pagamentos">
+            <span class="tx-shortcuts-hint">Use a paginação para operar melhor em bases maiores, em dev e em produção.</span>
+            <div class="tx-pagination-actions">
+              <label class="tx-page-size-label">Itens
+                <select id="eventsPaymentsPageSize">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button id="eventsPaymentsPrevBtn" class="btn ghost btn-mini" type="button">Anterior</button>
+              <span id="eventsPaymentsPageInfo" class="tx-result-count"></span>
+              <button id="eventsPaymentsNextBtn" class="btn ghost btn-mini" type="button">Proxima</button>
+            </div>
           </div>
         </section>
 

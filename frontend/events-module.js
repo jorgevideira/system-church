@@ -76,16 +76,28 @@
     eventsSelectedBadge: document.getElementById("eventsSelectedBadge"),
     eventsRegistrationsRefreshBtn: document.getElementById("eventsRegistrationsRefreshBtn"),
     eventsRegistrationsHint: document.getElementById("eventsRegistrationsHint"),
+    eventsRegistrationsEventFilter: document.getElementById("eventsRegistrationsEventFilter"),
     eventsRegistrationsSearchInput: document.getElementById("eventsRegistrationsSearchInput"),
     eventsRegistrationsStatusFilter: document.getElementById("eventsRegistrationsStatusFilter"),
     eventsRegistrationsPaymentFilter: document.getElementById("eventsRegistrationsPaymentFilter"),
+    eventsRegistrationsResultCount: document.getElementById("eventsRegistrationsResultCount"),
     eventsRegistrationsBody: document.getElementById("eventsRegistrationsBody"),
+    eventsRegistrationsPageSize: document.getElementById("eventsRegistrationsPageSize"),
+    eventsRegistrationsPrevBtn: document.getElementById("eventsRegistrationsPrevBtn"),
+    eventsRegistrationsPageInfo: document.getElementById("eventsRegistrationsPageInfo"),
+    eventsRegistrationsNextBtn: document.getElementById("eventsRegistrationsNextBtn"),
     eventsPaymentsRefreshBtn: document.getElementById("eventsPaymentsRefreshBtn"),
     eventsPaymentsHint: document.getElementById("eventsPaymentsHint"),
+    eventsPaymentsEventFilter: document.getElementById("eventsPaymentsEventFilter"),
     eventsPaymentsSearchInput: document.getElementById("eventsPaymentsSearchInput"),
     eventsPaymentsStatusFilter: document.getElementById("eventsPaymentsStatusFilter"),
     eventsPaymentsMethodFilter: document.getElementById("eventsPaymentsMethodFilter"),
+    eventsPaymentsResultCount: document.getElementById("eventsPaymentsResultCount"),
     eventsPaymentsBody: document.getElementById("eventsPaymentsBody"),
+    eventsPaymentsPageSize: document.getElementById("eventsPaymentsPageSize"),
+    eventsPaymentsPrevBtn: document.getElementById("eventsPaymentsPrevBtn"),
+    eventsPaymentsPageInfo: document.getElementById("eventsPaymentsPageInfo"),
+    eventsPaymentsNextBtn: document.getElementById("eventsPaymentsNextBtn"),
     eventsAnalyticsRefreshBtn: document.getElementById("eventsAnalyticsRefreshBtn"),
     eventsAnalyticsHint: document.getElementById("eventsAnalyticsHint"),
     eventsAnalyticsEventSelect: document.getElementById("eventsAnalyticsEventSelect"),
@@ -142,9 +154,11 @@
       eventsSearch: "",
       eventsStatus: "",
       eventsVisibility: "",
+      registrationsEventId: "",
       registrationsSearch: "",
       registrationsStatus: "",
       registrationsPayment: "",
+      paymentsEventId: "",
       paymentsSearch: "",
       paymentsStatus: "",
       paymentsMethod: "",
@@ -153,6 +167,21 @@
       notificationsStatus: "",
     },
     calendarCursor: new Date(),
+    pagination: {
+      registrations: {
+        page: 1,
+        size: 25,
+        total: 0,
+        pages: 1,
+      },
+      payments: {
+        page: 1,
+        size: 25,
+        total: 0,
+        pages: 1,
+      },
+    },
+    scopedFiltersSeeded: false,
   };
 
   function getToken() {
@@ -274,6 +303,17 @@
     return String(value || "").toLowerCase().includes(String(query || "").toLowerCase().trim());
   }
 
+  function buildQuery(params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value === null || value === undefined) return;
+      const normalized = String(value).trim();
+      if (!normalized) return;
+      searchParams.set(key, normalized);
+    });
+    return searchParams.toString();
+  }
+
   function statusLabel(value) {
     const map = {
       draft: "Rascunho",
@@ -380,8 +420,48 @@
     return state.events.find((item) => item.id === state.selectedEventId) || null;
   }
 
+  function getEventById(eventId) {
+    const targetId = Number(eventId || 0);
+    if (!targetId) return null;
+    return state.events.find((item) => item.id === targetId) || null;
+  }
+
+  function renderScopedEventFilter(node, selectedValue) {
+    if (!node) return;
+    const options = ['<option value="">Todos os eventos</option>'];
+    const sorted = [...state.events].sort((a, b) => {
+      const aTime = new Date(a.start_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.start_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+    sorted.forEach((event) => {
+      options.push(`<option value="${event.id}">${escapeHtml(buildEventSelectLabel(event))}</option>`);
+    });
+    node.innerHTML = options.join("");
+    node.value = selectedValue || "";
+  }
+
+  function renderScopedEventFilters() {
+    renderScopedEventFilter(el.eventsRegistrationsEventFilter, state.filters.registrationsEventId);
+    renderScopedEventFilter(el.eventsPaymentsEventFilter, state.filters.paymentsEventId);
+  }
+
+  function updatePagedControls(kind) {
+    const pagination = state.pagination[kind];
+    const infoNode = kind === "registrations" ? el.eventsRegistrationsPageInfo : el.eventsPaymentsPageInfo;
+    const prevNode = kind === "registrations" ? el.eventsRegistrationsPrevBtn : el.eventsPaymentsPrevBtn;
+    const nextNode = kind === "registrations" ? el.eventsRegistrationsNextBtn : el.eventsPaymentsNextBtn;
+    if (infoNode) {
+      infoNode.textContent = `Pagina ${pagination.page} de ${pagination.pages} · ${pagination.total} registro(s)`;
+    }
+    if (prevNode) prevNode.disabled = pagination.page <= 1;
+    if (nextNode) nextNode.disabled = pagination.page >= pagination.pages;
+  }
+
   function updateSelectedBadge() {
     const event = selectedEvent();
+    const registrationsEvent = getEventById(state.filters.registrationsEventId);
+    const paymentsEvent = getEventById(state.filters.paymentsEventId);
     if (el.eventsSelectedBadge) {
       el.eventsSelectedBadge.textContent = event ? `Selecionado: ${event.title}` : "Nenhum evento selecionado";
     }
@@ -392,14 +472,14 @@
       }
     }
     if (el.eventsRegistrationsHint) {
-      el.eventsRegistrationsHint.textContent = event
-        ? `Inscrições de ${event.title}.`
-        : "Selecione um evento na agenda para ver as inscrições.";
+      el.eventsRegistrationsHint.textContent = registrationsEvent
+        ? `Inscrições filtradas por ${registrationsEvent.title}.`
+        : "Visualizando inscrições de todos os eventos. Use o filtro para focar em um evento.";
     }
     if (el.eventsPaymentsHint) {
-      el.eventsPaymentsHint.textContent = event
-        ? `Pagamentos de ${event.title}.`
-        : "Selecione um evento na agenda para acompanhar pagamentos PIX e cartão.";
+      el.eventsPaymentsHint.textContent = paymentsEvent
+        ? `Pagamentos filtrados por ${paymentsEvent.title}.`
+        : "Visualizando pagamentos de todos os eventos. Use o filtro para focar em um evento.";
     }
     if (el.eventsAnalyticsHint && state.currentView !== "analytics") {
       el.eventsAnalyticsHint.textContent = event
@@ -614,10 +694,22 @@
       state.selectedEventId = null;
       resetEventForm();
     }
+    if (state.filters.registrationsEventId && !getEventById(state.filters.registrationsEventId)) {
+      state.filters.registrationsEventId = "";
+    }
+    if (state.filters.paymentsEventId && !getEventById(state.filters.paymentsEventId)) {
+      state.filters.paymentsEventId = "";
+    }
     ensureSelectedEvent();
+    if (!state.scopedFiltersSeeded && state.selectedEventId) {
+      state.filters.registrationsEventId = String(state.selectedEventId);
+      state.filters.paymentsEventId = String(state.selectedEventId);
+      state.scopedFiltersSeeded = true;
+    }
     renderEvents();
     renderCalendar();
     renderAnalyticsEventSelect();
+    renderScopedEventFilters();
     setMessage("");
   }
 
@@ -644,29 +736,38 @@ function populatePaymentAccountOptions() {
   }
 
   async function loadRegistrations() {
-    if (!state.selectedEventId) {
-      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Selecione um evento.</td></tr>";
-      return;
-    }
-    state.registrations = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/registrations`, { headers: buildHeaders(false) }, "Falha ao carregar inscricoes.");
-    const filteredRegistrations = state.registrations.filter((registration) => {
-      if (state.filters.registrationsSearch) {
-        const attendees = Array.isArray(registration.attendees) ? registration.attendees : [];
-        const attendeeNames = attendees.map((row) => row && row.attendee_name ? row.attendee_name : "").join(" ");
-        const haystack = `${registration.registration_code || ""} ${registration.attendee_name || ""} ${attendeeNames} ${registration.attendee_email || ""}`;
-        if (!includesText(haystack, state.filters.registrationsSearch)) return false;
-      }
-      if (state.filters.registrationsStatus && registration.status !== state.filters.registrationsStatus) return false;
-      if (state.filters.registrationsPayment && registration.payment_status !== state.filters.registrationsPayment) return false;
-      return true;
+    const query = buildQuery({
+      event_id: state.filters.registrationsEventId,
+      search: state.filters.registrationsSearch,
+      status: state.filters.registrationsStatus,
+      payment_status: state.filters.registrationsPayment,
+      page: state.pagination.registrations.page,
+      size: state.pagination.registrations.size,
     });
+    const payload = await fetchJson(
+      `${eventsEndpoint}/registrations${query ? `?${query}` : ""}`,
+      { headers: buildHeaders(false) },
+      "Falha ao carregar inscricoes."
+    );
+    state.registrations = Array.isArray(payload && payload.items) ? payload.items : [];
+    state.pagination.registrations.total = Number(payload && payload.total ? payload.total : 0) || 0;
+    state.pagination.registrations.pages = Number(payload && payload.pages ? payload.pages : 1) || 1;
+    state.pagination.registrations.page = Number(payload && payload.page ? payload.page : state.pagination.registrations.page) || 1;
+    updatePagedControls("registrations");
 
-    if (!filteredRegistrations.length) {
-      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='7'>Nenhuma inscricao ate o momento.</td></tr>";
+    if (el.eventsRegistrationsResultCount) {
+      el.eventsRegistrationsResultCount.textContent = `${state.registrations.length} item(ns) na pagina atual`;
+    }
+
+    if (!state.registrations.length) {
+      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='8'>Nenhuma inscricao encontrada para os filtros atuais.</td></tr>";
       return;
     }
+
     const rows = [];
-    filteredRegistrations.forEach((registration) => {
+    state.registrations.forEach((registration) => {
+      const fallbackEvent = getEventById(registration.event_id);
+      const eventTitle = registration.event_title || (fallbackEvent ? fallbackEvent.title : "-");
       const attendees = Array.isArray(registration.attendees) && registration.attendees.length
         ? registration.attendees
         : [{ attendee_index: 1, attendee_name: registration.attendee_name }];
@@ -677,6 +778,7 @@ function populatePaymentAccountOptions() {
         const badge = `${idx}/${qty}`;
         rows.push(`
           <tr>
+            <td>${escapeHtml(eventTitle)}</td>
             <td>${escapeHtml(registration.registration_code)}</td>
             <td>${escapeHtml(attendee && attendee.attendee_name ? attendee.attendee_name : registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
             <td>${escapeHtml(badge)}</td>
@@ -692,27 +794,40 @@ function populatePaymentAccountOptions() {
   }
 
   async function loadPayments() {
-    if (!state.selectedEventId) {
-      el.eventsPaymentsBody.innerHTML = "<tr><td colspan='6'>Selecione um evento.</td></tr>";
-      return;
-    }
-    state.payments = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/payments`, { headers: buildHeaders(false) }, "Falha ao carregar pagamentos.");
-    const filteredPayments = state.payments.filter((payment) => {
-      if (state.filters.paymentsSearch) {
-        const haystack = `${payment.checkout_reference || ""} ${payment.provider_reference || ""} ${payment.amount || ""}`;
-        if (!includesText(haystack, state.filters.paymentsSearch)) return false;
-      }
-      if (state.filters.paymentsStatus && payment.status !== state.filters.paymentsStatus) return false;
-      if (state.filters.paymentsMethod && payment.payment_method !== state.filters.paymentsMethod) return false;
-      return true;
+    const query = buildQuery({
+      event_id: state.filters.paymentsEventId,
+      search: state.filters.paymentsSearch,
+      status: state.filters.paymentsStatus,
+      payment_method: state.filters.paymentsMethod,
+      page: state.pagination.payments.page,
+      size: state.pagination.payments.size,
     });
+    const payload = await fetchJson(
+      `${eventsEndpoint}/payments${query ? `?${query}` : ""}`,
+      { headers: buildHeaders(false) },
+      "Falha ao carregar pagamentos."
+    );
+    state.payments = Array.isArray(payload && payload.items) ? payload.items : [];
+    state.pagination.payments.total = Number(payload && payload.total ? payload.total : 0) || 0;
+    state.pagination.payments.pages = Number(payload && payload.pages ? payload.pages : 1) || 1;
+    state.pagination.payments.page = Number(payload && payload.page ? payload.page : state.pagination.payments.page) || 1;
+    updatePagedControls("payments");
 
-    if (!filteredPayments.length) {
-      el.eventsPaymentsBody.innerHTML = "<tr><td colspan='6'>Nenhum pagamento registrado.</td></tr>";
+    if (el.eventsPaymentsResultCount) {
+      el.eventsPaymentsResultCount.textContent = `${state.payments.length} item(ns) na pagina atual`;
+    }
+
+    if (!state.payments.length) {
+      el.eventsPaymentsBody.innerHTML = "<tr><td colspan='7'>Nenhum pagamento encontrado para os filtros atuais.</td></tr>";
       return;
     }
-    el.eventsPaymentsBody.innerHTML = filteredPayments.map((payment) => `
+
+    el.eventsPaymentsBody.innerHTML = state.payments.map((payment) => {
+      const fallbackEvent = getEventById(payment.event_id);
+      const eventTitle = payment.event_title || (fallbackEvent ? fallbackEvent.title : "-");
+      return `
       <tr>
+        <td>${escapeHtml(eventTitle)}</td>
         <td>${escapeHtml(payment.checkout_reference)}</td>
         <td>${escapeHtml(String(payment.payment_method || "-").toUpperCase())}</td>
         <td>${escapeHtml(statusLabel(payment.status))}</td>
@@ -721,10 +836,13 @@ function populatePaymentAccountOptions() {
         <td>
           ${payment.status !== "paid" && hasPermission("events_payments_manage")
             ? `<button class="btn ghost btn-mini" type="button" data-payment-confirm="${payment.id}">Confirmar</button>`
+            : payment.can_refund && hasPermission("events_payments_manage")
+              ? `<button class="btn ghost btn-mini" type="button" data-payment-refund="${payment.id}">Extornar</button>`
             : "<span class='tiny'>Sem acao</span>"}
         </td>
       </tr>
-    `).join("");
+    `;
+    }).join("");
   }
 
   function destroyChart(chart) {
@@ -1180,6 +1298,12 @@ function populatePaymentAccountOptions() {
 
   async function selectEvent(eventId, openForm = false) {
     state.selectedEventId = Number(eventId);
+    if (state.selectedEventId) {
+      state.filters.registrationsEventId = String(state.selectedEventId);
+      state.filters.paymentsEventId = String(state.selectedEventId);
+      state.pagination.registrations.page = 1;
+      state.pagination.payments.page = 1;
+    }
     const event = selectedEvent();
     if (event) {
       const eventDate = new Date(event.start_at || event.created_at || Date.now());
@@ -1190,6 +1314,7 @@ function populatePaymentAccountOptions() {
     if (event && openForm) {
       fillEventForm(event);
     }
+    renderScopedEventFilters();
     renderEvents();
     if (state.currentView !== "agenda") {
       await refreshCurrentView();
@@ -1293,6 +1418,24 @@ function populatePaymentAccountOptions() {
       await fetchJson(`${eventsEndpoint}/payments/${paymentId}/confirm`, { method: "POST", headers: buildHeaders(false) }, "Falha ao confirmar pagamento.");
       await Promise.all([loadPayments(), loadRegistrations(), loadAnalytics(), loadNotifications()]);
       setMessage("Pagamento confirmado e refletido no evento.");
+    } catch (error) {
+      setMessage(error.message, true);
+    }
+  }
+
+  async function refundPayment(paymentId) {
+    if (!hasPermission("events_payments_manage")) {
+      setMessage("Acesso negado para extornar pagamentos.", true);
+      return;
+    }
+    const confirmed = window.openUiConfirm
+      ? await window.openUiConfirm("Deseja realmente extornar este pagamento?", "Extornar pagamento")
+      : window.confirm("Deseja realmente extornar este pagamento?");
+    if (!confirmed) return;
+    try {
+      await fetchJson(`${eventsEndpoint}/payments/${paymentId}/refund`, { method: "POST", headers: buildHeaders(false) }, "Falha ao extornar pagamento.");
+      await Promise.all([loadPayments(), loadRegistrations(), loadAnalytics(), loadNotifications()]);
+      setMessage("Pagamento extornado e refletido nas inscricoes.");
     } catch (error) {
       setMessage(error.message, true);
     }
@@ -1464,15 +1607,104 @@ function populatePaymentAccountOptions() {
     bindFilterInput(el.eventsSearchInput, "eventsSearch", async () => renderEvents());
     bindFilterInput(el.eventsStatusFilter, "eventsStatus", async () => renderEvents());
     bindFilterInput(el.eventsVisibilityFilter, "eventsVisibility", async () => renderEvents());
-    bindFilterInput(el.eventsRegistrationsSearchInput, "registrationsSearch", loadRegistrations);
-    bindFilterInput(el.eventsRegistrationsStatusFilter, "registrationsStatus", loadRegistrations);
-    bindFilterInput(el.eventsRegistrationsPaymentFilter, "registrationsPayment", loadRegistrations);
-    bindFilterInput(el.eventsPaymentsSearchInput, "paymentsSearch", loadPayments);
-    bindFilterInput(el.eventsPaymentsStatusFilter, "paymentsStatus", loadPayments);
-    bindFilterInput(el.eventsPaymentsMethodFilter, "paymentsMethod", loadPayments);
     bindFilterInput(el.eventsNotificationsSearchInput, "notificationsSearch", loadNotifications);
     bindFilterInput(el.eventsNotificationsChannelFilter, "notificationsChannel", loadNotifications);
     bindFilterInput(el.eventsNotificationsStatusFilter, "notificationsStatus", loadNotifications);
+
+    const bindPagedFilter = (node, applyValue) => {
+      if (!node) return;
+      const eventName = node.tagName === "SELECT" ? "change" : "input";
+      node.addEventListener(eventName, () => {
+        applyValue(node.value || "");
+      });
+    };
+
+    bindPagedFilter(el.eventsRegistrationsEventFilter, (value) => {
+      state.filters.registrationsEventId = value;
+      state.pagination.registrations.page = 1;
+      if (value) state.selectedEventId = Number(value);
+      renderScopedEventFilters();
+      renderEvents();
+      updateSelectedBadge();
+      loadRegistrations().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsRegistrationsSearchInput, (value) => {
+      state.filters.registrationsSearch = value;
+      state.pagination.registrations.page = 1;
+      loadRegistrations().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsRegistrationsStatusFilter, (value) => {
+      state.filters.registrationsStatus = value;
+      state.pagination.registrations.page = 1;
+      loadRegistrations().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsRegistrationsPaymentFilter, (value) => {
+      state.filters.registrationsPayment = value;
+      state.pagination.registrations.page = 1;
+      loadRegistrations().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsPaymentsEventFilter, (value) => {
+      state.filters.paymentsEventId = value;
+      state.pagination.payments.page = 1;
+      if (value) state.selectedEventId = Number(value);
+      renderScopedEventFilters();
+      renderEvents();
+      updateSelectedBadge();
+      loadPayments().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsPaymentsSearchInput, (value) => {
+      state.filters.paymentsSearch = value;
+      state.pagination.payments.page = 1;
+      loadPayments().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsPaymentsStatusFilter, (value) => {
+      state.filters.paymentsStatus = value;
+      state.pagination.payments.page = 1;
+      loadPayments().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsPaymentsMethodFilter, (value) => {
+      state.filters.paymentsMethod = value;
+      state.pagination.payments.page = 1;
+      loadPayments().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsRegistrationsPageSize, (value) => {
+      state.pagination.registrations.size = Number(value || 25) || 25;
+      state.pagination.registrations.page = 1;
+      loadRegistrations().catch((error) => setMessage(error.message, true));
+    });
+    bindPagedFilter(el.eventsPaymentsPageSize, (value) => {
+      state.pagination.payments.size = Number(value || 25) || 25;
+      state.pagination.payments.page = 1;
+      loadPayments().catch((error) => setMessage(error.message, true));
+    });
+    if (el.eventsRegistrationsPrevBtn) {
+      el.eventsRegistrationsPrevBtn.addEventListener("click", () => {
+        if (state.pagination.registrations.page <= 1) return;
+        state.pagination.registrations.page -= 1;
+        loadRegistrations().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsRegistrationsNextBtn) {
+      el.eventsRegistrationsNextBtn.addEventListener("click", () => {
+        if (state.pagination.registrations.page >= state.pagination.registrations.pages) return;
+        state.pagination.registrations.page += 1;
+        loadRegistrations().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsPaymentsPrevBtn) {
+      el.eventsPaymentsPrevBtn.addEventListener("click", () => {
+        if (state.pagination.payments.page <= 1) return;
+        state.pagination.payments.page -= 1;
+        loadPayments().catch((error) => setMessage(error.message, true));
+      });
+    }
+    if (el.eventsPaymentsNextBtn) {
+      el.eventsPaymentsNextBtn.addEventListener("click", () => {
+        if (state.pagination.payments.page >= state.pagination.payments.pages) return;
+        state.pagination.payments.page += 1;
+        loadPayments().catch((error) => setMessage(error.message, true));
+      });
+    }
 
     document.addEventListener("click", (event) => {
       const selectButton = event.target.closest && event.target.closest("[data-event-select]");
@@ -1490,6 +1722,12 @@ function populatePaymentAccountOptions() {
       const paymentButton = event.target.closest && event.target.closest("[data-payment-confirm]");
       if (paymentButton) {
         confirmPayment(Number(paymentButton.getAttribute("data-payment-confirm"))).catch((error) => setMessage(error.message, true));
+        return;
+      }
+
+      const refundButton = event.target.closest && event.target.closest("[data-payment-refund]");
+      if (refundButton) {
+        refundPayment(Number(refundButton.getAttribute("data-payment-refund"))).catch((error) => setMessage(error.message, true));
       }
     });
   }

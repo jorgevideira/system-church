@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
@@ -11,6 +11,8 @@ from app.schemas.event import (
     EventCreate,
     EventPaymentResponse,
     EventPaymentWebhookPayload,
+    PaginatedEventPayments,
+    PaginatedEventRegistrations,
     EventRegistrationPublicCreate,
     EventRegistrationResponse,
     EventResponse,
@@ -25,6 +27,12 @@ from app.schemas.event_checkin import EventCheckInRequest, EventCheckInResponse
 from app.services import event_checkin_service, event_notification_service, event_service, mercadopago_service
 
 router = APIRouter()
+
+
+def _build_pages(total: int, size: int) -> int:
+    if total <= 0:
+        return 1
+    return (total + size - 1) // size
 
 
 @router.get("/", response_model=List[EventResponse])
@@ -45,6 +53,76 @@ def create_event(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventResponse:
     return event_service.create_event(db, current_tenant.id, current_user.id, payload)
+
+
+@router.get("/registrations", response_model=PaginatedEventRegistrations)
+def list_registrations(
+    event_id: int | None = None,
+    search: str | None = None,
+    status_filter: str | None = Query(default=None, alias="status"),
+    payment_status: str | None = None,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=25, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> PaginatedEventRegistrations:
+    if event_id is not None:
+        event = event_service.get_event(db, event_id, current_tenant.id)
+        if not event:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    items, total = event_service.list_registrations_paginated(
+        db,
+        current_tenant.id,
+        event_id=event_id,
+        search=search,
+        status=status_filter,
+        payment_status=payment_status,
+        page=page,
+        size=size,
+    )
+    return PaginatedEventRegistrations(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=_build_pages(total, size),
+    )
+
+
+@router.get("/payments", response_model=PaginatedEventPayments)
+def list_payments(
+    event_id: int | None = None,
+    search: str | None = None,
+    status_filter: str | None = Query(default=None, alias="status"),
+    payment_method: str | None = None,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=25, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> PaginatedEventPayments:
+    if event_id is not None:
+        event = event_service.get_event(db, event_id, current_tenant.id)
+        if not event:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    items, total = event_service.list_payments_paginated(
+        db,
+        current_tenant.id,
+        event_id=event_id,
+        search=search,
+        status=status_filter,
+        payment_method=payment_method,
+        page=page,
+        size=size,
+    )
+    return PaginatedEventPayments(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=_build_pages(total, size),
+    )
 
 
 @router.get("/{event_id}", response_model=EventResponse)
@@ -159,6 +237,22 @@ def confirm_event_payment(
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     return updated
+
+
+@router.post("/payments/{payment_id}/refund", response_model=EventPaymentResponse)
+def refund_event_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_editor),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> EventPaymentResponse:
+    payment = event_service.get_payment(db, payment_id, current_tenant.id)
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    try:
+        return event_service.refund_payment(db, payment)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/checkin", response_model=EventCheckInResponse)

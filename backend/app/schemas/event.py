@@ -179,6 +179,7 @@ class EventRegistrationResponse(BaseModel):
     id: int
     tenant_id: Optional[int] = None
     event_id: int
+    event_title: Optional[str] = None
     registration_code: str
     public_token: str
     attendee_name: str
@@ -204,6 +205,7 @@ class EventPaymentResponse(BaseModel):
     id: int
     tenant_id: Optional[int] = None
     event_id: int
+    event_title: Optional[str] = None
     registration_id: int
     payment_account_id: Optional[int] = None
     transaction_id: Optional[int] = None
@@ -219,10 +221,27 @@ class EventPaymentResponse(BaseModel):
     provider_payload: Optional[dict] = None
     expires_at: Optional[datetime] = None
     paid_at: Optional[datetime] = None
+    can_refund: bool = False
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedEventRegistrations(BaseModel):
+    items: list[EventRegistrationResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class PaginatedEventPayments(BaseModel):
+    items: list[EventPaymentResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 
 class PublicEventDetailResponse(BaseModel):
