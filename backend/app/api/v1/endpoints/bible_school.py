@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_school_read, require_school_write
 from app.db.models.bible_school_class import BibleSchoolClass
 from app.db.models.bible_school_course import BibleSchoolCourse
 from app.db.models import BibleSchoolAttendance, BibleSchoolStudent
@@ -38,7 +38,7 @@ router = APIRouter()
 def list_courses(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolCourse]:
     q = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.tenant_id == current_tenant.id)
@@ -51,7 +51,7 @@ def list_courses(
 def create_course(
     payload: BibleSchoolCourseCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolCourse:
     existing = (
@@ -74,7 +74,7 @@ def update_course(
     course_id: int,
     payload: BibleSchoolCourseUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolCourse:
     row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
@@ -94,7 +94,7 @@ def update_course(
 def delete_course(
     course_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     row = db.query(BibleSchoolCourse).filter(BibleSchoolCourse.id == course_id, BibleSchoolCourse.tenant_id == current_tenant.id).first()
@@ -121,7 +121,7 @@ def list_classes(
     course_id: Optional[int] = Query(None),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolClassResponse]:
     q = db.query(BibleSchoolClass, BibleSchoolCourse.name.label("course_name")).join(
@@ -159,7 +159,7 @@ def list_classes(
 def create_class(
     payload: BibleSchoolClassCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolClassResponse:
     course = (
@@ -185,7 +185,7 @@ def update_class(
     class_id: int,
     payload: BibleSchoolClassUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolClassResponse:
     row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
@@ -218,7 +218,7 @@ def update_class(
 def delete_class(
     class_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     row = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
@@ -244,7 +244,7 @@ def delete_class(
 def list_professors(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolProfessor]:
     q = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.tenant_id == current_tenant.id)
@@ -257,7 +257,7 @@ def list_professors(
 def create_professor(
     payload: BibleSchoolProfessorCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolProfessor:
     if payload.email:
@@ -281,7 +281,7 @@ def update_professor(
     professor_id: int,
     payload: BibleSchoolProfessorUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolProfessor:
     row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id).first()
@@ -301,7 +301,7 @@ def update_professor(
 def delete_professor(
     professor_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     row = db.query(BibleSchoolProfessor).filter(BibleSchoolProfessor.id == professor_id, BibleSchoolProfessor.tenant_id == current_tenant.id).first()
@@ -329,7 +329,7 @@ def list_lessons(
     professor_id: Optional[int] = Query(None),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolLessonResponse]:
     q = db.query(
@@ -381,7 +381,7 @@ def list_lessons(
 def create_lesson(
     payload: BibleSchoolLessonCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolLessonResponse:
     classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
@@ -414,7 +414,7 @@ def update_lesson(
     lesson_id: int,
     payload: BibleSchoolLessonUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolLessonResponse:
     row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()
@@ -465,7 +465,7 @@ def update_lesson(
 def delete_lesson(
     lesson_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     row = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()
@@ -481,7 +481,7 @@ def list_students(
     class_id: Optional[int] = Query(None),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolStudentResponse]:
     q = db.query(
@@ -528,7 +528,7 @@ def list_students(
 def create_student(
     payload: BibleSchoolStudentCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolStudentResponse:
     classroom = db.query(BibleSchoolClass).filter(BibleSchoolClass.id == payload.class_id, BibleSchoolClass.tenant_id == current_tenant.id).first()
@@ -562,7 +562,7 @@ def update_student(
     student_id: int,
     payload: BibleSchoolStudentUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> BibleSchoolStudentResponse:
     row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id, BibleSchoolStudent.tenant_id == current_tenant.id).first()
@@ -613,7 +613,7 @@ def update_student(
 def delete_student(
     student_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     row = db.query(BibleSchoolStudent).filter(BibleSchoolStudent.id == student_id, BibleSchoolStudent.tenant_id == current_tenant.id).first()
@@ -674,7 +674,7 @@ def _build_attendance_response(
 def list_lesson_attendance(
     lesson_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_school_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolAttendanceResponse]:
     return _build_attendance_response(lesson_id, current_tenant.id, db)
@@ -685,7 +685,7 @@ def upsert_lesson_attendance(
     lesson_id: int,
     payload: BibleSchoolAttendanceUpsertRequest,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_school_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[BibleSchoolAttendanceResponse]:
     lesson = db.query(BibleSchoolLesson).filter(BibleSchoolLesson.id == lesson_id, BibleSchoolLesson.tenant_id == current_tenant.id).first()

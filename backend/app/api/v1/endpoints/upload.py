@@ -7,7 +7,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.core.config import settings
 from app.core.constants import FILE_TYPES, MAX_FILE_SIZE_BYTES
 from app.db.models.statement_file import StatementFile
@@ -51,7 +51,7 @@ def _count_transactions_for_statement(db: Session, statement_file_id: int) -> in
 async def upload_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     file_type = _get_file_type(file.filename or "")
@@ -101,7 +101,7 @@ async def upload_file(
 def get_upload_status(
     file_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = db.query(StatementFile).filter(StatementFile.id == file_id, StatementFile.tenant_id == current_tenant.id).first()
@@ -131,7 +131,7 @@ def retry_upload_processing(
     include_duplicates: bool = False,
     reset_existing: bool = True,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
@@ -173,7 +173,7 @@ def retry_upload_processing(
 def get_upload_duplicates_preview(
     file_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
@@ -280,7 +280,7 @@ def apply_duplicate_selection(
     file_id: int,
     payload: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     record = (
@@ -352,7 +352,7 @@ def list_uploads(
     skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     records = (

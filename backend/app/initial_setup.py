@@ -13,6 +13,7 @@ from app.db.models.tenant_membership import TenantMembership
 from app.db.models.transaction_attachment import TransactionAttachment
 from app.db.models.user import User
 from app.db.session import engine
+from app.services import role_templates_service
 from app.utils.logger import logger
 
 
@@ -125,6 +126,26 @@ def ensure_runtime_schema_updates() -> None:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_due_date_snapshot ON payable_notifications (due_date_snapshot)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_payable_notifications_status ON payable_notifications (status)"))
             logger.info("Schema update applied: payable_notifications table created.")
+
+        if "tenant_membership_role" not in tables:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS tenant_membership_role (
+                        tenant_membership_id INTEGER NOT NULL REFERENCES tenant_memberships(id) ON DELETE CASCADE,
+                        role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+                        PRIMARY KEY (tenant_membership_id, role_id)
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tenant_membership_role_membership_id ON tenant_membership_role (tenant_membership_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tenant_membership_role_role_id ON tenant_membership_role (role_id)"))
+                conn.execute(text("""
+                    INSERT INTO tenant_membership_role (tenant_membership_id, role_id)
+                    SELECT id, role_id
+                    FROM tenant_memberships
+                    WHERE role_id IS NOT NULL
+                    ON CONFLICT DO NOTHING
+                """))
+            logger.info("Schema update applied: tenant_membership_role table created.")
 
     if "users" in tables:
         user_columns = {col["name"] for col in inspector.get_columns("users")}
@@ -480,6 +501,10 @@ def setup(db: Session) -> None:
     default_tenant = create_default_tenant(db)
     ensure_default_tenant_memberships(db, default_tenant)
     create_default_categories(db, default_tenant)
+    tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
+    for tenant in tenants:
+        role_templates_service.install_default_roles_for_tenant(db, tenant.id)
+    logger.info("Default roles and permissions created/verified for %s tenant(s).", len(tenants))
 
 
 if __name__ == "__main__":

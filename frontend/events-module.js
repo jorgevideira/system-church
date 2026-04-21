@@ -205,6 +205,19 @@
     return state.permissionSet.has(permissionName);
   }
 
+  function canManageCheckin() {
+    return hasPermission("events_events_create")
+      || hasPermission("events_events_edit")
+      || hasPermission("events_events_delete")
+      || hasPermission("events_payments_manage");
+  }
+
+  function toggleActionByPermission(node, allowed) {
+    if (!node) return;
+    node.classList.toggle("hide", !allowed);
+    node.disabled = !allowed;
+  }
+
   function hasEventsModuleAccess() {
     if (state.isAdmin) return true;
     for (const permissionName of state.permissionSet) {
@@ -219,7 +232,8 @@
     if (hasPermission(VIEW_PERMISSIONS.payments)) return "payments";
     if (hasPermission(VIEW_PERMISSIONS.analytics)) return "analytics";
     if (hasPermission(VIEW_PERMISSIONS.notifications)) return "notifications";
-    return "checkin";
+    if (canManageCheckin()) return "checkin";
+    return null;
   }
 
   function buildHeaders(includeJson = false) {
@@ -360,8 +374,12 @@
     if (el.eventsNavPaymentsBtn) el.eventsNavPaymentsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.payments));
     if (el.eventsNavAnalyticsBtn) el.eventsNavAnalyticsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.analytics));
     if (el.eventsNavNotificationsBtn) el.eventsNavNotificationsBtn.classList.toggle("hide", !hasPermission(VIEW_PERMISSIONS.notifications));
-    if (el.eventsNavCheckinBtn) el.eventsNavCheckinBtn.classList.toggle("hide", !canOpen);
+    if (el.eventsNavCheckinBtn) el.eventsNavCheckinBtn.classList.toggle("hide", !canManageCheckin());
     if (el.eventsDeleteBtn) el.eventsDeleteBtn.classList.toggle("hide", !(state.selectedEventId && hasPermission("events_events_delete")));
+    toggleActionByPermission(el.openEventsFormModalBtn, hasPermission("events_events_create"));
+    toggleActionByPermission(el.eventsCheckinSubmitBtn, canManageCheckin());
+    toggleActionByPermission(el.eventsCheckinScanBtn, canManageCheckin());
+    if (el.eventsCheckinTokenInput) el.eventsCheckinTokenInput.disabled = !canManageCheckin();
   }
 
   function setActiveModule(moduleName) {
@@ -378,6 +396,13 @@
   }
 
   function setView(viewName) {
+    if (viewName === "checkin" && !canManageCheckin()) {
+      setMessage("Acesso negado: sua role nao permite realizar check-in.", true);
+      const fallbackView = getFirstAllowedView();
+      if (!fallbackView || fallbackView === viewName) return;
+      viewName = fallbackView;
+    }
+
     const requiredPermission = VIEW_PERMISSIONS[viewName];
     if (requiredPermission && !hasPermission(requiredPermission)) {
       setMessage("Acesso negado: sua role nao permite esta tela.", true);
@@ -604,6 +629,11 @@
   }
 
   function fillEventForm(event) {
+    if (!hasPermission("events_events_edit")) {
+      setMessage("Acesso negado para editar eventos.", true);
+      return;
+    }
+
     el.eventsFormId.value = String(event.id);
     if (el.eventsPaymentAccountId) el.eventsPaymentAccountId.value = event.payment_account_id != null ? String(event.payment_account_id) : "";
     el.eventsTitle.value = event.title || "";
@@ -1009,6 +1039,10 @@ function populatePaymentAccountOptions() {
   }
 
   async function submitCheckinToken() {
+    if (!canManageCheckin()) {
+      setCheckinResult("Acesso negado para realizar check-in.", true);
+      return;
+    }
     if (!el.eventsCheckinTokenInput) return;
     const token = String(el.eventsCheckinTokenInput.value || "").trim();
     if (!token) {
@@ -1125,6 +1159,10 @@ function populatePaymentAccountOptions() {
   }
 
   async function openEventsQrScanner() {
+    if (!canManageCheckin()) {
+      setCheckinResult("Acesso negado para realizar check-in.", true);
+      return;
+    }
     if (!el.eventsQrScannerModal) return;
 
     el.eventsQrScannerModal.classList.remove("hide");
@@ -1377,8 +1415,10 @@ function populatePaymentAccountOptions() {
       );
       state.selectedEventId = response.id;
       await loadEvents();
-      fillEventForm(response);
       setMessage(isEditing ? "Evento atualizado com sucesso." : "Evento criado com sucesso.");
+      if (isEditing || hasPermission("events_events_edit")) {
+        fillEventForm(response);
+      }
       if (window.closeSharedFormModal) window.closeSharedFormModal();
     } catch (error) {
       setMessage(error.message, true);
@@ -1591,6 +1631,10 @@ function populatePaymentAccountOptions() {
     }
     if (el.eventsForm) el.eventsForm.addEventListener("submit", submitEventForm);
     const handleOpenEventForm = () => {
+      if (!hasPermission("events_events_create")) {
+        setMessage("Acesso negado para criar eventos.", true);
+        return;
+      }
       resetEventForm();
       openEventsFormModal("Novo evento");
     };

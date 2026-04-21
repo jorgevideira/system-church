@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read
 from app.db.models.category import Category
 from app.db.models.tenant import Tenant
 from app.db.models.transaction import Transaction
@@ -41,7 +41,7 @@ def summary_report(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     q = _base_query(db, current_tenant.id, current_user.id, start_date, end_date)
@@ -65,7 +65,7 @@ def by_category_report(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     q = _base_query(db, current_tenant.id, current_user.id, start_date, end_date)
@@ -95,7 +95,7 @@ def by_category_report(
 def monthly_report(
     year: int = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     rows = (
@@ -119,7 +119,7 @@ def monthly_report(
 @router.get("/annual")
 def annual_report(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[dict]:
     rows = (
@@ -145,7 +145,7 @@ def cash_flow_report(
     months_history: int = Query(6, ge=1, le=24),
     months_forecast: int = Query(3, ge=1, le=12),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     today = date.today()

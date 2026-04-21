@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from app.db.models.tenant import Tenant
     from app.db.models.user import User
 
+from app.db.models.role import tenant_membership_role
+
 
 class TenantMembership(Base):
     __tablename__ = "tenant_memberships"
@@ -49,4 +51,9 @@ class TenantMembership(Base):
         "Role",
         back_populates="tenant_memberships",
         foreign_keys=[role_id],
+    )
+    roles: Mapped[list["Role"]] = relationship(
+        "Role",
+        secondary=tenant_membership_role,
+        back_populates="assigned_memberships",
     )

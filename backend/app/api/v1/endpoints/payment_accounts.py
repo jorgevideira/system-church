@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
+from app.api.v1.deps import get_current_tenant, get_db, require_users_read, require_users_write
 from app.db.models.payment_account import PaymentAccount
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -24,7 +24,7 @@ router = APIRouter()
 @router.get("/", response_model=List[PaymentAccountResponse])
 def list_payment_accounts(
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[PaymentAccountResponse]:
     return payment_account_service.list_payment_account_responses(db, current_tenant.id)
@@ -34,7 +34,7 @@ def list_payment_accounts(
 def create_payment_account(
     payload: PaymentAccountCreate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaymentAccountResponse:
     try:
@@ -49,7 +49,7 @@ def update_payment_account(
     account_id: int,
     payload: PaymentAccountUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaymentAccountResponse:
     account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
@@ -66,7 +66,7 @@ def update_payment_account(
 def delete_payment_account(
     account_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
@@ -79,7 +79,7 @@ def delete_payment_account(
 def test_payment_account_connection(
     account_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaymentAccountConnectionTestResponse:
     account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
@@ -148,7 +148,7 @@ def test_payment_account_connection(
 def start_mercadopago_oauth(
     account_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaymentAccountOAuthStartResponse:
     account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)
@@ -168,7 +168,7 @@ def start_mercadopago_oauth(
 def disconnect_mercadopago_oauth(
     account_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaymentAccountResponse:
     account = payment_account_service.get_payment_account(db, account_id, current_tenant.id)

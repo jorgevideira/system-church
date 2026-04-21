@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_tenant, get_db, require_admin
+from app.api.v1.deps import get_current_tenant, get_db, require_users_read, require_users_write
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
 from app.db.models.tenant import Tenant
@@ -39,7 +39,7 @@ def _issue_token_pair(user: User, tenant_id: int, tenant_slug: str | None) -> di
 @router.get("/", response_model=List[TenantInvitationResponse])
 def list_tenant_invitations(
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[dict]:
     invitations = tenant_invitation_service.list_invitations(db, current_tenant.id)
@@ -50,7 +50,7 @@ def list_tenant_invitations(
 def create_tenant_invitation(
     payload: TenantInvitationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     try:
@@ -64,7 +64,7 @@ def create_tenant_invitation(
 def revoke_tenant_invitation(
     invitation_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     invitation = tenant_invitation_service.get_invitation_by_id(db, invitation_id, current_tenant.id)
@@ -81,7 +81,7 @@ def revoke_tenant_invitation(
 def resend_tenant_invitation(
     invitation_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> dict:
     invitation = tenant_invitation_service.get_invitation_by_id(db, invitation_id, current_tenant.id)

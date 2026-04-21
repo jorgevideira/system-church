@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.budget import (
@@ -29,7 +29,7 @@ router = APIRouter()
 def list_budgets(
     month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """List budgets for current user, optionally filtered by month (YYYY-MM)"""
@@ -41,7 +41,7 @@ def list_budgets(
 def create_budget(
     budget_in: BudgetCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Create a new budget"""
@@ -53,7 +53,7 @@ def create_budget(
 def get_budget(
     budget_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Get a specific budget"""
@@ -68,7 +68,7 @@ def update_budget(
     budget_id: int,
     budget_in: BudgetUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Update a budget"""
@@ -83,7 +83,7 @@ def update_budget(
 def delete_budget(
     budget_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Delete a budget"""
@@ -97,7 +97,7 @@ def delete_budget(
 def get_budget_health(
     month: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Get health metrics for all budgets in a month"""
@@ -110,7 +110,7 @@ def simulate_expense(
     budget_id: int,
     request: SimulateExpenseRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Simulate adding an expense to a budget"""
@@ -126,7 +126,7 @@ def simulate_expense(
 def get_monthly_adherence(
     month: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ):
     """Get monthly budget adherence report"""

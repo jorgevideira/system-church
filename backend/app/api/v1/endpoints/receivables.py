@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -41,7 +41,7 @@ def _receivable_attachment_dir() -> str:
 def list_receivables(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[ReceivableResponse]:
     return receivable_service.list_receivables(db, current_user.id, current_tenant.id, status_filter=status_filter)
@@ -51,7 +51,7 @@ def list_receivables(
 def create_receivable(
     receivable_in: ReceivableCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     return receivable_service.create_receivable(db, receivable_in, user_id=current_user.id, tenant_id=current_tenant.id)
@@ -60,7 +60,7 @@ def create_receivable(
 @router.get("/alerts/summary", response_model=ReceivableAlertsSummary)
 def get_receivables_alerts_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableAlertsSummary:
     return ReceivableAlertsSummary(**receivable_service.get_alerts_summary(db, current_user.id, current_tenant.id))
@@ -70,7 +70,7 @@ def get_receivables_alerts_summary(
 def get_receivable(
     receivable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -84,7 +84,7 @@ def update_receivable(
     receivable_id: int,
     receivable_in: ReceivableUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -97,7 +97,7 @@ def update_receivable(
 def delete_receivable(
     receivable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -115,7 +115,7 @@ def mark_receivable_received(
     receivable_id: int,
     payload: MarkReceivableReceivedRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -137,7 +137,7 @@ async def upload_receivable_attachment(
     receivable_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -183,7 +183,7 @@ async def upload_receivable_attachment(
 def download_receivable_attachment(
     receivable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Response:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)
@@ -207,7 +207,7 @@ def download_receivable_attachment(
 def delete_receivable_attachment(
     receivable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> ReceivableResponse:
     receivable = receivable_service.get_receivable(db, receivable_id, current_user.id, current_tenant.id)

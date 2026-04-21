@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
+from app.api.v1.deps import get_current_tenant, get_db, require_admin, require_users_read, require_users_write
 from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -38,7 +38,7 @@ router = APIRouter()
 
 @router.get("/current", response_model=TenantResponse)
 def get_current_tenant_profile(
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantResponse:
     return current_tenant
@@ -60,7 +60,7 @@ def create_tenant(
 def update_current_tenant_profile(
     payload: TenantUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantResponse:
     try:
@@ -73,7 +73,7 @@ def update_current_tenant_profile(
 async def upload_current_tenant_logo(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantResponse:
     content_type = (file.content_type or "").lower()
@@ -109,7 +109,7 @@ async def upload_current_tenant_logo(
 
 @router.get("/current/payments", response_model=TenantPaymentSettingsResponse)
 def get_current_tenant_payment_settings(
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantPaymentSettingsResponse:
     return tenant_service.build_payment_settings_response(current_tenant)
@@ -119,7 +119,7 @@ def get_current_tenant_payment_settings(
 def update_current_tenant_payment_settings(
     payload: TenantPaymentSettingsUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantPaymentSettingsResponse:
     try:
@@ -131,7 +131,7 @@ def update_current_tenant_payment_settings(
 
 @router.get("/current/smtp", response_model=TenantSmtpSettingsResponse)
 def get_current_tenant_smtp_settings(
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_users_read),
     db: Session = Depends(get_db),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantSmtpSettingsResponse:
@@ -153,7 +153,7 @@ def get_current_tenant_smtp_settings(
 def update_current_tenant_smtp_settings(
     payload: TenantSmtpSettingsUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantSmtpSettingsResponse:
     cfg = smtp_settings_service.upsert_tenant_smtp_settings(
@@ -182,7 +182,7 @@ def update_current_tenant_smtp_settings(
 def test_current_tenant_smtp_settings(
     payload: TenantSmtpTestRequest,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantSmtpTestResponse:
     try:
@@ -196,7 +196,7 @@ def test_current_tenant_smtp_settings(
 
 @router.get("/current/whatsapp", response_model=TenantWhatsappStatusResponse)
 def get_current_tenant_whatsapp_status(
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_users_read),
     _current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantWhatsappStatusResponse:
     try:
@@ -207,7 +207,7 @@ def get_current_tenant_whatsapp_status(
 
 @router.post("/current/whatsapp/setup", response_model=TenantWhatsappActionResponse)
 def setup_current_tenant_whatsapp(
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     _current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantWhatsappActionResponse:
     try:
@@ -226,7 +226,7 @@ def setup_current_tenant_whatsapp(
 @router.post("/current/whatsapp/connect", response_model=TenantWhatsappActionResponse)
 def connect_current_tenant_whatsapp(
     payload: TenantWhatsappConnectRequest,
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     _current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantWhatsappActionResponse:
     try:
@@ -244,7 +244,7 @@ def connect_current_tenant_whatsapp(
 
 @router.post("/current/whatsapp/logout", response_model=TenantWhatsappActionResponse)
 def logout_current_tenant_whatsapp(
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     _current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantWhatsappActionResponse:
     try:
@@ -263,7 +263,7 @@ def logout_current_tenant_whatsapp(
 @router.post("/current/whatsapp/test", response_model=TenantWhatsappTestResponse)
 def test_current_tenant_whatsapp(
     payload: TenantWhatsappTestRequest,
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     _current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TenantWhatsappTestResponse:
     try:

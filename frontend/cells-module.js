@@ -361,6 +361,19 @@
   async function loadCurrentUserRole() {
     if (state.currentUserRole) return state.currentUserRole;
 
+    try {
+      const roleNames = JSON.parse(localStorage.getItem("currentUserRoles") || "[]");
+      const cellRole = Array.isArray(roleNames)
+        ? roleNames.map((roleName) => String(roleName || "").toLowerCase()).find((roleName) => ["leader", "discipler", "network_pastor"].includes(roleName))
+        : "";
+      if (cellRole) {
+        state.currentUserRole = cellRole;
+        return state.currentUserRole;
+      }
+    } catch (_error) {
+      // Fall back to the legacy single-role value below.
+    }
+
     const roleFromStorage = valueOr(localStorage.getItem("currentUserRole"), "").toLowerCase();
     if (roleFromStorage) {
       state.currentUserRole = roleFromStorage;

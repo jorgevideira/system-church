@@ -1927,6 +1927,52 @@ function hasPermission(permissionName) {
   return state.currentUserPermissionSet.has(permissionName);
 }
 
+function hasAnyPermission(permissionNames) {
+  return permissionNames.some((permissionName) => hasPermission(permissionName));
+}
+
+function canFinanceWrite() {
+  return hasAnyPermission([
+    "finance_transactions_create",
+    "finance_transactions_edit",
+    "finance_transactions_delete",
+    "finance_categories_create",
+    "finance_categories_edit",
+    "finance_categories_delete",
+    "finance_ministries_create",
+    "finance_ministries_edit",
+    "finance_ministries_delete",
+    "finance_payables_create",
+    "finance_payables_edit",
+    "finance_payables_delete",
+    "finance_receivables_create",
+    "finance_receivables_edit",
+    "finance_receivables_delete",
+    "finance_upload_manage",
+  ]);
+}
+
+function toggleActionByPermission(node, allowed) {
+  if (!node) return;
+  node.classList.toggle("hide", !allowed);
+  node.disabled = !allowed;
+}
+
+function applyFinancePermissionLayout() {
+  toggleActionByPermission(el.openDashBudgetModalBtn, canFinanceWrite());
+  toggleActionByPermission(el.openTransactionModalBtn, hasPermission("finance_transactions_create"));
+  toggleActionByPermission(el.txAddTypedCategoryBtn, hasPermission("finance_categories_create"));
+  toggleActionByPermission(el.openCategoryModalBtn, hasPermission("finance_categories_create"));
+  toggleActionByPermission(el.openPayableModalBtn, hasPermission("finance_payables_create"));
+  toggleActionByPermission(el.openReceivableModalBtn, hasPermission("finance_receivables_create"));
+  toggleActionByPermission(el.openMinistryModalBtn, hasPermission("finance_ministries_create"));
+  toggleActionByPermission(el.txBulkDeleteBtn, hasPermission("finance_transactions_delete"));
+
+  if (el.editTxUploadAttachmentBtn) {
+    toggleActionByPermission(el.editTxUploadAttachmentBtn, hasPermission("finance_transactions_edit"));
+  }
+}
+
 function hasModuleAccess(moduleName) {
   if (state.currentUserIsAdmin || state.currentUserRole === "admin") return true;
   if (!state.currentUserPermissionSet || !state.currentUserPermissionSet.size) {
@@ -2026,6 +2072,8 @@ function applyTopModulePermissions() {
     button.classList.toggle("hide", !allowed);
     button.disabled = !allowed;
   });
+
+  applyFinancePermissionLayout();
 }
 
 function setTransactionSort(sortValue) {
@@ -3138,7 +3186,9 @@ function updateTransactionBulkActions(visibleRows = []) {
   el.txBulkSelectionCount.textContent = selectedCount > 0
     ? `${selectedCount} selecionado(s)`
     : "Nenhum selecionado";
-  el.txBulkDeleteBtn.disabled = selectedCount <= 0;
+  const canDeleteTransactions = hasPermission("finance_transactions_delete");
+  el.txBulkDeleteBtn.disabled = !canDeleteTransactions || selectedCount <= 0;
+  el.txBulkDeleteBtn.classList.toggle("hide", !canDeleteTransactions);
   el.txBulkClearBtn.classList.toggle("hide", selectedCount <= 0);
 
   if (!el.txSelectAllCheckbox) {
@@ -3149,7 +3199,7 @@ function updateTransactionBulkActions(visibleRows = []) {
   const selectedOnPage = visibleIds.filter((id) => state.txSelectedIds.has(id)).length;
   el.txSelectAllCheckbox.checked = visibleIds.length > 0 && selectedOnPage === visibleIds.length;
   el.txSelectAllCheckbox.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleIds.length;
-  el.txSelectAllCheckbox.disabled = visibleIds.length === 0;
+  el.txSelectAllCheckbox.disabled = !canDeleteTransactions || visibleIds.length === 0;
 }
 
 function clearTransactionSelection() {
@@ -3158,6 +3208,11 @@ function clearTransactionSelection() {
 }
 
 async function deleteSelectedTransactions() {
+  if (!hasPermission("finance_transactions_delete")) {
+    setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
+    return;
+  }
+
   const selectedIds = [...state.txSelectedIds].map(Number).filter(Boolean);
   if (!selectedIds.length) {
     setMessage(el.txMessage, "Selecione ao menos um lancamento para excluir.", true);
@@ -3235,8 +3290,11 @@ function renderTransactions() {
 
   for (const tx of rows) {
     const tr = document.createElement("tr");
-    const editBtn = `<button class="btn ghost" type="button" data-edit-tx="${tx.id}">Editar</button>`;
-    const deleteBtn = `<button class="btn ghost" type="button" data-delete-tx="${tx.id}">Excluir</button>`;
+    const canEditTransaction = hasPermission("finance_transactions_edit");
+    const canDeleteTransaction = hasPermission("finance_transactions_delete");
+    const editBtn = canEditTransaction ? `<button class="btn ghost" type="button" data-edit-tx="${tx.id}">Editar</button>` : "";
+    const deleteBtn = canDeleteTransaction ? `<button class="btn ghost" type="button" data-delete-tx="${tx.id}">Excluir</button>` : "";
+    const actionButtons = [editBtn, deleteBtn].filter(Boolean).join(" ") || "-";
     const attachmentCount = Number(tx.attachment_count || 0);
     const hasAttachment = attachmentCount > 0 || tx.has_attachments === true;
     const displayAttachmentCount = attachmentCount > 0 ? attachmentCount : 1;
@@ -3246,7 +3304,7 @@ function renderTransactions() {
     const isSelected = state.txSelectedIds.has(Number(tx.id));
     tr.innerHTML = `
       <td class="tx-checkbox-col">
-        <input type="checkbox" data-select-tx="${tx.id}" aria-label="Selecionar lancamento ${tx.description}" ${isSelected ? "checked" : ""}>
+        ${canDeleteTransaction ? `<input type="checkbox" data-select-tx="${tx.id}" aria-label="Selecionar lancamento ${tx.description}" ${isSelected ? "checked" : ""}>` : "-"}
       </td>
       <td>${tx.transaction_date}</td>
       <td>${tx.description}</td>
@@ -3257,7 +3315,7 @@ function renderTransactions() {
       <td>${tx.transaction_type === "expense" ? toExpenseProfileLabel(tx.expense_profile) : "-"}</td>
       <td>${brl(tx.amount)}</td>
       <td>${attachmentIcon}</td>
-      <td>${editBtn} ${deleteBtn}</td>
+      <td>${actionButtons}</td>
     `;
     el.txTableBody.appendChild(tr);
   }
@@ -3279,6 +3337,10 @@ function renderTransactions() {
 
   for (const button of el.txTableBody.querySelectorAll("button[data-edit-tx]")) {
     button.addEventListener("click", async () => {
+      if (!hasPermission("finance_transactions_edit")) {
+        setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
+        return;
+      }
       await openEditTransactionModal(Number(button.getAttribute("data-edit-tx")));
     });
   }
@@ -3287,6 +3349,10 @@ function renderTransactions() {
     button.addEventListener("click", async () => {
       const txId = Number(button.getAttribute("data-delete-tx"));
       if (!txId) {
+        return;
+      }
+      if (!hasPermission("finance_transactions_delete")) {
+        setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
         return;
       }
       const confirmed = await openConfirmModal("Tem certeza que deseja excluir este lancamento?", "Excluir lancamento");
@@ -3401,6 +3467,11 @@ function clearCategoryForm() {
 }
 
 function openDashboardBudgetModal() {
+  if (!canFinanceWrite()) {
+    setMessage(el.dashboardMessage, "Sua role permite apenas leitura do financeiro.", true);
+    return;
+  }
+
   openSharedFormModal({
     form: el.dashBudgetForm,
     messageNode: el.dashBudgetMessage,
@@ -3437,21 +3508,25 @@ function closeConfirmModal(confirmed = false) {
 function renderCategoryTable() {
   el.categoryTableBody.innerHTML = "";
   const ordered = [...state.categories].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const canEditCategory = hasPermission("finance_categories_edit");
+  const canDeleteCategory = hasPermission("finance_categories_delete");
 
   for (const cat of ordered) {
     const tr = document.createElement("tr");
     const deleteDisabled = cat.is_system ? "disabled" : "";
     const deleteTitle = cat.is_system ? "Categorias de sistema nao podem ser excluidas" : "Excluir categoria";
+    const editBtn = canEditCategory ? `<button class="btn ghost btn-mini" type="button" data-edit-category="${cat.id}">Editar</button>` : "";
+    const deleteBtn = canDeleteCategory
+      ? `<button class="btn ghost btn-mini" type="button" data-delete-category="${cat.id}" ${deleteDisabled} title="${deleteTitle}">Excluir</button>`
+      : "";
+    const actionButtons = [editBtn, deleteBtn].filter(Boolean).join(" ") || "-";
     tr.innerHTML = `
       <td>${cat.name}</td>
       <td>${categoryTypeLabel(cat.type)}</td>
       <td>${cat.description || "-"}</td>
       <td>${cat.is_system ? "Sim" : "Nao"}</td>
       <td>${cat.is_active ? "Sim" : "Nao"}</td>
-      <td>
-        <button class="btn ghost btn-mini" type="button" data-edit-category="${cat.id}">Editar</button>
-        <button class="btn ghost btn-mini" type="button" data-delete-category="${cat.id}" ${deleteDisabled} title="${deleteTitle}">Excluir</button>
-      </td>
+      <td>${actionButtons}</td>
     `;
     el.categoryTableBody.appendChild(tr);
   }
@@ -3480,6 +3555,10 @@ function syncTransactionCategoryFromInput() {
 }
 
 async function createCategoryFromTransactionInput() {
+  if (!hasPermission("finance_categories_create")) {
+    throw new Error("Sua role permite apenas leitura de categorias.");
+  }
+
   const name = el.txCategoryInput.value.trim();
   if (!name) {
     throw new Error("Digite o nome da categoria para adicionar.");
@@ -3537,6 +3616,11 @@ function clearMinistryForm() {
 }
 
 function openTransactionCreateModal() {
+  if (!hasPermission("finance_transactions_create")) {
+    setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
+    return;
+  }
+
   el.transactionForm.reset();
   el.txCategoryId.value = "";
   el.txCategoryInput.value = "";
@@ -3552,6 +3636,11 @@ function openTransactionCreateModal() {
 }
 
 function openCategoryCreateModal() {
+  if (!hasPermission("finance_categories_create")) {
+    setMessage(el.categoryMessage, "Sua role permite apenas leitura de categorias.", true);
+    return;
+  }
+
   clearCategoryForm();
   openSharedFormModal({
     form: el.categoryForm,
@@ -3563,6 +3652,11 @@ function openCategoryCreateModal() {
 }
 
 function openPayableCreateModal() {
+  if (!hasPermission("finance_payables_create")) {
+    setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+    return;
+  }
+
   clearPayableForm();
   openSharedFormModal({
     form: el.payableForm,
@@ -3574,6 +3668,11 @@ function openPayableCreateModal() {
 }
 
 function openReceivableCreateModal() {
+  if (!hasPermission("finance_receivables_create")) {
+    setMessage(el.receivableMessage, "Sua role permite apenas leitura de contas a receber.", true);
+    return;
+  }
+
   clearReceivableForm();
   openSharedFormModal({
     form: el.receivableForm,
@@ -3585,6 +3684,11 @@ function openReceivableCreateModal() {
 }
 
 function openMinistryCreateModal() {
+  if (!hasPermission("finance_ministries_create")) {
+    setMessage(el.ministryMessage, "Sua role permite apenas leitura de ministerios.", true);
+    return;
+  }
+
   clearMinistryForm();
   openSharedFormModal({
     form: el.ministryForm,
@@ -3598,17 +3702,19 @@ function openMinistryCreateModal() {
 function renderMinistryTable() {
   el.ministryTableBody.innerHTML = "";
   const ordered = [...state.ministries].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const canEditMinistry = hasPermission("finance_ministries_edit");
+  const canDeleteMinistry = hasPermission("finance_ministries_delete");
 
   for (const ministry of ordered) {
     const tr = document.createElement("tr");
+    const editBtn = canEditMinistry ? `<button class="btn ghost btn-mini" type="button" data-edit-ministry="${ministry.id}">Editar</button>` : "";
+    const deleteBtn = canDeleteMinistry ? `<button class="btn ghost btn-mini" type="button" data-delete-ministry="${ministry.id}">Excluir</button>` : "";
+    const actionButtons = [editBtn, deleteBtn].filter(Boolean).join(" ") || "-";
     tr.innerHTML = `
       <td>${ministry.name}</td>
       <td>${ministry.description || "-"}</td>
       <td>${ministry.is_active ? "Sim" : "Nao"}</td>
-      <td>
-        <button class="btn ghost btn-mini" type="button" data-edit-ministry="${ministry.id}">Editar</button>
-        <button class="btn ghost btn-mini" type="button" data-delete-ministry="${ministry.id}">Excluir</button>
-      </td>
+      <td>${actionButtons}</td>
     `;
     el.ministryTableBody.appendChild(tr);
   }
@@ -3862,9 +3968,23 @@ function getFilteredPayables() {
 function renderPayables() {
   const rows = getFilteredPayables();
   el.payableTableBody.innerHTML = "";
+  const canEditPayable = hasPermission("finance_payables_edit");
+  const canDeletePayable = hasPermission("finance_payables_delete");
 
   for (const payable of rows) {
     const tr = document.createElement("tr");
+    const editBtn = canEditPayable ? `<button class="btn ghost btn-mini" type="button" data-edit-payable="${payable.id}">Editar</button>` : "";
+    const markPaidBtn = canEditPayable && payable.status !== "paid"
+      ? `<button class="btn btn-mini" type="button" data-mark-payable-paid="${payable.id}">Marcar paga</button>`
+      : "";
+    const previewBtn = payable.attachment_original_filename
+      ? `<button class="btn ghost btn-mini" type="button" data-preview-payable-attachment="${payable.id}">Boleto</button>`
+      : "";
+    const deleteAttachmentBtn = canEditPayable && payable.attachment_original_filename
+      ? `<button class="btn ghost btn-mini" type="button" data-delete-payable-attachment="${payable.id}">Remover boleto</button>`
+      : "";
+    const deleteBtn = canDeletePayable ? `<button class="btn ghost btn-mini" type="button" data-delete-payable="${payable.id}">Excluir</button>` : "";
+    const actionButtons = [editBtn, markPaidBtn, previewBtn, deleteAttachmentBtn, deleteBtn].filter(Boolean).join(" ") || "-";
     tr.innerHTML = `
       <td>${payable.due_date}</td>
       <td>${payable.paid_at || "-"}</td>
@@ -3880,11 +4000,7 @@ function renderPayables() {
       <td>${payableRecurringLabel(payable.recurrence_type)}</td>
       <td>
         <div class="payable-actions">
-          <button class="btn ghost btn-mini" type="button" data-edit-payable="${payable.id}">Editar</button>
-          ${payable.status !== "paid" ? `<button class="btn btn-mini" type="button" data-mark-payable-paid="${payable.id}">Marcar paga</button>` : ""}
-          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-preview-payable-attachment="${payable.id}">Boleto</button>` : ""}
-          ${payable.attachment_original_filename ? `<button class="btn ghost btn-mini" type="button" data-delete-payable-attachment="${payable.id}">Remover boleto</button>` : ""}
-          <button class="btn ghost btn-mini" type="button" data-delete-payable="${payable.id}">Excluir</button>
+          ${actionButtons}
         </div>
       </td>
     `;
@@ -3901,6 +4017,11 @@ function renderPayables() {
 }
 
 function openEditPayable(payable) {
+  if (!hasPermission("finance_payables_edit")) {
+    setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+    return;
+  }
+
   populateEditPayableFormOptions();
   state.editingPayableId = payable.id;
   el.editPayableDescription.value = payable.description || "";
@@ -4063,9 +4184,17 @@ function getFilteredReceivables() {
 function renderReceivables() {
   const rows = getFilteredReceivables();
   el.receivableTableBody.innerHTML = "";
+  const canEditReceivable = hasPermission("finance_receivables_edit");
+  const canDeleteReceivable = hasPermission("finance_receivables_delete");
 
   for (const receivable of rows) {
     const tr = document.createElement("tr");
+    const editBtn = canEditReceivable ? `<button class="btn ghost btn-mini" type="button" data-edit-receivable="${receivable.id}">Editar</button>` : "";
+    const markReceivedBtn = canEditReceivable && receivable.status !== "received"
+      ? `<button class="btn btn-mini" type="button" data-mark-receivable-received="${receivable.id}">Marcar recebida</button>`
+      : "";
+    const deleteBtn = canDeleteReceivable ? `<button class="btn ghost btn-mini" type="button" data-delete-receivable="${receivable.id}">Excluir</button>` : "";
+    const actionButtons = [editBtn, markReceivedBtn, deleteBtn].filter(Boolean).join(" ") || "-";
     tr.innerHTML = `
       <td>${receivable.due_date}</td>
       <td>${receivable.description}</td>
@@ -4077,9 +4206,7 @@ function renderReceivables() {
       <td>${receivableRecurringLabel(receivable.recurrence_type)}</td>
       <td>
         <div class="receivable-actions">
-          <button class="btn ghost btn-mini" type="button" data-edit-receivable="${receivable.id}">Editar</button>
-          ${receivable.status !== "received" ? `<button class="btn btn-mini" type="button" data-mark-receivable-received="${receivable.id}">Marcar recebida</button>` : ""}
-          <button class="btn ghost btn-mini" type="button" data-delete-receivable="${receivable.id}">Excluir</button>
+          ${actionButtons}
         </div>
       </td>
     `;
@@ -4096,6 +4223,11 @@ function renderReceivables() {
 }
 
 function openEditReceivable(receivable) {
+  if (!hasPermission("finance_receivables_edit")) {
+    setMessage(el.receivableMessage, "Sua role permite apenas leitura de contas a receber.", true);
+    return;
+  }
+
   state.editingReceivableId = receivable.id;
   el.receivableDescription.value = receivable.description || "";
   el.receivableAmount.value = toInputAmount(receivable.amount);
@@ -4234,6 +4366,7 @@ function logout() {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("currentUserRole");
+  localStorage.removeItem("currentUserRoles");
   localStorage.removeItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY);
   localStorage.removeItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY);
   const preservedTenantSlug = localStorage.getItem("activeTenantSlug");
@@ -4251,27 +4384,54 @@ function logout() {
 
 async function loadMe() {
   const me = await api("/auth/me");
-  state.currentUserRole = String(me.role || "").toLowerCase();
+  const memberships = Array.isArray(me && me.tenant_memberships) ? me.tenant_memberships : [];
+  const activeTenantId = me && me.active_tenant ? me.active_tenant.id : null;
+  const activeMembership = memberships.find((item) => item && item.is_active && item.tenant_id === activeTenantId)
+    || memberships.find((item) => item && item.is_active && item.is_default)
+    || memberships.find((item) => item && item.is_active)
+    || null;
 
-  const rolePermissions = Array.isArray(me && me.role_obj && me.role_obj.permissions)
-    ? me.role_obj.permissions
-    : [];
+  state.currentUserRole = String((activeMembership && activeMembership.role) || me.role || "").toLowerCase();
+
+  const activeMembershipRoles = Array.isArray(activeMembership && activeMembership.roles) ? activeMembership.roles : [];
+  const allRoleObjects = [
+    ...(activeMembership && activeMembership.role_obj ? [activeMembership.role_obj] : []),
+    ...activeMembershipRoles,
+    ...(me && me.role_obj ? [me.role_obj] : []),
+  ];
+  const rolePermissions = allRoleObjects.flatMap((role) => Array.isArray(role && role.permissions) ? role.permissions : []);
   const permissionNames = rolePermissions
     .filter((permission) => permission && permission.active !== false && typeof permission.name === "string")
     .map((permission) => permission.name);
 
   state.currentUserPermissions = permissionNames;
   state.currentUserPermissionSet = new Set(permissionNames);
-  state.currentUserIsAdmin = Boolean(me && me.role_obj && me.role_obj.is_admin) || state.currentUserRole === "admin";
+  state.currentUserIsAdmin = Boolean(activeMembership && activeMembership.role_obj && activeMembership.role_obj.is_admin)
+    || activeMembershipRoles.some((role) => role && role.is_admin)
+    || Boolean(me && me.role_obj && me.role_obj.is_admin)
+    || state.currentUserRole === "admin";
+
+  const cellRole = activeMembershipRoles
+    .map((role) => String(role && role.name ? role.name : "").toLowerCase())
+    .find((roleName) => ["leader", "discipler", "network_pastor"].includes(roleName));
+  if (cellRole) {
+    state.currentUserRole = cellRole;
+  }
 
   localStorage.setItem("currentUserRole", state.currentUserRole);
+  localStorage.setItem("currentUserRoles", JSON.stringify(activeMembershipRoles.map((role) => role.name).filter(Boolean)));
   localStorage.setItem(CURRENT_USER_PERMISSIONS_STORAGE_KEY, JSON.stringify(permissionNames));
   localStorage.setItem(CURRENT_USER_IS_ADMIN_STORAGE_KEY, String(state.currentUserIsAdmin));
   if (me.active_tenant && me.active_tenant.slug) {
     rememberTenantSlug(me.active_tenant.slug);
   }
   document.body.dataset.userRole = state.currentUserRole;
-  el.sessionUser.textContent = `${me.full_name || me.email} (${me.role})`;
+  const sessionRoleLabel = activeMembershipRoles.length
+    ? activeMembershipRoles.map((role) => role.name).filter(Boolean).join(", ")
+    : (activeMembership && activeMembership.role_obj && activeMembership.role_obj.name)
+    || (activeMembership && activeMembership.role)
+    || me.role;
+  el.sessionUser.textContent = `${me.full_name || me.email} (${sessionRoleLabel})`;
 
   applyTopModulePermissions();
   populateTenantSwitcher(me);
@@ -4388,6 +4548,11 @@ async function loadReceivablesAlertsSummary() {
 }
 
 async function openEditTransactionModal(transactionId) {
+  if (!hasPermission("finance_transactions_edit")) {
+    setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
+    return;
+  }
+
   const tx = await api(`/transactions/${transactionId}`);
   state.editingTransactionId = tx.id;
   el.editTxDescription.value = tx.description || "";
@@ -5116,6 +5281,10 @@ el.dashLineMetric.addEventListener("change", () => {
 el.dashBudgetForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!canFinanceWrite()) {
+      throw new Error("Sua role permite apenas leitura do financeiro.");
+    }
+
     const month = new Date().toISOString().slice(0, 7);
     const budget_type = el.dashBudgetType.value;
     const reference_id = Number(el.dashBudgetRef.value);
@@ -5148,6 +5317,10 @@ el.dashBudgetForm.addEventListener("submit", async (event) => {
 el.payableForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!hasPermission("finance_payables_create")) {
+      throw new Error("Sua role permite apenas leitura de contas a pagar.");
+    }
+
     const recurrenceType = el.payableRecurringType.value || null;
     const payload = {
       description: el.payableDescription.value.trim(),
@@ -5204,6 +5377,10 @@ el.payableCancelEditBtn.addEventListener("click", () => {
 el.editPayableForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!hasPermission("finance_payables_edit")) {
+      throw new Error("Sua role permite apenas leitura de contas a pagar.");
+    }
+
     if (!state.editingPayableId) {
       throw new Error("Nenhuma conta selecionada para edicao.");
     }
@@ -5274,6 +5451,10 @@ el.payableTableBody.addEventListener("click", async (event) => {
 
   const editId = target.getAttribute("data-edit-payable");
   if (editId) {
+    if (!hasPermission("finance_payables_edit")) {
+      setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+      return;
+    }
     const payable = state.payables.find((item) => item.id === Number(editId));
     if (!payable) {
       return;
@@ -5285,6 +5466,10 @@ el.payableTableBody.addEventListener("click", async (event) => {
 
   const markPaidId = target.getAttribute("data-mark-payable-paid");
   if (markPaidId) {
+    if (!hasPermission("finance_payables_edit")) {
+      setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+      return;
+    }
     try {
       const payable = state.payables.find((item) => item.id === Number(markPaidId));
       const defaultPaidAt = new Date().toISOString().slice(0, 10);
@@ -5329,6 +5514,10 @@ el.payableTableBody.addEventListener("click", async (event) => {
 
   const deleteAttachmentId = target.getAttribute("data-delete-payable-attachment");
   if (deleteAttachmentId) {
+    if (!hasPermission("finance_payables_edit")) {
+      setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+      return;
+    }
     try {
       const payableId = Number(deleteAttachmentId);
       const confirmed = await openConfirmModal("Tem certeza que deseja remover o boleto desta conta?", "Remover boleto");
@@ -5348,6 +5537,10 @@ el.payableTableBody.addEventListener("click", async (event) => {
 
   const deleteId = target.getAttribute("data-delete-payable");
   if (deleteId) {
+    if (!hasPermission("finance_payables_delete")) {
+      setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+      return;
+    }
     try {
       const confirmed = await openConfirmModal("Tem certeza que deseja excluir esta conta a pagar?", "Excluir conta");
       if (!confirmed) {
@@ -5369,6 +5562,13 @@ el.payableTableBody.addEventListener("click", async (event) => {
 el.receivableForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (state.editingReceivableId && !hasPermission("finance_receivables_edit")) {
+      throw new Error("Sua role permite apenas leitura de contas a receber.");
+    }
+    if (!state.editingReceivableId && !hasPermission("finance_receivables_create")) {
+      throw new Error("Sua role permite apenas leitura de contas a receber.");
+    }
+
     const recurrenceType = el.receivableRecurringType.value || null;
     const payload = {
       description: el.receivableDescription.value.trim(),
@@ -5443,6 +5643,10 @@ el.receivableTableBody.addEventListener("click", async (event) => {
 
   const editId = target.getAttribute("data-edit-receivable");
   if (editId) {
+    if (!hasPermission("finance_receivables_edit")) {
+      setMessage(el.receivableMessage, "Sua role permite apenas leitura de contas a receber.", true);
+      return;
+    }
     const receivable = state.receivables.find((item) => item.id === Number(editId));
     if (!receivable) {
       return;
@@ -5454,6 +5658,10 @@ el.receivableTableBody.addEventListener("click", async (event) => {
 
   const markReceivedId = target.getAttribute("data-mark-receivable-received");
   if (markReceivedId) {
+    if (!hasPermission("finance_receivables_edit")) {
+      setMessage(el.receivableMessage, "Sua role permite apenas leitura de contas a receber.", true);
+      return;
+    }
     try {
       await api(`/receivables/${Number(markReceivedId)}/mark-received`, {
         method: "POST",
@@ -5470,6 +5678,10 @@ el.receivableTableBody.addEventListener("click", async (event) => {
 
   const deleteId = target.getAttribute("data-delete-receivable");
   if (deleteId) {
+    if (!hasPermission("finance_receivables_delete")) {
+      setMessage(el.receivableMessage, "Sua role permite apenas leitura de contas a receber.", true);
+      return;
+    }
     try {
       const confirmed = await openConfirmModal("Tem certeza que deseja excluir esta conta a receber?", "Excluir conta");
       if (!confirmed) {
@@ -5491,6 +5703,10 @@ el.receivableTableBody.addEventListener("click", async (event) => {
 el.transactionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!hasPermission("finance_transactions_create")) {
+      throw new Error("Sua role permite apenas leitura de lancamentos.");
+    }
+
     const payload = {
       description: document.getElementById("txDescription").value,
       amount: Number(document.getElementById("txAmount").value),
@@ -5579,6 +5795,14 @@ el.txFilterResetBtn.addEventListener("click", resetTransactionFilters);
 el.txHeaderDateSort.addEventListener("click", () => toggleTransactionSort("date"));
 el.txHeaderAmountSort.addEventListener("click", () => toggleTransactionSort("amount"));
 el.txSelectAllCheckbox.addEventListener("change", () => {
+  if (!hasPermission("finance_transactions_delete")) {
+    el.txSelectAllCheckbox.checked = false;
+    state.txSelectedIds.clear();
+    setMessage(el.txMessage, "Sua role permite apenas leitura de lancamentos.", true);
+    renderTransactions();
+    return;
+  }
+
   const { rows } = getPaginatedTransactionRows();
   for (const tx of rows) {
     const txId = Number(tx.id);
@@ -5615,6 +5839,13 @@ el.txPageNextBtn.addEventListener("click", () => {
 el.categoryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (state.editingCategoryId && !hasPermission("finance_categories_edit")) {
+      throw new Error("Sua role permite apenas leitura de categorias.");
+    }
+    if (!state.editingCategoryId && !hasPermission("finance_categories_create")) {
+      throw new Error("Sua role permite apenas leitura de categorias.");
+    }
+
     const payload = {
       name: el.categoryName.value.trim(),
       type: el.categoryType.value,
@@ -5661,6 +5892,10 @@ el.categoryTableBody.addEventListener("click", async (event) => {
 
   const editId = target.getAttribute("data-edit-category");
   if (editId) {
+    if (!hasPermission("finance_categories_edit")) {
+      setMessage(el.categoryMessage, "Sua role permite apenas leitura de categorias.", true);
+      return;
+    }
     const categoryId = Number(editId);
     const cat = state.categories.find((item) => item.id === categoryId);
     if (!cat) {
@@ -5683,6 +5918,10 @@ el.categoryTableBody.addEventListener("click", async (event) => {
 
   const deleteId = target.getAttribute("data-delete-category");
   if (deleteId) {
+    if (!hasPermission("finance_categories_delete")) {
+      setMessage(el.categoryMessage, "Sua role permite apenas leitura de categorias.", true);
+      return;
+    }
     try {
       const categoryId = Number(deleteId);
       const cat = state.categories.find((item) => item.id === categoryId);
@@ -5707,6 +5946,13 @@ el.categoryTableBody.addEventListener("click", async (event) => {
 el.ministryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (state.editingMinistryId && !hasPermission("finance_ministries_edit")) {
+      throw new Error("Sua role permite apenas leitura de ministerios.");
+    }
+    if (!state.editingMinistryId && !hasPermission("finance_ministries_create")) {
+      throw new Error("Sua role permite apenas leitura de ministerios.");
+    }
+
     const payload = {
       name: el.ministryName.value.trim(),
       description: el.ministryDescription.value.trim() || null,
@@ -5768,6 +6014,10 @@ el.ministryTableBody.addEventListener("click", async (event) => {
 
   const editId = target.getAttribute("data-edit-ministry");
   if (editId) {
+    if (!hasPermission("finance_ministries_edit")) {
+      setMessage(el.ministryMessage, "Sua role permite apenas leitura de ministerios.", true);
+      return;
+    }
     const ministryId = Number(editId);
     const ministry = state.ministries.find((item) => item.id === ministryId);
     if (!ministry) {
@@ -5789,6 +6039,10 @@ el.ministryTableBody.addEventListener("click", async (event) => {
 
   const deleteId = target.getAttribute("data-delete-ministry");
   if (deleteId) {
+    if (!hasPermission("finance_ministries_delete")) {
+      setMessage(el.ministryMessage, "Sua role permite apenas leitura de ministerios.", true);
+      return;
+    }
     try {
       const ministryId = Number(deleteId);
       const confirmed = await openConfirmModal("Tem certeza que deseja excluir este ministerio?", "Excluir ministerio");
@@ -5868,6 +6122,7 @@ document.addEventListener("keydown", (event) => {
     && !isTypingTarget(event.target)
     && !isAnyModalOpen()
     && !el.transactionsView.classList.contains("hide")
+    && hasPermission("finance_transactions_create")
   ) {
     event.preventDefault();
     openTransactionCreateModal();
@@ -5955,6 +6210,10 @@ el.deleteCategoryConfirmBtn.addEventListener("click", () => closeConfirmModal(tr
 el.uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!hasPermission("finance_upload_manage")) {
+      throw new Error("Sua role permite apenas leitura de importacoes.");
+    }
+
     const file = document.getElementById("fileInput").files[0];
     if (!file) {
       throw new Error("Selecione um arquivo antes de enviar.");
@@ -6059,6 +6318,10 @@ el.editPayableRemoveCurrentAttachmentBtn.addEventListener("click", async (event)
   if (!state.editingPayableId) {
     return;
   }
+  if (!hasPermission("finance_payables_edit")) {
+    setMessage(el.payableMessage, "Sua role permite apenas leitura de contas a pagar.", true);
+    return;
+  }
   try {
     const confirmed = await openConfirmModal("Tem certeza que deseja remover o boleto desta conta?", "Remover boleto");
     if (!confirmed) {
@@ -6075,6 +6338,10 @@ el.editPayableRemoveCurrentAttachmentBtn.addEventListener("click", async (event)
 el.editTransactionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    if (!hasPermission("finance_transactions_edit")) {
+      throw new Error("Sua role permite apenas leitura de lancamentos.");
+    }
+
     if (!state.editingTransactionId) {
       throw new Error("Nenhum lancamento selecionado para edicao.");
     }
@@ -6117,6 +6384,10 @@ el.editTransactionForm.addEventListener("submit", async (event) => {
 
 el.editTxUploadAttachmentBtn.addEventListener("click", async () => {
   try {
+    if (!hasPermission("finance_transactions_edit")) {
+      throw new Error("Sua role permite apenas leitura de lancamentos.");
+    }
+
     const sent = await uploadAttachmentForEditingTransaction(true);
     if (!sent) {
       throw new Error("Selecione um arquivo PDF ou imagem para anexar.");

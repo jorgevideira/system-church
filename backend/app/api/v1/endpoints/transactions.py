@@ -4,7 +4,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.transaction import (
@@ -31,7 +31,7 @@ def list_transactions(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaginatedTransactions:
     from datetime import date as date_type
@@ -61,7 +61,7 @@ def list_transactions(
 def create_transaction(
     transaction_in: TransactionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
     tx = transaction_service.create_transaction(db, transaction_in, user_id=current_user.id, tenant_id=current_tenant.id)
@@ -82,7 +82,7 @@ def create_transaction(
 def get_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
     tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)
@@ -96,7 +96,7 @@ def update_transaction(
     transaction_id: int,
     transaction_in: TransactionUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
     tx = transaction_service.update_transaction(db, transaction_id, transaction_in, user_id=current_user.id, tenant_id=current_tenant.id)
@@ -119,7 +119,7 @@ def update_transaction(
 def delete_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     deleted = transaction_service.delete_transaction(db, transaction_id, current_tenant.id)
@@ -131,7 +131,7 @@ def delete_transaction(
 def approve_ai_suggestion(
     transaction_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
     tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)
@@ -149,7 +149,7 @@ def approve_ai_suggestion(
 def reject_ai_suggestion(
     transaction_id: int,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionResponse:
     tx = transaction_service.get_transaction(db, transaction_id, current_tenant.id)

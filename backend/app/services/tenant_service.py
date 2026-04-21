@@ -13,7 +13,7 @@ from app.db.models.user import User
 from app.schemas.tenant import TenantCreate
 from app.schemas.tenant import TenantPaymentSettingsResponse, TenantPaymentSettingsUpdate
 from app.schemas.tenant import TenantUpdate
-from app.services import secret_service
+from app.services import role_templates_service, secret_service
 
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -213,6 +213,7 @@ def create_tenant(db: Session, payload: TenantCreate, current_user: User) -> Ten
     db.add(membership)
     db.commit()
     db.refresh(tenant)
+    role_templates_service.install_default_roles_for_tenant(db, tenant.id)
     return tenant
 
 

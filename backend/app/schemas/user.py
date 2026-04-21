@@ -49,6 +49,7 @@ class TenantMembershipResponse(BaseModel):
     is_default: bool
     tenant: TenantSummaryResponse
     role_obj: Optional[UserRoleResponse] = None
+    roles: list[UserRoleResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -58,6 +59,7 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
     role: str = "viewer"
     role_id: Optional[int] = None
+    role_ids: list[int] = Field(default_factory=list)
 
 
 class UserCreate(UserBase):
@@ -77,6 +79,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
     role_id: Optional[int] = None
+    role_ids: Optional[list[int]] = None
     is_active: Optional[bool] = None
 
 
@@ -84,6 +87,7 @@ class UserTenantLinkRequest(BaseModel):
     email: EmailStr
     role: str = "viewer"
     role_id: Optional[int] = None
+    role_ids: list[int] = Field(default_factory=list)
     is_default: bool = False
 
 

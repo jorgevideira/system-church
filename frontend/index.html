@@ -3228,10 +3228,11 @@
         <label>Nome completo
           <input id="usersFormFullName" type="text" required maxlength="255">
         </label>
-        <label>Role
-          <select id="usersFormRoleId" required>
+        <label>Roles
+          <select id="usersFormRoleId" required multiple size="7">
             <option value="">Selecione uma role</option>
           </select>
+          <small class="tiny">Segure Ctrl/Cmd para selecionar mais de uma role.</small>
         </label>
         <label>Status
           <select id="usersFormIsActive" required>

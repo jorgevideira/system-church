@@ -2,6 +2,7 @@
 
 import pytest
 from fastapi.testclient import TestClient
+from uuid import uuid4
 
 from app.db.models.user import User
 from tests.conftest import auth_headers
@@ -151,6 +152,64 @@ def test_get_users_filters_by_search_status_and_role(test_client: TestClient, te
         "status-filter-user-active@test.com",
         "status-filter-user-inactive@test.com",
     }
+
+
+def test_create_user_accepts_multiple_roles(test_client: TestClient, test_admin: User):
+    headers = auth_headers(test_admin)
+    suffix = uuid4().hex[:8]
+
+    first_role_response = test_client.post(
+        "/api/v1/roles/roles",
+        json={
+            "name": f"MultiRoleCells{suffix}",
+            "description": "Role primaria para teste multi-role",
+            "is_admin": False,
+            "active": True,
+            "permission_ids": [],
+        },
+        headers=headers,
+    )
+    second_role_response = test_client.post(
+        "/api/v1/roles/roles",
+        json={
+            "name": f"MultiRoleSchool{suffix}",
+            "description": "Role secundaria para teste multi-role",
+            "is_admin": False,
+            "active": True,
+            "permission_ids": [],
+        },
+        headers=headers,
+    )
+    assert first_role_response.status_code == 201
+    assert second_role_response.status_code == 201
+    first_role_id = first_role_response.json()["id"]
+    second_role_id = second_role_response.json()["id"]
+
+    email = f"multi-role-{suffix}@test.com"
+    create_response = test_client.post(
+        "/api/v1/users/",
+        json={
+            "email": email,
+            "full_name": "Multi Role User",
+            "role_id": first_role_id,
+            "role_ids": [first_role_id, second_role_id],
+            "password": "multipass123",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 201
+    user_data = create_response.json()
+    membership = user_data["tenant_memberships"][0]
+    assert user_data["role_id"] == first_role_id
+    assert membership["role_id"] == first_role_id
+    assert {role["id"] for role in membership["roles"]} == {first_role_id, second_role_id}
+
+    filter_response = test_client.get(
+        f"/api/v1/users/?q={email}&role_id={second_role_id}&limit=10",
+        headers=headers,
+    )
+    assert filter_response.status_code == 200
+    assert [item["email"] for item in filter_response.json()] == [email]
 
 
 def test_update_user(test_client: TestClient, test_admin: User, test_user: User):

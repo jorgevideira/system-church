@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_events_read, require_events_write
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.db.models.event_registration import EventRegistration
@@ -39,7 +39,7 @@ def _build_pages(total: int, size: int) -> int:
 def list_events(
     include_inactive: bool = True,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[EventResponse]:
     return event_service.list_events(db, current_tenant.id, include_inactive=include_inactive)
@@ -49,7 +49,7 @@ def list_events(
 def create_event(
     payload: EventCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventResponse:
     return event_service.create_event(db, current_tenant.id, current_user.id, payload)
@@ -64,7 +64,7 @@ def list_registrations(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaginatedEventRegistrations:
     if event_id is not None:
@@ -99,7 +99,7 @@ def list_payments(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PaginatedEventPayments:
     if event_id is not None:
@@ -129,7 +129,7 @@ def list_payments(
 def get_event(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventResponse:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -143,7 +143,7 @@ def update_event(
     event_id: int,
     payload: EventUpdate,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventResponse:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -156,7 +156,7 @@ def update_event(
 def delete_event(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -169,7 +169,7 @@ def delete_event(
 def list_event_registrations(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[EventRegistrationResponse]:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -182,7 +182,7 @@ def list_event_registrations(
 def list_event_payments(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[EventPaymentResponse]:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -195,7 +195,7 @@ def list_event_payments(
 def list_event_notifications(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[EventNotificationResponse]:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -208,7 +208,7 @@ def list_event_notifications(
 def get_event_analytics(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventAnalyticsResponse:
     event = event_service.get_event(db, event_id, current_tenant.id)
@@ -221,7 +221,7 @@ def get_event_analytics(
 def confirm_event_payment(
     payment_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventPaymentResponse:
     payment = event_service.get_payment(db, payment_id, current_tenant.id)
@@ -243,7 +243,7 @@ def confirm_event_payment(
 def refund_event_payment(
     payment_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventPaymentResponse:
     payment = event_service.get_payment(db, payment_id, current_tenant.id)
@@ -260,7 +260,7 @@ def check_in_participant(
     payload: EventCheckInRequest,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> EventCheckInResponse:
     ip_address = request.client.host if request.client else None
@@ -316,7 +316,7 @@ def check_in_participant(
 def list_event_checkins(
     event_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_editor),
+    _user: User = Depends(require_events_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[dict]:
     rows = event_checkin_service.list_event_checkins(db, tenant_id=current_tenant.id, event_id=event_id)

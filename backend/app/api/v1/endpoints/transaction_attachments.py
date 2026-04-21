@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.transaction import Transaction
@@ -45,7 +45,7 @@ def _get_transaction_for_user(db: Session, transaction_id: int, user: User, tena
 def list_transaction_attachments(
     transaction_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[TransactionAttachment]:
     _get_transaction_for_user(db, transaction_id, current_user, current_tenant)
@@ -69,7 +69,7 @@ async def upload_transaction_attachment(
     transaction_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> TransactionAttachment:
     _get_transaction_for_user(db, transaction_id, current_user, current_tenant)
@@ -119,7 +119,7 @@ def download_transaction_attachment(
     transaction_id: int,
     attachment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Response:
     _get_transaction_for_user(db, transaction_id, current_user, current_tenant)

@@ -4,7 +4,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.security import get_password_hash, verify_password
-from app.db.models.role import Role
+from app.db.models.role import Role, tenant_membership_role
 from app.db.models.tenant_membership import TenantMembership
 from app.db.models.user import User
 from app.schemas.user import UserCreate, UserTenantLinkRequest, UserUpdate
@@ -16,6 +16,36 @@ def get_user(db: Session, user_id: int) -> Optional[User]:
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
+
+
+def _normalize_role_ids(role_id: int | None, role_ids: list[int] | None) -> list[int]:
+    raw_ids = []
+    if role_ids is not None:
+        raw_ids.extend(role_ids)
+    if role_id is not None:
+        raw_ids.insert(0, role_id)
+
+    normalized: list[int] = []
+    for item in raw_ids:
+        try:
+            value = int(item)
+        except (TypeError, ValueError):
+            continue
+        if value > 0 and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _get_roles_for_tenant(db: Session, tenant_id: int, role_ids: list[int]) -> list[Role]:
+    if not role_ids:
+        return []
+    roles = (
+        db.query(Role)
+        .filter(Role.tenant_id == tenant_id, Role.id.in_(role_ids), Role.active.is_(True))
+        .all()
+    )
+    by_id = {role.id: role for role in roles}
+    return [by_id[role_id] for role_id in role_ids if role_id in by_id]
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 20) -> list[User]:
@@ -37,6 +67,7 @@ def get_users_for_tenant(
         .join(TenantMembership, TenantMembership.user_id == User.id)
         .options(
             selectinload(User.tenant_memberships).selectinload(TenantMembership.role_obj),
+            selectinload(User.tenant_memberships).selectinload(TenantMembership.roles).selectinload(Role.permissions),
             selectinload(User.tenant_memberships).selectinload(TenantMembership.tenant),
             selectinload(User.active_tenant),
             selectinload(User.role_obj),
@@ -59,7 +90,14 @@ def get_users_for_tenant(
             )
 
     if role_id is not None:
-        query = query.filter(TenantMembership.role_id == role_id)
+        query = (
+            query.outerjoin(
+                tenant_membership_role,
+                tenant_membership_role.c.tenant_membership_id == TenantMembership.id,
+            )
+            .filter(or_(TenantMembership.role_id == role_id, tenant_membership_role.c.role_id == role_id))
+            .distinct()
+        )
 
     if is_active is not None:
         query = query.filter(User.is_active.is_(is_active))
@@ -73,6 +111,7 @@ def get_user_for_tenant(db: Session, user_id: int, tenant_id: int) -> Optional[U
         .join(TenantMembership, TenantMembership.user_id == User.id)
         .options(
             selectinload(User.tenant_memberships).selectinload(TenantMembership.role_obj),
+            selectinload(User.tenant_memberships).selectinload(TenantMembership.roles).selectinload(Role.permissions),
             selectinload(User.tenant_memberships).selectinload(TenantMembership.tenant),
             selectinload(User.active_tenant),
             selectinload(User.role_obj),
@@ -85,15 +124,20 @@ def get_user_for_tenant(db: Session, user_id: int, tenant_id: int) -> Optional[U
 def create_user(db: Session, user_create: UserCreate, tenant_id: int | None = None) -> User:
     hashed = get_password_hash(user_create.password)
     role_name = user_create.role
-    if user_create.role_id and tenant_id is not None:
-        role_obj = db.query(Role).filter(Role.id == user_create.role_id, Role.tenant_id == tenant_id).first()
-        if role_obj:
-            role_name = role_obj.name.lower()
+    selected_roles: list[Role] = []
+    if tenant_id is not None:
+        selected_role_ids = _normalize_role_ids(user_create.role_id, user_create.role_ids)
+        selected_roles = _get_roles_for_tenant(db, tenant_id, selected_role_ids)
+        if selected_role_ids and len(selected_roles) != len(selected_role_ids):
+            raise ValueError("One or more roles were not found for this tenant")
+        if selected_roles:
+            role_name = selected_roles[0].name.lower()
+
     user = User(
         email=user_create.email,
         full_name=user_create.full_name,
         role=role_name,
-        role_id=user_create.role_id,
+        role_id=selected_roles[0].id if selected_roles else user_create.role_id,
         hashed_password=hashed,
     )
     db.add(user)
@@ -104,11 +148,12 @@ def create_user(db: Session, user_create: UserCreate, tenant_id: int | None = No
             user_id=user.id,
             tenant_id=tenant_id,
             role=role_name,
-            role_id=user_create.role_id,
+            role_id=selected_roles[0].id if selected_roles else user_create.role_id,
             is_active=True,
             is_default=True,
         )
         db.add(membership)
+        membership.roles = selected_roles
         user.active_tenant_id = tenant_id
         db.commit()
         db.refresh(user)
@@ -132,11 +177,12 @@ def link_user_to_tenant(db: Session, link_request: UserTenantLinkRequest, tenant
         raise ValueError("User is already linked to this tenant")
 
     role_name = link_request.role
-    if link_request.role_id is not None:
-        role_obj = db.query(Role).filter(Role.id == link_request.role_id, Role.tenant_id == tenant_id).first()
-        if role_obj is None:
-            raise ValueError("Role not found for this tenant")
-        role_name = role_obj.name.lower()
+    selected_role_ids = _normalize_role_ids(link_request.role_id, link_request.role_ids)
+    selected_roles = _get_roles_for_tenant(db, tenant_id, selected_role_ids)
+    if selected_role_ids and len(selected_roles) != len(selected_role_ids):
+        raise ValueError("One or more roles were not found for this tenant")
+    if selected_roles:
+        role_name = selected_roles[0].name.lower()
 
     if link_request.is_default:
         (
@@ -150,11 +196,12 @@ def link_user_to_tenant(db: Session, link_request: UserTenantLinkRequest, tenant
         user_id=user.id,
         tenant_id=tenant_id,
         role=role_name,
-        role_id=link_request.role_id,
+        role_id=selected_roles[0].id if selected_roles else link_request.role_id,
         is_active=True,
         is_default=link_request.is_default or not has_membership,
     )
     db.add(membership)
+    membership.roles = selected_roles
 
     if user.active_tenant_id is None or membership.is_default:
         user.active_tenant_id = tenant_id
@@ -180,19 +227,26 @@ def update_user_for_tenant(db: Session, user_id: int, tenant_id: int, user_updat
 
     resolved_role_name = None
     role_id = update_data.get("role_id")
-    if role_id:
-        role_obj = db.query(Role).filter(Role.id == role_id, Role.tenant_id == tenant_id).first()
-        if role_obj:
-            resolved_role_name = role_obj.name.lower()
+    role_ids = update_data.get("role_ids")
+    roles_should_update = "role_id" in update_data or "role_ids" in update_data
+    selected_roles: list[Role] = []
+    if roles_should_update:
+        selected_role_ids = _normalize_role_ids(role_id, role_ids)
+        selected_roles = _get_roles_for_tenant(db, tenant_id, selected_role_ids)
+        if selected_role_ids and len(selected_roles) != len(selected_role_ids):
+            raise ValueError("One or more roles were not found for this tenant")
+        if selected_roles:
+            resolved_role_name = selected_roles[0].name.lower()
 
     for field, value in update_data.items():
-        if field in {"role", "role_id"}:
+        if field in {"role", "role_id", "role_ids"}:
             continue
         setattr(user, field, value)
 
     if membership:
-        if role_id is not None:
-            membership.role_id = role_id
+        if roles_should_update:
+            membership.roles = selected_roles
+            membership.role_id = selected_roles[0].id if selected_roles else None
         if "role" in update_data and update_data["role"] is not None:
             membership.role = update_data["role"]
         elif resolved_role_name is not None:
@@ -202,7 +256,7 @@ def update_user_for_tenant(db: Session, user_id: int, tenant_id: int, user_updat
 
     if resolved_role_name is not None:
         user.role = resolved_role_name
-        user.role_id = role_id
+        user.role_id = selected_roles[0].id if selected_roles else role_id
     elif "role" in update_data and update_data["role"] is not None:
         user.role = update_data["role"]
 

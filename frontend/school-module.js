@@ -250,6 +250,39 @@
     return state.permissionSet.has(permissionName);
   }
 
+  function toggleActionByPermission(node, allowed) {
+    if (!node) return;
+    node.classList.toggle("hide", !allowed);
+    node.disabled = !allowed;
+  }
+
+  function canCreate(entityName) {
+    return hasPermission(`school_${entityName}_create`);
+  }
+
+  function canEdit(entityName) {
+    return hasPermission(`school_${entityName}_edit`);
+  }
+
+  function canDelete(entityName) {
+    return hasPermission(`school_${entityName}_delete`);
+  }
+
+  function schoolWriteDeniedMessage(entityLabel) {
+    setSchoolMessage(`Sua role permite apenas leitura de ${entityLabel}.`, true);
+  }
+
+  function getEntityPermissionName(entityType) {
+    const names = {
+      course: "courses",
+      class: "classes",
+      professor: "professors",
+      lesson: "lessons",
+      student: "students",
+    };
+    return names[entityType] || entityType;
+  }
+
   function hasSchoolModuleAccess() {
     if (state.isAdmin) return true;
     for (const permissionName of state.permissionSet) {
@@ -293,6 +326,13 @@
     if (el.schoolNavStudentsBtn) el.schoolNavStudentsBtn.classList.toggle("hide", !allowedByView.students);
     if (el.schoolNavAttendanceBtn) el.schoolNavAttendanceBtn.classList.toggle("hide", !allowedByView.attendance);
     if (el.schoolNavDashboardBtn) el.schoolNavDashboardBtn.classList.toggle("hide", !allowedByView.dashboard);
+
+    toggleActionByPermission(el.schoolCoursesAddBtn, canCreate("courses"));
+    toggleActionByPermission(el.schoolClassesAddBtn, canCreate("classes"));
+    toggleActionByPermission(el.schoolProfessorsAddBtn, canCreate("professors"));
+    toggleActionByPermission(el.schoolLessonsAddBtn, canCreate("lessons"));
+    toggleActionByPermission(el.schoolStudentsAddBtn, canCreate("students"));
+    toggleActionByPermission(el.schoolAttendanceSaveBtn, hasPermission("school_attendance_manage"));
 
     if (el.schoolBtn) {
       const canOpen = hasSchoolModuleAccess();
@@ -358,19 +398,21 @@
       return;
     }
 
+    const canEditCourses = canEdit("courses");
+    const canDeleteCourses = canDelete("courses");
     el.schoolCoursesBody.innerHTML = state.courses
       .map(function (course) {
         const lessons = course.total_lessons == null ? "-" : String(course.total_lessons);
         const status = course.active ? "Ativo" : "Inativo";
+        const editButton = canEditCourses ? `<button class="btn ghost btn-mini" data-course-edit="${course.id}" type="button">Editar</button>` : "";
+        const deleteButton = canDeleteCourses ? `<button class="btn ghost btn-mini" data-course-delete="${course.id}" type="button">Excluir</button>` : "";
+        const actions = [editButton, deleteButton].filter(Boolean).join(" ") || "-";
         return `
           <tr>
             <td>${escapeHtml(course.name)}</td>
             <td>${lessons}</td>
             <td>${status}</td>
-            <td>
-              <button class="btn ghost btn-mini" data-course-edit="${course.id}" type="button">Editar</button>
-              <button class="btn ghost btn-mini" data-course-delete="${course.id}" type="button">Excluir</button>
-            </td>
+            <td>${actions}</td>
           </tr>
         `;
       })
@@ -384,11 +426,16 @@
       return;
     }
 
+    const canEditClasses = canEdit("classes");
+    const canDeleteClasses = canDelete("classes");
     el.schoolClassesBody.innerHTML = state.classes
       .map(function (schoolClass) {
         const status = schoolClass.active ? "Ativa" : "Inativa";
         const weekday = valueOr(weekdayLabel[schoolClass.weekday], schoolClass.weekday);
         const schedule = `${valueOr(schoolClass.start_time, "--:--")} - ${valueOr(schoolClass.end_time, "--:--")}`;
+        const editButton = canEditClasses ? `<button class="btn ghost btn-mini" data-class-edit="${schoolClass.id}" type="button">Editar</button>` : "";
+        const deleteButton = canDeleteClasses ? `<button class="btn ghost btn-mini" data-class-delete="${schoolClass.id}" type="button">Excluir</button>` : "";
+        const actions = [editButton, deleteButton].filter(Boolean).join(" ") || "-";
         return `
           <tr>
             <td>${escapeHtml(schoolClass.name)}</td>
@@ -397,10 +444,7 @@
             <td>${escapeHtml(schedule)}</td>
             <td>${escapeHtml(valueOr(schoolClass.professor_name, "-"))}</td>
             <td>${status}</td>
-            <td>
-              <button class="btn ghost btn-mini" data-class-edit="${schoolClass.id}" type="button">Editar</button>
-              <button class="btn ghost btn-mini" data-class-delete="${schoolClass.id}" type="button">Excluir</button>
-            </td>
+            <td>${actions}</td>
           </tr>
         `;
       })
@@ -501,9 +545,14 @@
       return;
     }
 
+    const canEditStudents = canEdit("students");
+    const canDeleteStudents = canDelete("students");
     el.schoolStudentsBody.innerHTML = state.students
       .map(function (student) {
         const status = student.active ? "Ativo" : "Inativo";
+        const editButton = canEditStudents ? `<button class="btn ghost btn-mini" data-student-edit="${student.id}" type="button">Editar</button>` : "";
+        const deleteButton = canDeleteStudents ? `<button class="btn ghost btn-mini" data-student-delete="${student.id}" type="button">Excluir</button>` : "";
+        const actions = [editButton, deleteButton].filter(Boolean).join(" ") || "-";
         return `
           <tr>
             <td>${escapeHtml(student.name)}</td>
@@ -511,10 +560,7 @@
             <td>${escapeHtml(valueOr(student.contact, "-"))}</td>
             <td>${escapeHtml(valueOr(student.email, "-"))}</td>
             <td>${status}</td>
-            <td>
-              <button class="btn ghost btn-mini" data-student-edit="${student.id}" type="button">Editar</button>
-              <button class="btn ghost btn-mini" data-student-delete="${student.id}" type="button">Excluir</button>
-            </td>
+            <td>${actions}</td>
           </tr>
         `;
       })
@@ -528,13 +574,14 @@
       return;
     }
 
+    const canManageAttendance = hasPermission("school_attendance_manage");
     el.schoolAttendanceBody.innerHTML = state.attendance
       .map(function (row) {
         return `
           <tr>
             <td>${escapeHtml(row.student_name)}</td>
             <td>
-              <select data-attendance-status="${row.student_id}">
+              <select data-attendance-status="${row.student_id}" ${canManageAttendance ? "" : "disabled"}>
                 <option value="pending" ${row.status === "pending" ? "selected" : ""}>Pendente</option>
                 <option value="present" ${row.status === "present" ? "selected" : ""}>Presente</option>
                 <option value="absent" ${row.status === "absent" ? "selected" : ""}>Falta</option>
@@ -542,7 +589,7 @@
               </select>
             </td>
             <td>
-              <input type="text" data-attendance-notes="${row.student_id}" value="${escapeHtml(valueOr(row.notes, ""))}" placeholder="Opcional">
+              <input type="text" data-attendance-notes="${row.student_id}" value="${escapeHtml(valueOr(row.notes, ""))}" placeholder="Opcional" ${canManageAttendance ? "" : "disabled"}>
             </td>
           </tr>
         `;
@@ -557,19 +604,21 @@
       return;
     }
 
+    const canEditProfessors = canEdit("professors");
+    const canDeleteProfessors = canDelete("professors");
     el.schoolProfessorsBody.innerHTML = state.professors
       .map(function (professor) {
         const status = professor.active ? "Ativo" : "Inativo";
+        const editButton = canEditProfessors ? `<button class="btn ghost btn-mini" data-professor-edit="${professor.id}" type="button">Editar</button>` : "";
+        const deleteButton = canDeleteProfessors ? `<button class="btn ghost btn-mini" data-professor-delete="${professor.id}" type="button">Excluir</button>` : "";
+        const actions = [editButton, deleteButton].filter(Boolean).join(" ") || "-";
         return `
           <tr>
             <td>${escapeHtml(professor.name)}</td>
             <td>${escapeHtml(valueOr(professor.contact, "-"))}</td>
             <td>${escapeHtml(valueOr(professor.email, "-"))}</td>
             <td>${status}</td>
-            <td>
-              <button class="btn ghost btn-mini" data-professor-edit="${professor.id}" type="button">Editar</button>
-              <button class="btn ghost btn-mini" data-professor-delete="${professor.id}" type="button">Excluir</button>
-            </td>
+            <td>${actions}</td>
           </tr>
         `;
       })
@@ -583,10 +632,15 @@
       return;
     }
 
+    const canEditLessons = canEdit("lessons");
+    const canDeleteLessons = canDelete("lessons");
     el.schoolLessonsBody.innerHTML = state.lessons
       .map(function (lesson) {
         const statusMap = { scheduled: "Agendada", completed: "Realizada", cancelled: "Cancelada" };
         const status = valueOr(statusMap[lesson.status], lesson.status);
+        const editButton = canEditLessons ? `<button class="btn ghost btn-mini" data-lesson-edit="${lesson.id}" type="button">Editar</button>` : "";
+        const deleteButton = canDeleteLessons ? `<button class="btn ghost btn-mini" data-lesson-delete="${lesson.id}" type="button">Excluir</button>` : "";
+        const actions = [editButton, deleteButton].filter(Boolean).join(" ") || "-";
         return `
           <tr>
             <td>${escapeHtml(valueOr(lesson.lesson_date, "-"))}</td>
@@ -594,10 +648,7 @@
             <td>${escapeHtml(valueOr(lesson.professor_name, "-"))}</td>
             <td>${escapeHtml(valueOr(lesson.topic, "-"))}</td>
             <td>${status}</td>
-            <td>
-              <button class="btn ghost btn-mini" data-lesson-edit="${lesson.id}" type="button">Editar</button>
-              <button class="btn ghost btn-mini" data-lesson-delete="${lesson.id}" type="button">Excluir</button>
-            </td>
+            <td>${actions}</td>
           </tr>
         `;
       })
@@ -747,6 +798,15 @@
 
   // Modal management functions
   function openCourseModal(courseId = null) {
+    if (courseId && !canEdit("courses")) {
+      schoolWriteDeniedMessage("cursos");
+      return;
+    }
+    if (!courseId && !canCreate("courses")) {
+      schoolWriteDeniedMessage("cursos");
+      return;
+    }
+
     if (courseId) {
       const course = state.courses.find(function (row) {
         return row.id === courseId;
@@ -758,7 +818,7 @@
       if (el.schoolCourseTotalLessons) el.schoolCourseTotalLessons.value = course.total_lessons == null ? "" : String(course.total_lessons);
       if (el.schoolCourseActive) el.schoolCourseActive.value = course.active ? "true" : "false";
       if (el.schoolCourseModalTitle) el.schoolCourseModalTitle.textContent = "Editar curso";
-      if (el.schoolCourseDeleteBtn) el.schoolCourseDeleteBtn.classList.remove("hide");
+      toggleActionByPermission(el.schoolCourseDeleteBtn, canDelete("courses"));
     } else {
       if (el.schoolCourseForm) el.schoolCourseForm.reset();
       if (el.schoolCourseId) el.schoolCourseId.value = "";
@@ -774,6 +834,15 @@
   }
 
   function openClassModal(classId = null) {
+    if (classId && !canEdit("classes")) {
+      schoolWriteDeniedMessage("turmas");
+      return;
+    }
+    if (!classId && !canCreate("classes")) {
+      schoolWriteDeniedMessage("turmas");
+      return;
+    }
+
     if (classId) {
       const schoolClass = state.classes.find(function (row) {
         return row.id === classId;
@@ -789,7 +858,7 @@
       if (el.schoolClassContact) el.schoolClassContact.value = valueOr(schoolClass.contact, "");
       if (el.schoolClassActive) el.schoolClassActive.value = schoolClass.active ? "true" : "false";
       if (el.schoolClassModalTitle) el.schoolClassModalTitle.textContent = "Editar turma";
-      if (el.schoolClassDeleteBtn) el.schoolClassDeleteBtn.classList.remove("hide");
+      toggleActionByPermission(el.schoolClassDeleteBtn, canDelete("classes"));
     } else {
       if (el.schoolClassForm) el.schoolClassForm.reset();
       if (el.schoolClassId) el.schoolClassId.value = "";
@@ -805,6 +874,15 @@
   }
 
   function openProfessorModal(professorId = null) {
+    if (professorId && !canEdit("professors")) {
+      schoolWriteDeniedMessage("professores");
+      return;
+    }
+    if (!professorId && !canCreate("professors")) {
+      schoolWriteDeniedMessage("professores");
+      return;
+    }
+
     if (professorId) {
       const professor = state.professors.find(function (row) {
         return row.id === professorId;
@@ -817,7 +895,7 @@
       if (el.schoolProfessorBio) el.schoolProfessorBio.value = valueOr(professor.bio, "");
       if (el.schoolProfessorActive) el.schoolProfessorActive.value = professor.active ? "true" : "false";
       if (el.schoolProfessorModalTitle) el.schoolProfessorModalTitle.textContent = "Editar professor";
-      if (el.schoolProfessorDeleteBtn) el.schoolProfessorDeleteBtn.classList.remove("hide");
+      toggleActionByPermission(el.schoolProfessorDeleteBtn, canDelete("professors"));
     } else {
       if (el.schoolProfessorForm) el.schoolProfessorForm.reset();
       if (el.schoolProfessorId) el.schoolProfessorId.value = "";
@@ -833,6 +911,15 @@
   }
 
   function openLessonModal(lessonId = null) {
+    if (lessonId && !canEdit("lessons")) {
+      schoolWriteDeniedMessage("aulas");
+      return;
+    }
+    if (!lessonId && !canCreate("lessons")) {
+      schoolWriteDeniedMessage("aulas");
+      return;
+    }
+
     if (lessonId) {
       const lesson = state.lessons.find(function (row) {
         return row.id === lessonId;
@@ -847,7 +934,7 @@
       if (el.schoolLessonStatus) el.schoolLessonStatus.value = valueOr(lesson.status, "scheduled");
       if (el.schoolLessonActive) el.schoolLessonActive.value = lesson.active ? "true" : "false";
       if (el.schoolLessonModalTitle) el.schoolLessonModalTitle.textContent = "Editar aula";
-      if (el.schoolLessonDeleteBtn) el.schoolLessonDeleteBtn.classList.remove("hide");
+      toggleActionByPermission(el.schoolLessonDeleteBtn, canDelete("lessons"));
     } else {
       if (el.schoolLessonForm) el.schoolLessonForm.reset();
       if (el.schoolLessonId) el.schoolLessonId.value = "";
@@ -865,6 +952,15 @@
   }
 
   function openStudentModal(studentId = null) {
+    if (studentId && !canEdit("students")) {
+      schoolWriteDeniedMessage("alunos");
+      return;
+    }
+    if (!studentId && !canCreate("students")) {
+      schoolWriteDeniedMessage("alunos");
+      return;
+    }
+
     if (studentId) {
       const student = state.students.find(function (row) {
         return row.id === studentId;
@@ -878,7 +974,7 @@
       if (el.schoolStudentBirthDate) el.schoolStudentBirthDate.value = valueOr(student.birth_date, "");
       if (el.schoolStudentActive) el.schoolStudentActive.value = student.active ? "true" : "false";
       if (el.schoolStudentModalTitle) el.schoolStudentModalTitle.textContent = "Editar aluno";
-      if (el.schoolStudentDeleteBtn) el.schoolStudentDeleteBtn.classList.remove("hide");
+      toggleActionByPermission(el.schoolStudentDeleteBtn, canDelete("students"));
     } else {
       resetStudentForm();
       if (el.schoolStudentModalTitle) el.schoolStudentModalTitle.textContent = "Cadastrar aluno";
@@ -892,6 +988,12 @@
   }
 
   function openDeleteModal(entityType, entityId) {
+    const permissionName = getEntityPermissionName(entityType);
+    if (!canDelete(permissionName)) {
+      schoolWriteDeniedMessage("registros");
+      return;
+    }
+
     const labels = {
       course: "este curso",
       class: "esta turma",
@@ -963,6 +1065,15 @@
     setSchoolMessage("", false);
 
     const id = Number(valueOr(el.schoolProfessorId && el.schoolProfessorId.value, ""));
+    if (id && !canEdit("professors")) {
+      schoolWriteDeniedMessage("professores");
+      return;
+    }
+    if (!id && !canCreate("professors")) {
+      schoolWriteDeniedMessage("professores");
+      return;
+    }
+
     const payload = {
       name: valueOr(el.schoolProfessorName && el.schoolProfessorName.value, "").trim(),
       contact: valueOr(el.schoolProfessorContact && el.schoolProfessorContact.value, "").trim() || null,
@@ -990,6 +1101,10 @@
 
   async function deleteProfessor(professorId) {
     setSchoolMessage("", false);
+    if (!canDelete("professors")) {
+      schoolWriteDeniedMessage("professores");
+      return;
+    }
     await api(`/bible-school/professors/${professorId}`, { method: "DELETE" });
     setSchoolMessage("Professor excluído com sucesso.", false);
     closeProfessorModal();
@@ -1001,6 +1116,15 @@
     setSchoolMessage("", false);
 
     const id = Number(valueOr(el.schoolLessonId && el.schoolLessonId.value, ""));
+    if (id && !canEdit("lessons")) {
+      schoolWriteDeniedMessage("aulas");
+      return;
+    }
+    if (!id && !canCreate("lessons")) {
+      schoolWriteDeniedMessage("aulas");
+      return;
+    }
+
     const classId = Number(valueOr(el.schoolLessonClassId && el.schoolLessonClassId.value, ""));
     const professorId = valueOr(el.schoolLessonProfessorId && el.schoolLessonProfessorId.value, "");
     const payload = {
@@ -1032,6 +1156,10 @@
 
   async function deleteLesson(lessonId) {
     setSchoolMessage("", false);
+    if (!canDelete("lessons")) {
+      schoolWriteDeniedMessage("aulas");
+      return;
+    }
     await api(`/bible-school/lessons/${lessonId}`, { method: "DELETE" });
     setSchoolMessage("Aula excluída com sucesso.", false);
     closeLessonModal();
@@ -1043,6 +1171,15 @@
     setSchoolMessage("", false);
 
     const id = Number(valueOr(el.schoolStudentId && el.schoolStudentId.value, ""));
+    if (id && !canEdit("students")) {
+      schoolWriteDeniedMessage("alunos");
+      return;
+    }
+    if (!id && !canCreate("students")) {
+      schoolWriteDeniedMessage("alunos");
+      return;
+    }
+
     const payload = {
       class_id: Number(valueOr(el.schoolStudentClassId && el.schoolStudentClassId.value, "")),
       name: valueOr(el.schoolStudentName && el.schoolStudentName.value, "").trim(),
@@ -1071,6 +1208,10 @@
 
   async function deleteStudent(studentId) {
     setSchoolMessage("", false);
+    if (!canDelete("students")) {
+      schoolWriteDeniedMessage("alunos");
+      return;
+    }
     await api(`/bible-school/students/${studentId}`, { method: "DELETE" });
     setSchoolMessage("Aluno excluído com sucesso.", false);
     closeStudentModal();
@@ -1078,6 +1219,11 @@
   }
 
   async function saveAttendance() {
+    if (!hasPermission("school_attendance_manage")) {
+      schoolWriteDeniedMessage("chamada");
+      return;
+    }
+
     const lessonId = Number(valueOr(el.schoolAttendanceLessonId && el.schoolAttendanceLessonId.value, ""));
     if (!lessonId) {
       setSchoolMessage("Selecione uma aula para salvar a chamada.", true);
@@ -1286,6 +1432,15 @@
     setSchoolMessage("", false);
 
     const id = Number(valueOr(el.schoolCourseId && el.schoolCourseId.value, ""));
+    if (id && !canEdit("courses")) {
+      schoolWriteDeniedMessage("cursos");
+      return;
+    }
+    if (!id && !canCreate("courses")) {
+      schoolWriteDeniedMessage("cursos");
+      return;
+    }
+
     const payload = {
       name: valueOr(el.schoolCourseName && el.schoolCourseName.value, "").trim(),
       description: valueOr(el.schoolCourseDescription && el.schoolCourseDescription.value, "").trim() || null,
@@ -1314,6 +1469,10 @@
 
   async function deleteCourse(courseId) {
     setSchoolMessage("", false);
+    if (!canDelete("courses")) {
+      schoolWriteDeniedMessage("cursos");
+      return;
+    }
     await api(`/bible-school/courses/${courseId}`, { method: "DELETE" });
     setSchoolMessage("Curso excluído com sucesso.", false);
     closeCourseModal();
@@ -1325,6 +1484,15 @@
     setSchoolMessage("", false);
 
     const id = Number(valueOr(el.schoolClassId && el.schoolClassId.value, ""));
+    if (id && !canEdit("classes")) {
+      schoolWriteDeniedMessage("turmas");
+      return;
+    }
+    if (!id && !canCreate("classes")) {
+      schoolWriteDeniedMessage("turmas");
+      return;
+    }
+
     const payload = {
       course_id: Number(valueOr(el.schoolClassCourseId && el.schoolClassCourseId.value, "")),
       name: valueOr(el.schoolClassName && el.schoolClassName.value, "").trim(),
@@ -1355,6 +1523,10 @@
 
   async function deleteClass(classId) {
     setSchoolMessage("", false);
+    if (!canDelete("classes")) {
+      schoolWriteDeniedMessage("turmas");
+      return;
+    }
     await api(`/bible-school/classes/${classId}`, { method: "DELETE" });
     setSchoolMessage("Turma excluída com sucesso.", false);
     closeClassModal();

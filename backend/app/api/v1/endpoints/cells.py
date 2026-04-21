@@ -85,20 +85,33 @@ CELL_MANAGE_PERMISSIONS = {
 
 
 def _active_permission_names(membership: TenantMembership) -> set[str]:
-    role_obj = getattr(membership, "role_obj", None)
-    permissions = getattr(role_obj, "permissions", None)
-    if not permissions:
-        return set()
-    return {
-        permission.name
-        for permission in permissions
-        if permission and permission.active and permission.name
-    }
+    names: set[str] = set()
+    for role_obj in [getattr(membership, "role_obj", None), *(getattr(membership, "roles", []) or [])]:
+        permissions = getattr(role_obj, "permissions", None)
+        if not permissions:
+            continue
+        names.update(
+            permission.name
+            for permission in permissions
+            if permission and permission.active and permission.name
+        )
+    return names
 
 
 def _is_role_obj_admin(membership: TenantMembership) -> bool:
+    return any(
+        role_obj and role_obj.is_admin
+        for role_obj in [getattr(membership, "role_obj", None), *(getattr(membership, "roles", []) or [])]
+    )
+
+
+def _membership_role_names(membership: TenantMembership) -> set[str]:
+    names = {str(getattr(membership, "role", "") or "").lower()}
     role_obj = getattr(membership, "role_obj", None)
-    return bool(role_obj and role_obj.is_admin)
+    if role_obj and role_obj.name:
+        names.add(role_obj.name.lower())
+    names.update(role.name.lower() for role in getattr(membership, "roles", []) or [] if role and role.name)
+    return names
 
 
 def _has_any_cell_view_permission(membership: TenantMembership) -> bool:
@@ -110,9 +123,10 @@ def _has_any_cell_manage_permission(membership: TenantMembership) -> bool:
 
 
 def _is_editor_user(user: User, membership: TenantMembership) -> bool:
+    role_names = _membership_role_names(membership)
     return (
         user.role in (ROLE_ADMIN, ROLE_EDITOR)
-        or membership.role in (ROLE_ADMIN, ROLE_EDITOR)
+        or role_names & {ROLE_ADMIN, ROLE_EDITOR}
         or _is_role_obj_admin(membership)
     )
 
@@ -120,11 +134,12 @@ def _is_editor_user(user: User, membership: TenantMembership) -> bool:
 def _get_allowed_cell_ids_for_user(db: Session, user: User, membership: TenantMembership, tenant: Tenant) -> Optional[list[int]]:
     if _is_editor_user(user, membership):
         return None
-    if user.role == ROLE_LEADER or membership.role == ROLE_LEADER:
+    role_names = _membership_role_names(membership)
+    if user.role == ROLE_LEADER or ROLE_LEADER in role_names:
         return cell_service.list_cell_ids_led_by_user(db, user, tenant.id)
-    if user.role == ROLE_DISCIPLER or membership.role == ROLE_DISCIPLER:
+    if user.role == ROLE_DISCIPLER or ROLE_DISCIPLER in role_names:
         return cell_service.list_cell_ids_supervised_by_discipler_user(db, user, tenant.id)
-    if user.role == ROLE_NETWORK_PASTOR or membership.role == ROLE_NETWORK_PASTOR:
+    if user.role == ROLE_NETWORK_PASTOR or ROLE_NETWORK_PASTOR in role_names:
         return cell_service.list_cell_ids_supervised_by_network_pastor_user(db, user, tenant.id)
     if _has_any_cell_view_permission(membership):
         return None
@@ -135,11 +150,12 @@ def _require_cell_access(db: Session, user: User, membership: TenantMembership, 
     if _is_editor_user(user, membership):
         return
     mode = None
-    if user.role == ROLE_LEADER or membership.role == ROLE_LEADER:
+    role_names = _membership_role_names(membership)
+    if user.role == ROLE_LEADER or ROLE_LEADER in role_names:
         mode = "leader"
-    elif user.role == ROLE_DISCIPLER or membership.role == ROLE_DISCIPLER:
+    elif user.role == ROLE_DISCIPLER or ROLE_DISCIPLER in role_names:
         mode = "discipler"
-    elif user.role == ROLE_NETWORK_PASTOR or membership.role == ROLE_NETWORK_PASTOR:
+    elif user.role == ROLE_NETWORK_PASTOR or ROLE_NETWORK_PASTOR in role_names:
         mode = "network_pastor"
     if mode:
         if not cell_service.user_has_access_to_cell(db, user, tenant.id, cell_id, mode=mode):
@@ -151,9 +167,10 @@ def _require_cell_access(db: Session, user: User, membership: TenantMembership, 
 
 
 def _require_editor_or_leader(user: User, membership: TenantMembership) -> None:
+    role_names = _membership_role_names(membership)
     if (
         user.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR)
-        or membership.role in (ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR)
+        or role_names & {ROLE_ADMIN, ROLE_EDITOR, ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR}
         or _is_role_obj_admin(membership)
         or _has_any_cell_manage_permission(membership)
     ):

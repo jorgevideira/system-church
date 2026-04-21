@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.core.config import settings
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -41,7 +41,7 @@ def _payable_attachment_dir() -> str:
 def list_payables(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> list[PayableResponse]:
     return payable_service.list_payables(db, current_user.id, current_tenant.id, status_filter=status_filter)
@@ -51,7 +51,7 @@ def list_payables(
 def create_payable(
     payable_in: PayableCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     return payable_service.create_payable(db, payable_in, user_id=current_user.id, tenant_id=current_tenant.id)
@@ -60,7 +60,7 @@ def create_payable(
 @router.get("/alerts/summary", response_model=PayableAlertsSummary)
 def get_payables_alerts_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableAlertsSummary:
     return PayableAlertsSummary(**payable_service.get_alerts_summary(db, current_user.id, current_tenant.id))
@@ -70,7 +70,7 @@ def get_payables_alerts_summary(
 def get_payable(
     payable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -84,7 +84,7 @@ def update_payable(
     payable_id: int,
     payable_in: PayableUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -97,7 +97,7 @@ def update_payable(
 def delete_payable(
     payable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -115,7 +115,7 @@ def mark_payable_paid(
     payable_id: int,
     payload: MarkPayablePaidRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -137,7 +137,7 @@ async def upload_payable_attachment(
     payable_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -183,7 +183,7 @@ async def upload_payable_attachment(
 def download_payable_attachment(
     payable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Response:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)
@@ -207,7 +207,7 @@ def download_payable_attachment(
 def delete_payable_attachment(
     payable_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_editor),
+    current_user: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> PayableResponse:
     payable = payable_service.get_payable(db, payable_id, current_user.id, current_tenant.id)

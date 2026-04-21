@@ -962,6 +962,11 @@
   }
 
   async function uploadChurchLogo() {
+    if (!hasUsersWriteAccess()) {
+      setChurchMessage("Acesso negado para editar a igreja.", true);
+      return;
+    }
+
     if (!el.usersChurchLogoFile || !el.usersChurchLogoFile.files || !el.usersChurchLogoFile.files[0]) {
       setChurchMessage("Selecione uma imagem antes de enviar a logo.", true);
       return;
@@ -1341,6 +1346,26 @@
     return state.permissionSet.has(permissionName);
   }
 
+  function hasUsersWriteAccess() {
+    return state.isAdmin
+      || hasPermission("users_users_create")
+      || hasPermission("users_users_edit")
+      || hasPermission("users_users_delete")
+      || hasPermission("users_roles_create")
+      || hasPermission("users_roles_edit")
+      || hasPermission("users_roles_delete")
+      || hasPermission("users_permissions_create")
+      || hasPermission("users_permissions_edit")
+      || hasPermission("users_permissions_delete")
+      || hasPermission("users_system_permissions_manage");
+  }
+
+  function toggleActionByPermission(node, allowed) {
+    if (!node) return;
+    node.classList.toggle("hide", !allowed);
+    node.disabled = !allowed;
+  }
+
   function hasUsersModuleAccess() {
     if (state.isAdmin) return true;
     for (const permissionName of state.permissionSet) {
@@ -1352,7 +1377,7 @@
   function getFirstAllowedUsersView() {
     if (hasPermission("users_users_view")) return "users";
     if (hasPermission("users_roles_view")) return "roles";
-    if (state.isAdmin) return "church";
+    if (hasPermission("users_roles_view")) return "church";
     return null;
   }
 
@@ -1365,18 +1390,23 @@
 
     if (el.usersNavUsersBtn) el.usersNavUsersBtn.classList.toggle("hide", !hasPermission("users_users_view"));
     if (el.usersNavRolesBtn) el.usersNavRolesBtn.classList.toggle("hide", !hasPermission("users_roles_view"));
-    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !state.isAdmin);
-    if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("hide", !state.isAdmin);
-    if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("hide", !state.isAdmin);
-    if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !state.isAdmin);
-    if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("hide", !state.isAdmin);
-    if (el.usersNavWhatsappBtn) el.usersNavWhatsappBtn.classList.toggle("hide", !state.isAdmin);
+    const canViewSettings = hasPermission("users_roles_view");
+    if (el.usersNavChurchBtn) el.usersNavChurchBtn.classList.toggle("hide", !canViewSettings);
+    if (el.usersNavAppearanceBtn) el.usersNavAppearanceBtn.classList.toggle("hide", !canViewSettings);
+    if (el.usersNavLandingBtn) el.usersNavLandingBtn.classList.toggle("hide", !canViewSettings);
+    if (el.usersNavPaymentsBtn) el.usersNavPaymentsBtn.classList.toggle("hide", !canViewSettings);
+    if (el.usersNavSmtpBtn) el.usersNavSmtpBtn.classList.toggle("hide", !canViewSettings);
+    if (el.usersNavWhatsappBtn) el.usersNavWhatsappBtn.classList.toggle("hide", !canViewSettings);
     if (el.usersAddBtn) el.usersAddBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersInviteBtn) el.usersInviteBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenLinkInviteModalBtn) el.usersOpenLinkInviteModalBtn.classList.toggle("hide", !hasPermission("users_users_create"));
     if (el.usersOpenRoleModalBtn) el.usersOpenRoleModalBtn.classList.toggle("hide", !hasPermission("users_roles_create"));
     if (el.usersOpenPermissionModalBtn) el.usersOpenPermissionModalBtn.classList.toggle("hide", !hasPermission("users_permissions_create"));
     if (el.usersGeneratePermissionsBtn) el.usersGeneratePermissionsBtn.classList.toggle("hide", !hasPermission("users_system_permissions_manage"));
+    toggleActionByPermission(el.openChurchProfileModalBtn, hasUsersWriteAccess());
+    toggleActionByPermission(el.openChurchPaymentsModalBtn, hasUsersWriteAccess());
+    toggleActionByPermission(el.openPaymentAccountModalBtn, hasUsersWriteAccess());
+    toggleActionByPermission(el.usersChurchCreateBtn, state.isAdmin);
   }
 
   function syncUserFiltersFromInputs() {
@@ -1565,8 +1595,8 @@
 
   async function submitTenantSmtpSettings(event) {
     event.preventDefault();
-    if (!state.isAdmin) {
-      setSmtpMessage("Acesso negado: somente administradores podem editar SMTP.", true);
+    if (!hasUsersWriteAccess()) {
+      setSmtpMessage("Acesso negado para editar SMTP.", true);
       return;
     }
     const payload = {
@@ -1595,8 +1625,8 @@
   }
 
   async function testTenantSmtpSettings() {
-    if (!state.isAdmin) {
-      setSmtpTestMessage("Acesso negado: somente administradores podem testar SMTP.", true);
+    if (!hasUsersWriteAccess()) {
+      setSmtpTestMessage("Acesso negado para testar SMTP.", true);
       return;
     }
     const toEmail = el.usersSmtpTestToEmail ? el.usersSmtpTestToEmail.value.trim() : "";
@@ -1724,7 +1754,7 @@
       el.usersWhatsappQrEmpty.classList.toggle("hide", !placeholder);
     }
 
-    const actionsDisabled = status.enabled === false || status.configured === false;
+    const actionsDisabled = !hasUsersWriteAccess() || status.enabled === false || status.configured === false;
     const testDisabled = actionsDisabled || status.connection_state !== "open";
     if (el.usersWhatsappSetupBtn) el.usersWhatsappSetupBtn.disabled = actionsDisabled;
     if (el.usersWhatsappConnectBtn) el.usersWhatsappConnectBtn.disabled = actionsDisabled;
@@ -1741,7 +1771,7 @@
   }
 
   function scheduleWhatsappStatusPolling() {
-    if (state.currentView !== "whatsapp" || !state.isAdmin) return;
+    if (state.currentView !== "whatsapp" || !hasPermission("users_roles_view")) return;
     stopWhatsappStatusPolling();
     state.whatsappStatusPollId = window.setInterval(() => {
       loadTenantWhatsappStatus({ silent: true }).catch(() => {});
@@ -1750,7 +1780,7 @@
 
   async function loadTenantWhatsappStatus(options = {}) {
     const silent = Boolean(options.silent);
-    if (!state.isAdmin) return;
+    if (!hasPermission("users_roles_view")) return;
 
     try {
       if (!silent) setWhatsappMessage("Atualizando status do WhatsApp...", false);
@@ -1778,8 +1808,8 @@
   }
 
   async function performWhatsappAction(url, body, pendingMessage, successMessage, fallbackErrorMessage) {
-    if (!state.isAdmin) {
-      setWhatsappMessage("Acesso negado: somente administradores podem configurar o WhatsApp.", true);
+    if (!hasUsersWriteAccess()) {
+      setWhatsappMessage("Acesso negado para configurar o WhatsApp.", true);
       return;
     }
 
@@ -1805,8 +1835,8 @@
   }
 
   async function testTenantWhatsapp() {
-    if (!state.isAdmin) {
-      setWhatsappTestMessage("Acesso negado: somente administradores podem enviar teste de WhatsApp.", true);
+    if (!hasUsersWriteAccess()) {
+      setWhatsappTestMessage("Acesso negado para enviar teste de WhatsApp.", true);
       return;
     }
 
@@ -1951,6 +1981,11 @@
   }
 
   async function startMercadoPagoOAuth() {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para conectar contas de pagamento.", true);
+      return;
+    }
+
     const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
     if (!accountId) {
       setPaymentAccountsMessage("Salve a conta antes de conectar por OAuth.", true);
@@ -1987,6 +2022,11 @@
   }
 
   async function testPaymentAccountConnection() {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para testar contas de pagamento.", true);
+      return;
+    }
+
     const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
     if (!accountId) {
       setPaymentAccountsMessage("Salve a conta antes de testar a conexão.", true);
@@ -2003,6 +2043,11 @@
   }
 
   async function disconnectMercadoPagoOAuth() {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para desconectar contas de pagamento.", true);
+      return;
+    }
+
     const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
     if (!accountId) {
       setPaymentAccountsMessage("Selecione e salve uma conta antes de desconectar OAuth.", true);
@@ -2052,15 +2097,15 @@
       el.usersPaymentAccountOAuthBox.classList.toggle("hide", !isMercadoPago);
     }
     if (el.usersPaymentAccountOAuthBtn) {
-      el.usersPaymentAccountOAuthBtn.disabled = !isMercadoPago;
+      el.usersPaymentAccountOAuthBtn.disabled = !hasUsersWriteAccess() || !isMercadoPago;
     }
     if (el.usersPaymentAccountTestBtn) {
-      el.usersPaymentAccountTestBtn.disabled = isInternal;
+      el.usersPaymentAccountTestBtn.disabled = !hasUsersWriteAccess() || isInternal;
     }
     if (el.usersPaymentAccountDisconnectBtn) {
       const editingId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
       const existingAccount = editingId > 0 ? state.paymentAccounts.find((account) => account.id === editingId) : null;
-      el.usersPaymentAccountDisconnectBtn.disabled = !isMercadoPago || !existingAccount || !existingAccount.oauth_connected;
+      el.usersPaymentAccountDisconnectBtn.disabled = !hasUsersWriteAccess() || !isMercadoPago || !existingAccount || !existingAccount.oauth_connected;
     }
     if (isInternal) {
       if (el.usersPaymentAccountSupportsPix) el.usersPaymentAccountSupportsPix.checked = true;
@@ -2072,6 +2117,7 @@
 
   function renderPaymentAccounts() {
     const emptyMarkup = '<tr><td colspan="6">Nenhuma conta cadastrada.</td></tr>';
+    const canWrite = hasUsersWriteAccess();
     const markup = !state.paymentAccounts.length ? emptyMarkup : state.paymentAccounts.map((account) => `
       <tr>
         <td><strong>${escapeHtml(account.label)}</strong><br><span class="tiny">${escapeHtml(account.description || "-")}</span></td>
@@ -2080,8 +2126,9 @@
         <td>${account.is_active ? "Ativa" : "Inativa"}${account.is_default ? " · Padrão" : ""}</td>
         <td>${account.live_ready ? "Sim" : "Não"}${account.oauth_connected ? '<br><span class="tiny">OAuth conectado</span>' : ""}${account.oauth_last_error ? `<br><span class="tiny">Erro: ${escapeHtml(account.oauth_last_error)}</span>` : ""}</td>
         <td>
-          <button class="btn ghost btn-mini" type="button" data-payment-account-edit="${account.id}">Editar</button>
-          <button class="btn ghost btn-mini" type="button" data-payment-account-delete="${account.id}">Excluir</button>
+          ${canWrite ? `<button class="btn ghost btn-mini" type="button" data-payment-account-edit="${account.id}">Editar</button>` : ""}
+          ${canWrite ? `<button class="btn ghost btn-mini" type="button" data-payment-account-delete="${account.id}">Excluir</button>` : ""}
+          ${canWrite ? "" : "-"}
         </td>
       </tr>
     `).join("");
@@ -2098,6 +2145,11 @@
   }
 
   function editPaymentAccount(accountId) {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para editar contas de pagamento.", true);
+      return;
+    }
+
     const account = state.paymentAccounts.find((item) => item.id === accountId);
     if (!account) return;
     if (el.usersPaymentAccountId) el.usersPaymentAccountId.value = String(account.id);
@@ -2120,6 +2172,11 @@
 
   async function submitPaymentAccountForm(event) {
     event.preventDefault();
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para salvar contas de pagamento.", true);
+      return;
+    }
+
     const accountId = Number((el.usersPaymentAccountId && el.usersPaymentAccountId.value) || 0);
     const isEdit = accountId > 0;
     const payload = {
@@ -2153,6 +2210,11 @@
   }
 
   async function deletePaymentAccount(accountId) {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para excluir contas de pagamento.", true);
+      return;
+    }
+
     await fetchJson(`${paymentAccountsEndpoint}${accountId}`, { method: "DELETE", headers: buildHeaders(false) }, "Falha ao excluir conta de pagamento.");
     await loadPaymentAccounts();
     resetPaymentAccountForm();
@@ -2180,7 +2242,47 @@
     renderChurchActivationChecklist();
   }
 
-  function ensureRolesOptions(selectedRoleId) {
+  function normalizeSelectedRoleIds(selectedRoleIds) {
+    if (Array.isArray(selectedRoleIds)) {
+      return selectedRoleIds.map((roleId) => String(roleId)).filter(Boolean);
+    }
+    return selectedRoleIds != null ? [String(selectedRoleIds)] : [];
+  }
+
+  function getSelectedUserRoleIds() {
+    if (!el.usersFormRoleId) return [];
+    return Array.from(el.usersFormRoleId.selectedOptions || [])
+      .map((option) => parseInt(option.value || "0", 10))
+      .filter((roleId) => Number.isInteger(roleId) && roleId > 0);
+  }
+
+  function getUserTenantMembership(user) {
+    const memberships = Array.isArray(user && user.tenant_memberships) ? user.tenant_memberships : [];
+    return memberships.find((membership) => membership && membership.is_active)
+      || memberships[0]
+      || null;
+  }
+
+  function getUserRoleIds(user) {
+    const membership = getUserTenantMembership(user);
+    const roles = Array.isArray(membership && membership.roles) ? membership.roles : [];
+    const ids = roles.map((role) => role && role.id).filter(Boolean);
+    if (ids.length) return ids;
+    return user && user.role_id ? [user.role_id] : [];
+  }
+
+  function getUserRoleLabel(user) {
+    const membership = getUserTenantMembership(user);
+    const roles = Array.isArray(membership && membership.roles) ? membership.roles : [];
+    const names = roles.map((role) => role && role.name).filter(Boolean);
+    if (names.length) return names.join(", ");
+    return (membership && membership.role_obj && membership.role_obj.name)
+      || (user && user.role_obj && user.role_obj.name)
+      || (user && user.role)
+      || "N/A";
+  }
+
+  function ensureRolesOptions(selectedRoleIds) {
     if (!el.usersFormRoleId) return;
 
     if (!state.roles.length) {
@@ -2193,7 +2295,11 @@
       .map((role) => `<option value="${role.id}">${role.name}</option>`)
       .join("");
 
-    el.usersFormRoleId.value = selectedRoleId != null ? String(selectedRoleId) : String(state.roles[0].id);
+    const selected = normalizeSelectedRoleIds(selectedRoleIds);
+    const fallback = selected.length ? selected : [String(state.roles[0].id)];
+    Array.from(el.usersFormRoleId.options).forEach((option) => {
+      option.selected = fallback.includes(option.value);
+    });
   }
 
   function ensureUsersRoleFilterOptions() {
@@ -2319,9 +2425,9 @@
       return;
     }
 
-    el.usersTableBody.innerHTML = state.users
+      el.usersTableBody.innerHTML = state.users
       .map((user) => {
-        const roleName = (user.role_obj && user.role_obj.name) || user.role || "N/A";
+        const roleName = getUserRoleLabel(user);
         const statusClass = user.is_active ? "bg-success" : "bg-secondary";
         const statusLabel = user.is_active ? "Ativo" : "Inativo";
         const canEdit = hasPermission("users_users_edit");
@@ -2477,7 +2583,7 @@
         : "Opcional na edição. Deixe em branco para manter a senha atual.";
     }
 
-    ensureRolesOptions(user ? user.role_id : null);
+    ensureRolesOptions(user ? getUserRoleIds(user) : null);
     setFormMessage("", false);
     el.usersFormModal.classList.remove("hide");
   }
@@ -2599,7 +2705,8 @@
 
     const email = el.usersFormEmail.value.trim();
     const fullName = el.usersFormFullName.value.trim();
-    const roleId = parseInt(el.usersFormRoleId.value || "0", 10);
+    const roleIds = getSelectedUserRoleIds();
+    const roleId = roleIds[0] || 0;
     const isActive = el.usersFormIsActive.value === "true";
     const password = el.usersFormPassword ? el.usersFormPassword.value : "";
 
@@ -2613,7 +2720,7 @@
       return;
     }
 
-    const payload = { email, full_name: fullName, role_id: roleId, is_active: isActive };
+    const payload = { email, full_name: fullName, role_id: roleId, role_ids: roleIds, is_active: isActive };
     if (password) payload.password = password;
 
     const isCreate = state.mode === "create";
@@ -2828,7 +2935,7 @@
       await loadUsers();
       await loadInvitations();
     }
-    if (state.isAdmin) {
+    if (hasPermission("users_roles_view")) {
       await loadTenantProfile();
       await loadTenantPaymentSettings();
       await loadPaymentAccounts();
@@ -2848,8 +2955,8 @@
   }
 
   async function openChurchView(viewName = "church") {
-    if (!state.isAdmin) {
-      setChurchMessage("Acesso negado: somente administradores podem editar a igreja.", true);
+    if (!hasPermission("users_roles_view")) {
+      setChurchMessage("Acesso negado: sua role nao permite visualizar configuracoes.", true);
       return;
     }
 
@@ -2867,6 +2974,11 @@
   }
 
   function openChurchProfileModal(viewName = state.currentView || "church") {
+    if (!hasUsersWriteAccess()) {
+      setChurchMessage("Acesso negado para editar a igreja.", true);
+      return;
+    }
+
     const isLandingView = viewName === "landing";
     const isPaymentsView = viewName === "payments";
     const targetForm = isPaymentsView ? el.usersChurchPaymentsForm : el.usersChurchForm;
@@ -2909,6 +3021,11 @@
   }
 
   function openPaymentAccountModal() {
+    if (!hasUsersWriteAccess()) {
+      setPaymentAccountsMessage("Acesso negado para editar contas de pagamento.", true);
+      return;
+    }
+
     if (!window.openSharedFormModal || !el.usersPaymentAccountForm) return;
     window.openSharedFormModal({
       form: el.usersPaymentAccountForm,
@@ -2921,7 +3038,7 @@
 
   async function submitChurchForm(event) {
     event.preventDefault();
-    if (!state.isAdmin) {
+    if (!hasUsersWriteAccess()) {
       setChurchMessage("Acesso negado para editar a igreja.", true);
       return;
     }
@@ -2974,7 +3091,7 @@
 
   async function submitChurchPaymentsForm(event) {
     event.preventDefault();
-    if (!state.isAdmin) {
+    if (!hasUsersWriteAccess()) {
       setChurchPaymentsMessage("Acesso negado para editar pagamentos da igreja.", true);
       return;
     }
@@ -3006,6 +3123,11 @@
   }
 
   function openChurchCreateModal() {
+    if (!state.isAdmin) {
+      setChurchCreateMessage("Acesso negado para criar igreja.", true);
+      return;
+    }
+
     if (!el.usersChurchCreateModal) return;
     el.usersChurchCreateForm.reset();
     setChurchCreateMessage("", false);

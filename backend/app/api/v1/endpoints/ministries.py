@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.db.models.ministry import Ministry
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/", response_model=List[MinistryResponse])
 def list_ministries(
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[Ministry]:
     return db.query(Ministry).filter(Ministry.is_active.is_(True), Ministry.tenant_id == current_tenant.id).all()
@@ -25,7 +25,7 @@ def list_ministries(
 def create_ministry(
     ministry_in: MinistryCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Ministry:
     existing = db.query(Ministry).filter(Ministry.name == ministry_in.name, Ministry.tenant_id == current_tenant.id).first()
@@ -42,7 +42,7 @@ def create_ministry(
 def get_ministry(
     ministry_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Ministry:
     ministry = db.query(Ministry).filter(Ministry.id == ministry_id, Ministry.tenant_id == current_tenant.id).first()
@@ -56,7 +56,7 @@ def update_ministry(
     ministry_id: int,
     ministry_in: MinistryUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Ministry:
     ministry = db.query(Ministry).filter(Ministry.id == ministry_id, Ministry.tenant_id == current_tenant.id).first()
@@ -74,7 +74,7 @@ def update_ministry(
 def delete_ministry(
     ministry_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     ministry = db.query(Ministry).filter(Ministry.id == ministry_id, Ministry.tenant_id == current_tenant.id).first()

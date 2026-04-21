@@ -18,6 +18,13 @@ role_permission = Table(
     Column("permission_id", Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
 )
 
+tenant_membership_role = Table(
+    "tenant_membership_role",
+    Base.metadata,
+    Column("tenant_membership_id", Integer, ForeignKey("tenant_memberships.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class Permission(Base):
     __tablename__ = "permissions"
@@ -81,4 +88,9 @@ class Role(Base):
     tenant_memberships: Mapped[list["TenantMembership"]] = relationship(
         "TenantMembership",
         back_populates="role_obj",
+    )
+    assigned_memberships: Mapped[list["TenantMembership"]] = relationship(
+        "TenantMembership",
+        secondary=tenant_membership_role,
+        back_populates="roles",
     )
