@@ -237,6 +237,32 @@
           <label>Telefone
             <input id="publicDetailPhone" type="text">
           </label>
+          <div class="public-address-grid">
+            <label>CEP
+              <input id="publicDetailZipCode" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="9" required placeholder="00000-000">
+            </label>
+            <label>Endereço
+              <input id="publicDetailAddressStreet" type="text" autocomplete="address-line1" required>
+            </label>
+            <label>Número
+              <input id="publicDetailAddressNumber" type="text" autocomplete="address-line2" required>
+            </label>
+            <label>Bairro
+              <input id="publicDetailAddressNeighborhood" type="text" required>
+            </label>
+            <label>País
+              <input id="publicDetailAddressCountry" type="text" list="publicCountryOptions" value="Brasil" autocomplete="country-name" required>
+              <datalist id="publicCountryOptions"></datalist>
+            </label>
+            <label>Estado
+              <input id="publicDetailAddressState" type="text" list="publicStateOptions" maxlength="2" autocomplete="address-level1" required>
+              <datalist id="publicStateOptions"></datalist>
+            </label>
+            <label>Cidade
+              <input id="publicDetailAddressCity" type="text" list="publicCityOptions" autocomplete="address-level2" required>
+              <datalist id="publicCityOptions"></datalist>
+            </label>
+          </div>
           <label>Quantidade
             <input id="publicDetailQuantity" type="number" min="1" value="1" required>
           </label>
@@ -263,6 +289,10 @@
           </label>
           <label>Observações
             <input id="publicDetailNotes" type="text" placeholder="Opcional">
+          </label>
+          <label class="public-lgpd-consent">
+            <input id="publicDetailLgpdConsent" type="checkbox" required>
+            <span>Concordo em compartilhar meus dados de acordo com a LGPD.</span>
           </label>
           <button id="publicDetailSubmitBtn" class="btn" type="submit">Gerar inscrição</button>
         </form>
@@ -3607,9 +3637,9 @@
           <div class="table-wrap">
             <table class="table">
               <thead>
-                <tr><th>Evento</th><th>Código</th><th>Participante</th><th>Ingresso</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
+                <tr><th>Evento</th><th>Código</th><th>Participante</th><th>Endereço</th><th>Ingresso</th><th>Status</th><th>Pagamento</th><th>Total</th><th>Criada em</th></tr>
               </thead>
-              <tbody id="eventsRegistrationsBody"><tr><td colspan="8">Selecione um evento.</td></tr></tbody>
+              <tbody id="eventsRegistrationsBody"><tr><td colspan="9">Selecione um evento.</td></tr></tbody>
             </table>
           </div>
           <div class="tx-pagination" aria-label="Paginacao de inscricoes">
@@ -3952,6 +3982,19 @@
         <p id="eventsQrScannerStatus" class="tiny" style="margin-top:0.6rem;">Aponte a camera para o QR da inscrição.</p>
         <p class="tiny" style="margin-top:0.35rem; color:var(--muted);">Dica: a camera ao vivo pode exigir HTTPS. Se nao abrir, use "Ler por foto".</p>
       </div>
+    </div>
+  </div>
+
+  <div id="eventsRegistrationDetailModal" class="modal-overlay hide" aria-hidden="true">
+    <div class="modal-card events-registration-detail-card">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow modal-eyebrow">Inscrição</p>
+          <h3 id="eventsRegistrationDetailTitle">Participante</h3>
+        </div>
+        <button id="eventsRegistrationDetailCloseBtn" class="btn ghost btn-inline" type="button">Fechar</button>
+      </div>
+      <div id="eventsRegistrationDetailBody" class="modal-body"></div>
     </div>
   </div>
 

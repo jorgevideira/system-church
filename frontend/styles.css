@@ -560,6 +560,30 @@ h1, h2, h3, h4 {
   gap: 1rem;
 }
 
+.public-address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.public-address-grid label:nth-child(2),
+.public-address-grid label:nth-child(7) {
+  grid-column: 1 / -1;
+}
+
+.public-lgpd-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.public-lgpd-consent input {
+  margin-top: 0.15rem;
+}
+
 .public-event-status-badge {
   display: inline-flex;
   align-items: center;
@@ -2606,6 +2630,19 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .public-address-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-address-grid label:nth-child(2),
+  .public-address-grid label:nth-child(7) {
+    grid-column: auto;
+  }
+
+  .event-registration-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
   .login-hero {
     padding: 1.35rem;
   }
@@ -3539,6 +3576,70 @@ th {
   margin-bottom: 1rem;
   background: #ffffff;
   border-radius: 22px;
+}
+
+.event-registration-name-btn {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.event-registration-name-btn:hover {
+  text-decoration: underline;
+}
+
+.events-registration-detail-card {
+  width: min(780px, 96vw);
+}
+
+.event-registration-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.event-registration-detail-field {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.event-registration-detail-field span {
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.event-registration-detail-field strong {
+  color: #23364d;
+  font-size: 0.94rem;
+  line-height: 1.35;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.event-registration-detail-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.event-registration-detail-section h4 {
+  margin: 0 0 0.5rem;
+}
+
+.event-registration-detail-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 .events-calendar-grid {

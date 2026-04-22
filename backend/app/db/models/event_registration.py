@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -29,6 +29,15 @@ class EventRegistration(Base):
     attendee_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     attendee_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     attendee_document: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address_zip_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    address_street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address_neighborhood: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    address_country: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    address_state: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    address_city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    lgpd_data_sharing_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    lgpd_data_sharing_consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending_payment", index=True)
     payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)

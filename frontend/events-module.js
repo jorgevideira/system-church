@@ -131,6 +131,10 @@
     eventsQrScannerStatus: document.getElementById("eventsQrScannerStatus"),
     eventsQrScannerPhotoBtn: document.getElementById("eventsQrScannerPhotoBtn"),
     eventsQrScannerFile: document.getElementById("eventsQrScannerFile"),
+    eventsRegistrationDetailModal: document.getElementById("eventsRegistrationDetailModal"),
+    eventsRegistrationDetailCloseBtn: document.getElementById("eventsRegistrationDetailCloseBtn"),
+    eventsRegistrationDetailTitle: document.getElementById("eventsRegistrationDetailTitle"),
+    eventsRegistrationDetailBody: document.getElementById("eventsRegistrationDetailBody"),
   };
 
   const state = {
@@ -307,6 +311,115 @@
   function formatMoney(value, currency = "BRL") {
     const amount = Number(value || 0);
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
+  }
+
+  function formatRegistrationAddress(registration) {
+    const streetLine = [
+      registration.address_street,
+      registration.address_number,
+    ].filter(Boolean).map(escapeHtml).join(", ");
+    const cityLine = [
+      registration.address_neighborhood,
+      registration.address_city,
+      registration.address_state,
+    ].filter(Boolean).map(escapeHtml).join(" - ");
+    const countryLine = [
+      registration.address_zip_code,
+      registration.address_country,
+    ].filter(Boolean).map(escapeHtml).join(" · ");
+    return [streetLine, cityLine, countryLine].filter(Boolean).join("<br>");
+  }
+
+  function formatRegistrationAddressText(registration) {
+    const streetLine = [
+      registration.address_street,
+      registration.address_number,
+    ].filter(Boolean).join(", ");
+    const cityLine = [
+      registration.address_neighborhood,
+      registration.address_city,
+      registration.address_state,
+    ].filter(Boolean).join(" - ");
+    const countryLine = [
+      registration.address_zip_code,
+      registration.address_country,
+    ].filter(Boolean).join(" · ");
+    return [streetLine, cityLine, countryLine].filter(Boolean).join("\n") || "-";
+  }
+
+  function findRegistrationById(registrationId) {
+    const id = Number(registrationId || 0);
+    if (!id) return null;
+    return state.registrations.find((registration) => Number(registration.id) === id) || null;
+  }
+
+  function findRegistrationAttendee(registration, attendeeIndex) {
+    const index = Number(attendeeIndex || 1) || 1;
+    const attendees = Array.isArray(registration && registration.attendees) ? registration.attendees : [];
+    return attendees.find((attendee) => Number(attendee && attendee.attendee_index) === index) || null;
+  }
+
+  function detailField(label, value) {
+    const normalized = String(value ?? "").trim();
+    return `
+      <div class="event-registration-detail-field">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(normalized || "-")}</strong>
+      </div>
+    `;
+  }
+
+  function openRegistrationDetail(registrationId, attendeeIndex) {
+    const registration = findRegistrationById(registrationId);
+    if (!registration || !el.eventsRegistrationDetailModal || !el.eventsRegistrationDetailBody) return;
+
+    const attendee = findRegistrationAttendee(registration, attendeeIndex);
+    const attendeeName = attendee && attendee.attendee_name ? attendee.attendee_name : registration.attendee_name;
+    const attendees = Array.isArray(registration.attendees) && registration.attendees.length
+      ? registration.attendees
+      : [{ attendee_index: 1, attendee_name: registration.attendee_name }];
+    const attendeeList = attendees
+      .map((item) => `<li>${escapeHtml(Number(item.attendee_index || 1))}. ${escapeHtml(item.attendee_name || registration.attendee_name || "-")}</li>`)
+      .join("");
+    const fallbackEvent = getEventById(registration.event_id);
+    const eventTitle = registration.event_title || (fallbackEvent ? fallbackEvent.title : "-");
+    const address = formatRegistrationAddressText(registration);
+    const consentText = registration.lgpd_data_sharing_consent
+      ? `Aceito em ${formatDateTime(registration.lgpd_data_sharing_consented_at)}`
+      : "Não informado";
+
+    if (el.eventsRegistrationDetailTitle) {
+      el.eventsRegistrationDetailTitle.textContent = attendeeName || "Participante";
+    }
+    el.eventsRegistrationDetailBody.innerHTML = `
+      <div class="event-registration-detail-grid">
+        ${detailField("Evento", eventTitle)}
+        ${detailField("Código", registration.registration_code)}
+        ${detailField("Nome", attendeeName)}
+        ${detailField("E-mail", registration.attendee_email)}
+        ${detailField("Telefone", registration.attendee_phone)}
+        ${detailField("Ingresso", `${Number(attendeeIndex || 1) || 1}/${Number(registration.quantity || attendees.length || 1) || 1}`)}
+        ${detailField("Status da inscrição", statusLabel(registration.status))}
+        ${detailField("Status do pagamento", statusLabel(registration.payment_status))}
+        ${detailField("Valor total", formatMoney(registration.total_amount, registration.currency || "BRL"))}
+        ${detailField("Criada em", formatDateTime(registration.created_at))}
+        ${detailField("Endereço", address)}
+        ${detailField("LGPD", consentText)}
+        ${detailField("Observações", registration.notes)}
+      </div>
+      <div class="event-registration-detail-section">
+        <h4>Participantes desta inscrição</h4>
+        <ul>${attendeeList}</ul>
+      </div>
+    `;
+    el.eventsRegistrationDetailModal.classList.remove("hide");
+    el.eventsRegistrationDetailModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeRegistrationDetail() {
+    if (!el.eventsRegistrationDetailModal) return;
+    el.eventsRegistrationDetailModal.classList.add("hide");
+    el.eventsRegistrationDetailModal.setAttribute("aria-hidden", "true");
   }
 
   function formatMonthLabel(date) {
@@ -790,7 +903,7 @@ function populatePaymentAccountOptions() {
     }
 
     if (!state.registrations.length) {
-      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='8'>Nenhuma inscricao encontrada para os filtros atuais.</td></tr>";
+      el.eventsRegistrationsBody.innerHTML = "<tr><td colspan='9'>Nenhuma inscricao encontrada para os filtros atuais.</td></tr>";
       return;
     }
 
@@ -806,11 +919,13 @@ function populatePaymentAccountOptions() {
       attendees.forEach((attendee) => {
         const idx = Number(attendee && attendee.attendee_index ? attendee.attendee_index : 1) || 1;
         const badge = `${idx}/${qty}`;
+        const address = formatRegistrationAddress(registration) || "-";
         rows.push(`
           <tr>
             <td>${escapeHtml(eventTitle)}</td>
             <td>${escapeHtml(registration.registration_code)}</td>
-            <td>${escapeHtml(attendee && attendee.attendee_name ? attendee.attendee_name : registration.attendee_name)}<br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
+            <td><button class="event-registration-name-btn" type="button" data-registration-detail-id="${escapeHtml(registration.id)}" data-registration-attendee-index="${escapeHtml(idx)}">${escapeHtml(attendee && attendee.attendee_name ? attendee.attendee_name : registration.attendee_name)}</button><br><span class="tiny">${escapeHtml(registration.attendee_email)}</span></td>
+            <td>${address}</td>
             <td>${escapeHtml(badge)}</td>
             <td>${escapeHtml(statusLabel(registration.status))}</td>
             <td>${escapeHtml(statusLabel(registration.payment_status))}</td>
@@ -1615,6 +1730,12 @@ function populatePaymentAccountOptions() {
       });
     }
     if (el.eventsQrScannerCloseBtn) el.eventsQrScannerCloseBtn.addEventListener("click", closeEventsQrScanner);
+    if (el.eventsRegistrationDetailCloseBtn) el.eventsRegistrationDetailCloseBtn.addEventListener("click", closeRegistrationDetail);
+    if (el.eventsRegistrationDetailModal) {
+      el.eventsRegistrationDetailModal.addEventListener("click", (event) => {
+        if (event.target === el.eventsRegistrationDetailModal) closeRegistrationDetail();
+      });
+    }
     if (el.eventsQrScannerPhotoBtn && el.eventsQrScannerFile) {
       el.eventsQrScannerPhotoBtn.addEventListener("click", () => {
         el.eventsQrScannerFile.click();
@@ -1751,6 +1872,15 @@ function populatePaymentAccountOptions() {
     }
 
     document.addEventListener("click", (event) => {
+      const registrationDetailButton = event.target.closest && event.target.closest("[data-registration-detail-id]");
+      if (registrationDetailButton) {
+        openRegistrationDetail(
+          registrationDetailButton.getAttribute("data-registration-detail-id"),
+          registrationDetailButton.getAttribute("data-registration-attendee-index"),
+        );
+        return;
+      }
+
       const selectButton = event.target.closest && event.target.closest("[data-event-select]");
       if (selectButton) {
         selectEvent(Number(selectButton.getAttribute("data-event-select"))).catch((error) => setMessage(error.message, true));

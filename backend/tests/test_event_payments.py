@@ -11,6 +11,19 @@ from app.services import event_service, mercadopago_service
 from tests.conftest import auth_headers, get_or_create_test_tenant
 
 
+def public_registration_address_payload() -> dict:
+    return {
+        "address_zip_code": "01310-100",
+        "address_street": "Avenida Paulista",
+        "address_number": "1000",
+        "address_neighborhood": "Bela Vista",
+        "address_country": "Brasil",
+        "address_state": "SP",
+        "address_city": "São Paulo",
+        "lgpd_data_sharing_consent": True,
+    }
+
+
 def test_create_public_registration_uses_transparent_pix_for_mercadopago(test_db, test_admin, monkeypatch):
     unique_suffix = secrets.token_hex(3)
     tenant = get_or_create_test_tenant(test_db)
@@ -69,6 +82,7 @@ def test_create_public_registration_uses_transparent_pix_for_mercadopago(test_db
         quantity=1,
         payment_method="pix",
         notes="Teste",
+        **public_registration_address_payload(),
     )
 
     registration, payment = event_service.create_public_registration(test_db, tenant, event, payload)
@@ -82,6 +96,10 @@ def test_create_public_registration_uses_transparent_pix_for_mercadopago(test_db
     assert payment.checkout_url == "https://www.mercadopago.com.br/payments/test-ticket"
     assert payment.provider_payload["checkout_mode"] == "transparent_pix"
     assert payment.provider_payload["qr_code_base64"] == "ZmFrZS1xci1iYXNlNjQ="
+    assert registration.address_zip_code == "01310-100"
+    assert registration.address_city == "São Paulo"
+    assert registration.lgpd_data_sharing_consent is True
+    assert registration.lgpd_data_sharing_consented_at is not None
 
 
 def test_create_public_registration_falls_back_to_redirect_when_transparent_pix_fails(test_db, test_admin, monkeypatch):
@@ -138,6 +156,7 @@ def test_create_public_registration_falls_back_to_redirect_when_transparent_pix_
         attendee_email="joquebede@example.com",
         quantity=1,
         payment_method="pix",
+        **public_registration_address_payload(),
     )
 
     registration, payment = event_service.create_public_registration(test_db, tenant, event, payload)

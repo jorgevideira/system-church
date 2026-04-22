@@ -142,6 +142,16 @@ const el = {
   publicDetailName: document.getElementById("publicDetailName"),
   publicDetailEmail: document.getElementById("publicDetailEmail"),
   publicDetailPhone: document.getElementById("publicDetailPhone"),
+  publicDetailZipCode: document.getElementById("publicDetailZipCode"),
+  publicDetailAddressStreet: document.getElementById("publicDetailAddressStreet"),
+  publicDetailAddressNumber: document.getElementById("publicDetailAddressNumber"),
+  publicDetailAddressNeighborhood: document.getElementById("publicDetailAddressNeighborhood"),
+  publicDetailAddressCountry: document.getElementById("publicDetailAddressCountry"),
+  publicDetailAddressState: document.getElementById("publicDetailAddressState"),
+  publicDetailAddressCity: document.getElementById("publicDetailAddressCity"),
+  publicCountryOptions: document.getElementById("publicCountryOptions"),
+  publicStateOptions: document.getElementById("publicStateOptions"),
+  publicCityOptions: document.getElementById("publicCityOptions"),
   publicDetailQuantity: document.getElementById("publicDetailQuantity"),
   publicAttendeeModeSelf: document.getElementById("publicAttendeeModeSelf"),
   publicAttendeeModeList: document.getElementById("publicAttendeeModeList"),
@@ -149,6 +159,7 @@ const el = {
   publicDetailAttendeesList: document.getElementById("publicDetailAttendeesList"),
   publicDetailPaymentMethod: document.getElementById("publicDetailPaymentMethod"),
   publicDetailNotes: document.getElementById("publicDetailNotes"),
+  publicDetailLgpdConsent: document.getElementById("publicDetailLgpdConsent"),
   publicDetailSubmitBtn: document.getElementById("publicDetailSubmitBtn"),
   publicEventTitle: document.getElementById("publicEventTitle"),
   publicEventSummary: document.getElementById("publicEventSummary"),
@@ -1321,6 +1332,140 @@ function renderPixQrCode(pixCode, qrCodeBase64 = "") {
   });
 }
 
+const PUBLIC_ADDRESS_COUNTRIES = [
+  "Brasil",
+  "Argentina",
+  "Bolívia",
+  "Chile",
+  "Colômbia",
+  "Estados Unidos",
+  "Paraguai",
+  "Peru",
+  "Portugal",
+  "Uruguai",
+];
+
+const PUBLIC_BR_STATES = [
+  ["AC", "Acre"],
+  ["AL", "Alagoas"],
+  ["AP", "Amapá"],
+  ["AM", "Amazonas"],
+  ["BA", "Bahia"],
+  ["CE", "Ceará"],
+  ["DF", "Distrito Federal"],
+  ["ES", "Espírito Santo"],
+  ["GO", "Goiás"],
+  ["MA", "Maranhão"],
+  ["MT", "Mato Grosso"],
+  ["MS", "Mato Grosso do Sul"],
+  ["MG", "Minas Gerais"],
+  ["PA", "Pará"],
+  ["PB", "Paraíba"],
+  ["PR", "Paraná"],
+  ["PE", "Pernambuco"],
+  ["PI", "Piauí"],
+  ["RJ", "Rio de Janeiro"],
+  ["RN", "Rio Grande do Norte"],
+  ["RS", "Rio Grande do Sul"],
+  ["RO", "Rondônia"],
+  ["RR", "Roraima"],
+  ["SC", "Santa Catarina"],
+  ["SP", "São Paulo"],
+  ["SE", "Sergipe"],
+  ["TO", "Tocantins"],
+];
+
+const publicCitiesByState = new Map();
+
+function normalizePublicZipCode(value) {
+  return String(value || "").replace(/\D+/g, "").slice(0, 8);
+}
+
+function formatPublicZipCode(value) {
+  const digits = normalizePublicZipCode(value);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+function normalizePublicState(value) {
+  return String(value || "").trim().slice(0, 2).toUpperCase();
+}
+
+function isPublicAddressBrazil() {
+  const country = String(el.publicDetailAddressCountry && el.publicDetailAddressCountry.value || "").trim().toLowerCase();
+  return !country || country === "brasil" || country === "brazil";
+}
+
+function renderPublicAddressOptions() {
+  if (el.publicCountryOptions) {
+    el.publicCountryOptions.innerHTML = PUBLIC_ADDRESS_COUNTRIES
+      .map((country) => `<option value="${escapeHtml(country)}"></option>`)
+      .join("");
+  }
+  if (el.publicStateOptions) {
+    el.publicStateOptions.innerHTML = PUBLIC_BR_STATES
+      .map(([uf, name]) => `<option value="${escapeHtml(uf)}" label="${escapeHtml(name)}"></option>`)
+      .join("");
+  }
+}
+
+function renderPublicCityOptions(cities, preferredCity = "") {
+  if (!el.publicCityOptions) return;
+  const normalizedPreferred = String(preferredCity || "").trim();
+  const cityNames = Array.isArray(cities) ? cities.slice() : [];
+  if (normalizedPreferred && !cityNames.some((city) => city.toLowerCase() === normalizedPreferred.toLowerCase())) {
+    cityNames.unshift(normalizedPreferred);
+  }
+  el.publicCityOptions.innerHTML = cityNames
+    .map((city) => `<option value="${escapeHtml(city)}"></option>`)
+    .join("");
+}
+
+async function loadPublicCitiesForState(stateValue, preferredCity = "") {
+  const uf = normalizePublicState(stateValue);
+  if (!uf || !isPublicAddressBrazil()) {
+    renderPublicCityOptions(preferredCity ? [preferredCity] : []);
+    return;
+  }
+  if (publicCitiesByState.has(uf)) {
+    renderPublicCityOptions(publicCitiesByState.get(uf), preferredCity);
+    return;
+  }
+  try {
+    const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(uf)}/municipios?orderBy=nome`);
+    if (!response.ok) throw new Error("Falha ao carregar cidades.");
+    const payload = await response.json();
+    const cities = Array.isArray(payload)
+      ? payload.map((item) => String(item && item.nome || "").trim()).filter(Boolean)
+      : [];
+    publicCitiesByState.set(uf, cities);
+    renderPublicCityOptions(cities, preferredCity);
+  } catch (_error) {
+    renderPublicCityOptions(preferredCity ? [preferredCity] : []);
+  }
+}
+
+async function lookupPublicAddressByZipCode() {
+  if (!el.publicDetailZipCode) return;
+  const digits = normalizePublicZipCode(el.publicDetailZipCode.value);
+  el.publicDetailZipCode.value = formatPublicZipCode(digits);
+  if (digits.length !== 8 || !isPublicAddressBrazil()) return;
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+    if (!response.ok) return;
+    const payload = await response.json();
+    if (!payload || payload.erro) return;
+    if (el.publicDetailAddressCountry) el.publicDetailAddressCountry.value = "Brasil";
+    if (el.publicDetailAddressStreet) el.publicDetailAddressStreet.value = String(payload.logradouro || "").trim();
+    if (el.publicDetailAddressNeighborhood) el.publicDetailAddressNeighborhood.value = String(payload.bairro || "").trim();
+    if (el.publicDetailAddressState) el.publicDetailAddressState.value = normalizePublicState(payload.uf);
+    if (el.publicDetailAddressCity) el.publicDetailAddressCity.value = String(payload.localidade || "").trim();
+    await loadPublicCitiesForState(payload.uf, payload.localidade);
+  } catch (_error) {
+    // Keep manual address entry available if the external CEP service is unavailable.
+  }
+}
+
 function publicAttendeeListModeEnabled() {
   return Boolean(el.publicAttendeeModeList && el.publicAttendeeModeList.checked);
 }
@@ -1815,6 +1960,7 @@ async function initializePublicCatalogApp() {
 function renderPublicEventDetail(payload) {
   const { tenant_slug: tenantSlug, event, available_slots: availableSlots } = payload;
   document.title = `${event.title} | Inscricao`;
+  renderPublicAddressOptions();
   el.publicDetailTitle.textContent = event.title;
   el.publicDetailSummary.textContent = event.summary || event.description || "Preencha seus dados para gerar a inscrição.";
   el.publicDetailMetaDate.textContent = `Data: ${formatDateTime(event.start_at)}`;
@@ -5167,10 +5313,21 @@ el.publicEventRegistrationForm.addEventListener("submit", async (event) => {
       attendee_name: el.publicDetailName.value.trim(),
       attendee_email: el.publicDetailEmail.value.trim(),
       attendee_phone: el.publicDetailPhone.value.trim() || null,
+      address_zip_code: formatPublicZipCode(el.publicDetailZipCode ? el.publicDetailZipCode.value : ""),
+      address_street: el.publicDetailAddressStreet ? el.publicDetailAddressStreet.value.trim() : "",
+      address_number: el.publicDetailAddressNumber ? el.publicDetailAddressNumber.value.trim() : "",
+      address_neighborhood: el.publicDetailAddressNeighborhood ? el.publicDetailAddressNeighborhood.value.trim() : "",
+      address_country: el.publicDetailAddressCountry ? el.publicDetailAddressCountry.value.trim() : "",
+      address_state: normalizePublicState(el.publicDetailAddressState ? el.publicDetailAddressState.value : ""),
+      address_city: el.publicDetailAddressCity ? el.publicDetailAddressCity.value.trim() : "",
+      lgpd_data_sharing_consent: Boolean(el.publicDetailLgpdConsent && el.publicDetailLgpdConsent.checked),
       quantity,
       payment_method: el.publicDetailPaymentMethod.value,
       notes: el.publicDetailNotes.value.trim() || null,
     };
+    if (!payload.lgpd_data_sharing_consent) {
+      throw new Error("Confirme o compartilhamento dos dados conforme a LGPD.");
+    }
     if (publicAttendeeListModeEnabled() && quantity > 1) {
       const inputs = el.publicDetailAttendeesList ? Array.from(el.publicDetailAttendeesList.querySelectorAll("input[data-public-attendee-name]")) : [];
       if (!inputs.length || inputs.length !== quantity) {
@@ -5222,6 +5379,27 @@ if (el.publicDetailName) el.publicDetailName.addEventListener("input", () => {
   updatePublicAttendeeUi();
   syncFirstPublicAttendeeName();
 });
+if (el.publicDetailZipCode) {
+  el.publicDetailZipCode.addEventListener("input", () => {
+    el.publicDetailZipCode.value = formatPublicZipCode(el.publicDetailZipCode.value);
+  });
+  el.publicDetailZipCode.addEventListener("blur", () => {
+    lookupPublicAddressByZipCode().catch(() => {});
+  });
+}
+if (el.publicDetailAddressState) {
+  el.publicDetailAddressState.addEventListener("change", () => {
+    el.publicDetailAddressState.value = normalizePublicState(el.publicDetailAddressState.value);
+    loadPublicCitiesForState(el.publicDetailAddressState.value, el.publicDetailAddressCity ? el.publicDetailAddressCity.value : "").catch(() => {});
+  });
+}
+if (el.publicDetailAddressCountry) {
+  el.publicDetailAddressCountry.addEventListener("change", () => {
+    if (isPublicAddressBrazil() && el.publicDetailAddressState) {
+      loadPublicCitiesForState(el.publicDetailAddressState.value, el.publicDetailAddressCity ? el.publicDetailAddressCity.value : "").catch(() => {});
+    }
+  });
+}
 
 if (el.publicInviteAcceptForm) {
   el.publicInviteAcceptForm.addEventListener("submit", async (event) => {

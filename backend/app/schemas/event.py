@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+import re
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
@@ -127,6 +128,14 @@ class EventRegistrationPublicCreate(BaseModel):
     attendee_email: EmailStr
     attendee_phone: Optional[str] = None
     attendee_document: Optional[str] = None
+    address_zip_code: str
+    address_street: str
+    address_number: str
+    address_neighborhood: str
+    address_country: str
+    address_state: str
+    address_city: str
+    lgpd_data_sharing_consent: bool
     quantity: int = 1
     # Optional: explicit names for each ticket/inscricao.
     # If omitted, we will assume all tickets are in `attendee_name`.
@@ -139,6 +148,42 @@ class EventRegistrationPublicCreate(BaseModel):
     def validate_quantity(cls, value: int) -> int:
         if value < 1:
             raise ValueError("quantity must be at least 1")
+        return value
+
+    @field_validator(
+        "address_street",
+        "address_number",
+        "address_neighborhood",
+        "address_country",
+        "address_state",
+        "address_city",
+        mode="before",
+    )
+    @classmethod
+    def validate_required_address_text(cls, value: object) -> str:
+        text = str(value or "").strip()
+        if not text:
+            raise ValueError("address fields are required")
+        return text
+
+    @field_validator("address_zip_code", mode="before")
+    @classmethod
+    def validate_zip_code(cls, value: object) -> str:
+        digits = re.sub(r"\D+", "", str(value or ""))
+        if len(digits) != 8:
+            raise ValueError("address_zip_code must have 8 digits")
+        return f"{digits[:5]}-{digits[5:]}"
+
+    @field_validator("address_state", mode="after")
+    @classmethod
+    def normalize_address_state(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("lgpd_data_sharing_consent")
+    @classmethod
+    def validate_lgpd_consent(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("lgpd_data_sharing_consent must be accepted")
         return value
 
     @model_validator(mode="after")
@@ -186,6 +231,15 @@ class EventRegistrationResponse(BaseModel):
     attendee_email: EmailStr
     attendee_phone: Optional[str] = None
     attendee_document: Optional[str] = None
+    address_zip_code: Optional[str] = None
+    address_street: Optional[str] = None
+    address_number: Optional[str] = None
+    address_neighborhood: Optional[str] = None
+    address_country: Optional[str] = None
+    address_state: Optional[str] = None
+    address_city: Optional[str] = None
+    lgpd_data_sharing_consent: bool = False
+    lgpd_data_sharing_consented_at: Optional[datetime] = None
     quantity: int
     status: str
     payment_method: Optional[str] = None

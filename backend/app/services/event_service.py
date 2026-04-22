@@ -218,6 +218,11 @@ def list_registrations_paginated(
                 EventRegistration.attendee_name.ilike(like),
                 EventRegistration.attendee_email.ilike(like),
                 EventRegistration.attendee_phone.ilike(like),
+                EventRegistration.address_zip_code.ilike(like),
+                EventRegistration.address_street.ilike(like),
+                EventRegistration.address_neighborhood.ilike(like),
+                EventRegistration.address_city.ilike(like),
+                EventRegistration.address_state.ilike(like),
             )
         )
 
@@ -431,6 +436,15 @@ def create_public_registration(
         attendee_email=str(payload.attendee_email),
         attendee_phone=payload.attendee_phone,
         attendee_document=payload.attendee_document,
+        address_zip_code=payload.address_zip_code,
+        address_street=payload.address_street,
+        address_number=payload.address_number,
+        address_neighborhood=payload.address_neighborhood,
+        address_country=payload.address_country,
+        address_state=payload.address_state,
+        address_city=payload.address_city,
+        lgpd_data_sharing_consent=payload.lgpd_data_sharing_consent,
+        lgpd_data_sharing_consented_at=datetime.now(timezone.utc),
         quantity=payload.quantity,
         payment_method=payment_method,
         payment_status="pending" if payment_required else "not_required",
