@@ -82,6 +82,8 @@ const state = {
   previewAttachmentUrl: "",
 };
 
+let sessionRefreshPromise = null;
+
 const el = {
   loginScreen: document.getElementById("loginScreen"),
   loginBrandLogo: document.getElementById("loginBrandLogo"),
@@ -554,14 +556,9 @@ function closeAttachmentPreviewModal() {
 }
 
 async function previewTransactionAttachment(transactionId, attachment) {
-  const headers = new Headers();
-  if (state.accessToken) {
-    headers.set("Authorization", `Bearer ${state.accessToken}`);
-  }
-
-  const response = await fetch(
+  const response = await fetchWithSessionRefresh(
     `${API_PREFIX}/transactions/${transactionId}/attachments/${attachment.id}/download`,
-    { method: "GET", headers },
+    { method: "GET" },
   );
   if (!response.ok) {
     throw new Error("Falha ao carregar preview do anexo.");
@@ -591,14 +588,8 @@ async function previewPayableAttachment(payableId) {
     throw new Error("Boleto nao encontrado.");
   }
 
-  const headers = new Headers();
-  if (state.accessToken) {
-    headers.set("Authorization", `Bearer ${state.accessToken}`);
-  }
-
-  const response = await fetch(`${API_PREFIX}/payables/${payableId}/attachment/download`, {
+  const response = await fetchWithSessionRefresh(`${API_PREFIX}/payables/${payableId}/attachment/download`, {
     method: "GET",
-    headers,
   });
   if (!response.ok) {
     throw new Error("Falha ao carregar boleto.");
@@ -1255,12 +1246,9 @@ function populateTenantSwitcher(me) {
 }
 
 async function switchTenant(tenantId) {
-  const response = await fetch(`${API_PREFIX}/auth/switch-tenant`, {
+  const response = await fetchWithSessionRefresh(`${API_PREFIX}/auth/switch-tenant`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${state.accessToken}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tenant_id: Number(tenantId) }),
   });
 
@@ -1270,10 +1258,7 @@ async function switchTenant(tenantId) {
   }
 
   const data = await response.json();
-  state.accessToken = data.access_token;
-  state.refreshToken = data.refresh_token;
-  localStorage.setItem("accessToken", data.access_token);
-  localStorage.setItem("refreshToken", data.refresh_token);
+  storeSessionTokens(data);
   if (data.active_tenant_slug) {
     localStorage.setItem("activeTenantSlug", data.active_tenant_slug);
   }
@@ -4280,7 +4265,72 @@ function renderReceivablesKpi() {
   }
 }
 
-async function api(path, options = {}, isForm = false) {
+function storeSessionTokens(data) {
+  state.accessToken = data.access_token || "";
+  state.refreshToken = data.refresh_token || "";
+  if (state.accessToken) {
+    localStorage.setItem("accessToken", state.accessToken);
+  }
+  if (state.refreshToken) {
+    localStorage.setItem("refreshToken", state.refreshToken);
+  }
+}
+
+async function refreshSession() {
+  if (!state.refreshToken) {
+    return false;
+  }
+
+  if (!sessionRefreshPromise) {
+    const token = state.refreshToken;
+    sessionRefreshPromise = fetch(`${API_PREFIX}/auth/refresh?refresh_token_str=${encodeURIComponent(token)}`, {
+      method: "POST",
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return false;
+        }
+        const data = await response.json();
+        storeSessionTokens(data);
+        if (data.active_tenant_slug) {
+          rememberTenantSlug(data.active_tenant_slug);
+        }
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        sessionRefreshPromise = null;
+      });
+  }
+
+  return sessionRefreshPromise;
+}
+
+async function fetchWithSessionRefresh(url, options = {}, retryOnUnauthorized = true) {
+  const headers = new Headers(options.headers || {});
+  if (state.accessToken) {
+    headers.set("Authorization", `Bearer ${state.accessToken}`);
+  }
+
+  const response = await fetch(url, { ...options, headers });
+  if (response.status !== 401 || !retryOnUnauthorized) {
+    return response;
+  }
+
+  const refreshed = await refreshSession();
+  if (!refreshed) {
+    return response;
+  }
+
+  const retryHeaders = new Headers(options.headers || {});
+  if (state.accessToken) {
+    retryHeaders.set("Authorization", `Bearer ${state.accessToken}`);
+  }
+  return fetch(url, { ...options, headers: retryHeaders });
+}
+
+async function api(path, options = {}, isForm = false, retryOnUnauthorized = true) {
   const headers = new Headers(options.headers || {});
   if (!isForm) {
     headers.set("Content-Type", "application/json");
@@ -4307,6 +4357,9 @@ async function api(path, options = {}, isForm = false) {
     headers,
     cache: isReadRequest ? "no-store" : "no-cache",
   });
+  if (response.status === 401 && retryOnUnauthorized && await refreshSession()) {
+    return api(path, options, isForm, false);
+  }
   if (!response.ok) {
     let detail = `Erro ${response.status}`;
     try {
@@ -4347,10 +4400,7 @@ async function login(email, password) {
   }
 
   const data = await response.json();
-  state.accessToken = data.access_token;
-  state.refreshToken = data.refresh_token;
-  localStorage.setItem("accessToken", data.access_token);
-  localStorage.setItem("refreshToken", data.refresh_token);
+  storeSessionTokens(data);
   if (data.active_tenant_slug) {
     rememberTenantSlug(data.active_tenant_slug);
   }
@@ -4607,13 +4657,8 @@ async function loadTransactionAttachments(transactionId) {
     downloadBtn.textContent = "Baixar";
     downloadBtn.addEventListener("click", async () => {
       try {
-        const headers = new Headers();
-        if (state.accessToken) {
-          headers.set("Authorization", `Bearer ${state.accessToken}`);
-        }
-        const response = await fetch(`${API_PREFIX}/transactions/${transactionId}/attachments/${attachment.id}/download`, {
+        const response = await fetchWithSessionRefresh(`${API_PREFIX}/transactions/${transactionId}/attachments/${attachment.id}/download`, {
           method: "GET",
-          headers,
         });
         if (!response.ok) {
           throw new Error("Falha ao baixar anexo.");
@@ -5200,10 +5245,7 @@ if (el.publicInviteAcceptForm) {
       if (!response.ok) {
         throw new Error(errorDetailToText(payload.detail ?? payload, "Falha ao aceitar convite"));
       }
-      state.accessToken = payload.access_token;
-      state.refreshToken = payload.refresh_token;
-      localStorage.setItem("accessToken", payload.access_token);
-      localStorage.setItem("refreshToken", payload.refresh_token);
+      storeSessionTokens(payload);
       if (payload.active_tenant_slug) {
         localStorage.setItem("activeTenantSlug", payload.active_tenant_slug);
       }

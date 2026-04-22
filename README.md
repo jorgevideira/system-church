@@ -222,8 +222,8 @@ system-church/
 | `DATABASE_URL` | Conexao do PostgreSQL |
 | `SECRET_KEY` | Assinatura JWT |
 | `ALGORITHM` | Algoritmo JWT |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiracao access token |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Expiracao refresh token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiracao access token (padrao: 480 min) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Expiracao refresh token (padrao: 30 dias) |
 | `REDIS_URL` | Redis |
 | `CELERY_BROKER_URL` | Broker do Celery |
 | `CELERY_RESULT_BACKEND` | Backend de resultado do Celery |

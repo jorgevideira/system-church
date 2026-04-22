@@ -63,9 +63,9 @@ Transaction ──< AuditLog
 
 1. Client `POST /api/v1/auth/login` with credentials.
 2. Server validates password hash (bcrypt via `passlib`).
-3. Server issues a short-lived **access token** (default 30 min) and a long-lived **refresh token** (default 7 days), both signed with `python-jose`.
+3. Server issues a short-lived **access token** (default 8 hours) and a long-lived **refresh token** (default 30 days), both signed with `python-jose`.
 4. Client includes `Authorization: Bearer <access_token>` on subsequent requests.
-5. When the access token expires, client calls `POST /api/v1/auth/refresh` with the refresh token to obtain a new pair.
+5. When the access token expires, client calls `POST /api/v1/auth/refresh` with the refresh token to obtain a new pair and retries the protected request once.
 6. FastAPI dependency `get_current_user` validates the token on every protected endpoint.
 
 ---
