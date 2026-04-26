@@ -3,7 +3,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin
+from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_users_read, require_users_write
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserTenantLinkRequest, UserUpdate
@@ -20,7 +20,7 @@ def list_users(
     role_id: int | None = Query(None, ge=1),
     is_active: bool | None = Query(None),
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[User]:
     return user_service.get_users_for_tenant(
@@ -39,20 +39,23 @@ def list_users(
 def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
     existing = user_service.get_user_by_email(db, user_in.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    return user_service.create_user(db, user_in, tenant_id=current_tenant.id)
+    try:
+        return user_service.create_user(db, user_in, tenant_id=current_tenant.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/link-existing", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def link_existing_user(
     payload: UserTenantLinkRequest,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
     try:
@@ -75,7 +78,7 @@ def get_current_user_me(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
     user = user_service.get_user_for_tenant(db, user_id, current_tenant.id)
@@ -89,10 +92,13 @@ def update_user(
     user_id: int,
     user_in: UserUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> User:
-    user = user_service.update_user_for_tenant(db, user_id, current_tenant.id, user_in)
+    try:
+        user = user_service.update_user_for_tenant(db, user_id, current_tenant.id, user_in)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -102,7 +108,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_users_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     deleted = user_service.delete_user_for_tenant(db, user_id, current_tenant.id)

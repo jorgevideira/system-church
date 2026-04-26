@@ -3,7 +3,14 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_editor
+from app.api.v1.deps import (
+    get_current_active_user,
+    get_current_tenant,
+    get_db,
+    require_editor,
+    require_events_read,
+    require_events_write,
+)
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 from app.db.models.event_registration import EventRegistration

@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import get_current_active_user, get_current_tenant, get_db, require_admin, require_editor
+from app.api.v1.deps import get_current_tenant, get_db, require_finance_read, require_finance_write
 from app.db.models.category import Category
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/", response_model=List[CategoryResponse])
 def list_categories(
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> List[Category]:
     return db.query(Category).filter(Category.is_active.is_(True), Category.tenant_id == current_tenant.id).all()
@@ -25,7 +25,7 @@ def list_categories(
 def create_category(
     category_in: CategoryCreate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Category:
     existing = db.query(Category).filter(Category.name == category_in.name, Category.tenant_id == current_tenant.id).first()
@@ -42,7 +42,7 @@ def create_category(
 def get_category(
     category_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    _user: User = Depends(require_finance_read),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Category:
     category = db.query(Category).filter(Category.id == category_id, Category.tenant_id == current_tenant.id).first()
@@ -56,7 +56,7 @@ def update_category(
     category_id: int,
     category_in: CategoryUpdate,
     db: Session = Depends(get_db),
-    _editor: User = Depends(require_editor),
+    _editor: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> Category:
     category = db.query(Category).filter(Category.id == category_id, Category.tenant_id == current_tenant.id).first()
@@ -74,7 +74,7 @@ def update_category(
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _admin: User = Depends(require_finance_write),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
     category = db.query(Category).filter(Category.id == category_id, Category.tenant_id == current_tenant.id).first()
