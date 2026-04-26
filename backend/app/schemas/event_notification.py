@@ -23,6 +23,11 @@ class EventNotificationResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EventNotificationRetryResponse(BaseModel):
+    notification_id: int
+    status: str
+
+
 class EventAnalyticsResponse(BaseModel):
     event_id: int
     title: str

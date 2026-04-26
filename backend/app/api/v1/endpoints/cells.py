@@ -16,6 +16,7 @@ from app.schemas.cell import (
     CellLeaderAssignmentUpdate,
     CellMemberCreate,
     CellMemberLinkCreate,
+    CellMemberLinkUpdate,
     CellMemberLinkResponse,
     CellMemberResponse,
     CellMemberTransferRequest,
@@ -159,6 +160,20 @@ def _require_editor_or_leader(user: User, membership: TenantMembership) -> None:
     ):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Editor or leader access required")
+
+
+def _require_people_delete_access(user: User, membership: TenantMembership) -> None:
+    role_names = _membership_role_names(membership)
+    if (
+        user.role in (ROLE_ADMIN, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR)
+        or role_names & {ROLE_ADMIN, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR}
+        or _is_role_obj_admin(membership)
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Only discipler, network pastor, or super admin can delete people from a cell",
+    )
 
 @router.get("/", response_model=list[CellResponse])
 def list_cells(
@@ -320,6 +335,9 @@ def update_member(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
     _require_editor_or_leader(current_user, current_membership)
+    requested_status = str(payload.status or "").strip().lower() if payload.status is not None else None
+    if requested_status == "inactive" or payload.is_active is False:
+        _require_people_delete_access(current_user, current_membership)
     if current_user.role in (ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR) or current_membership.role in (ROLE_LEADER, ROLE_DISCIPLER, ROLE_NETWORK_PASTOR):
         allowed_cell_ids = _get_allowed_cell_ids_for_user(db, current_user, current_membership, current_tenant)
         if not cell_service.member_is_in_cells(db, member_id, current_tenant.id, allowed_cell_ids):
@@ -388,6 +406,38 @@ def assign_member_to_cell(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.put("/{cell_id}/members/{member_id}", response_model=CellMemberLinkResponse)
+def update_member_link(
+    cell_id: int,
+    member_id: int,
+    payload: CellMemberLinkUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    current_membership: TenantMembership = Depends(get_current_membership),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> CellMemberLinkResponse:
+    _require_editor_or_leader(current_user, current_membership)
+    _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
+    cell = cell_service.get_cell(db, cell_id, current_tenant.id)
+    if not cell:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cell not found")
+
+    member = cell_service.get_member(db, member_id, current_tenant.id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+    try:
+        return cell_service.update_member_link(
+            db,
+            current_tenant.id,
+            cell_id=cell_id,
+            member_id=member_id,
+            start_date=payload.start_date,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.delete("/{cell_id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 def unassign_member_from_cell(
     cell_id: int,
@@ -397,7 +447,7 @@ def unassign_member_from_cell(
     current_membership: TenantMembership = Depends(get_current_membership),
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> None:
-    _require_editor_or_leader(current_user, current_membership)
+    _require_people_delete_access(current_user, current_membership)
     _require_cell_access(db, current_user, current_membership, current_tenant, cell_id)
     cell = cell_service.get_cell(db, cell_id, current_tenant.id)
     if not cell:

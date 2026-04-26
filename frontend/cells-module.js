@@ -319,6 +319,11 @@
     return false;
   }
 
+  function canDeletePeopleRecords() {
+    if (state.isAdmin) return true;
+    return state.currentUserRole === "discipler" || state.currentUserRole === "network_pastor";
+  }
+
   function getFirstAllowedCellsView() {
     const ordered = [
       ["dashboard", "cells_dashboard_view"],
@@ -440,6 +445,24 @@
     if (!el.cellsMessage) return;
     el.cellsMessage.textContent = valueOr(text, "");
     el.cellsMessage.style.color = isError ? "#b42318" : "#5f6b6d";
+  }
+
+  function showCellsToast(message, type) {
+    const toastStack = document.getElementById("uiToastStack");
+    if (!toastStack || !message) return;
+    const toast = document.createElement("article");
+    toast.className = `ui-toast is-${type || "info"}`;
+    const title = type === "error" ? "Algo precisa de atenção" : type === "success" ? "Tudo certo" : "Aviso";
+    toast.innerHTML = `
+      <strong>${title}</strong>
+      <p>${escapeHtml(message)}</p>
+    `;
+    toastStack.appendChild(toast);
+    window.setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(10px)";
+      window.setTimeout(() => toast.remove(), 180);
+    }, 3600);
   }
 
   function getToken() {
@@ -925,7 +948,10 @@
         const isDueDate = new Date(meeting.meeting_date) >= new Date(valueOr(person.count_start_date, "1970-01-01"));
         if (!isDueDate) return false;
         const attendance = Array.isArray(meeting.attendance) ? meeting.attendance : [];
-        return !attendance.some((a) => toNumber(a.member_id, 0) === person.id && valueOr(a.status, "").toLowerCase() !== "absent");
+        return !attendance.some((a) => {
+          const status = valueOr(a.attendance_status, valueOr(a.status, "")).toLowerCase();
+          return toNumber(a.member_id, 0) === person.id && status !== "absent";
+        });
       }).length;
       return { person, absences };
     }).filter((item) => item.absences > 0);
@@ -1419,18 +1445,23 @@
 
     return members
       .map((member) => {
-        const actions = stage === "visitor"
-          ? `<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="assiduo">Promover para assiduo</button>
-             <button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`
-          : stage === "assiduo"
-            ? `<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`
-            : "-";
+        const actions = [];
+        if (stage === "visitor") {
+          actions.push(`<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="assiduo">Promover para assiduo</button>`);
+          actions.push(`<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`);
+        } else if (stage === "assiduo") {
+          actions.push(`<button class="btn ghost btn-inline cells-promote-btn" type="button" data-member-id="${member.id}" data-target-stage="member">Promover para membro</button>`);
+        }
+        if (canDeletePeopleRecords()) {
+          actions.push(`<button class="btn ghost btn-inline cells-delete-person-btn" type="button" data-member-id="${member.id}" data-stage="${stage}" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Excluir</button>`);
+        }
+        const renderedActions = actions.length ? actions.join(" ") : "-";
 
         return `<tr>
           <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
           <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
           <td>${escapeHtml(formatDatePtBr(valueOr(member.count_start_date, "")))}</td>
-          <td>${actions}</td>
+          <td>${renderedActions}</td>
         </tr>`;
       })
       .join("");
@@ -1448,19 +1479,34 @@
       el.cellsPeopleMembersBody.innerHTML = members.length
         ? members.map((member) => {
           const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
-          const actions = `<button class="btn ghost btn-inline cells-edit-member-people-btn" type="button" data-member-id="${member.id}">Editar</button>
-                           <button class="btn ghost btn-inline cells-transfer-member-btn" type="button" data-member-id="${member.id}">Transferir</button>
-                           <button class="btn ghost btn-inline cells-mark-lost-sheep-btn" type="button" data-member-id="${member.id}" data-cell-id="${cellId}" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Ovelha Perdida</button>`;
+          const actions = [
+            `<button class="btn ghost btn-inline cells-edit-member-people-btn" type="button" data-member-id="${member.id}">Editar</button>`,
+            `<button class="btn ghost btn-inline cells-transfer-member-btn" type="button" data-member-id="${member.id}">Transferir</button>`,
+            `<button class="btn ghost btn-inline cells-mark-lost-sheep-btn" type="button" data-member-id="${member.id}" data-cell-id="${cellId}" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Ovelha Perdida</button>`,
+          ];
+          if (canDeletePeopleRecords()) {
+            actions.push(`<button class="btn ghost btn-inline cells-delete-person-btn" type="button" data-member-id="${member.id}" data-stage="member" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Excluir</button>`);
+          }
           return `<tr>
             <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
             <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
             <td>${escapeHtml(memberStageLabel(member))}</td>
             <td>${escapeHtml(formatDatePtBr(valueOr(member.count_start_date, "")))}</td>
-            <td>${actions}</td>
+            <td>${actions.join(" ")}</td>
           </tr>`;
         }).join("")
         : '<tr><td colspan="5">Sem registros.</td></tr>';
     }
+  }
+
+  async function removePersonFromSelectedCell(memberId) {
+    const cellId = toNumber(el.cellsPeopleCellSelect ? el.cellsPeopleCellSelect.value : 0, 0);
+    if (!cellId || !memberId) throw new Error("Celula ou pessoa invalida.");
+    await api(`/cells/${cellId}/members/${memberId}`, {
+      method: "DELETE",
+    });
+    await loadPeopleViewData();
+    setCellsMessage("Pessoa excluida da celula com sucesso.", false);
   }
 
   async function loadPeopleViewData() {
@@ -1562,6 +1608,8 @@
     const member = state.peopleByStage.member.find((m) => m.id === memberId);
     if (!member) return;
 
+    if (el.cellsMemberModalTitle) el.cellsMemberModalTitle.textContent = "Editar Membro";
+    if (el.cellsMemberModalRoleTag) el.cellsMemberModalRoleTag.value = "member";
     if (el.cellsMemberModalId) el.cellsMemberModalId.value = String(memberId);
     if (el.cellsMemberModalCellId) el.cellsMemberModalCellId.value = String(cellId);
     if (el.cellsMemberModalName) el.cellsMemberModalName.value = valueOr(member.full_name, "");
@@ -1570,10 +1618,19 @@
     if (el.cellsMemberModalCountStartDate) {
       el.cellsMemberModalCountStartDate.value = valueOr(member.count_start_date, getTodayIsoDate());
     }
+    if (el.cellsMemberModalDisableBtn) {
+      el.cellsMemberModalDisableBtn.textContent = "Excluir da Célula";
+      el.cellsMemberModalDisableBtn.classList.toggle("hide", !canDeletePeopleRecords());
+    }
     if (el.cellsMemberModal) el.cellsMemberModal.classList.remove("hide");
   }
 
   function closeMemberPeopleModal() {
+    if (el.cellsMemberModalRoleTag) el.cellsMemberModalRoleTag.value = "";
+    if (el.cellsMemberModalCellId) el.cellsMemberModalCellId.value = "";
+    if (el.cellsMemberModalDisableBtn) {
+      el.cellsMemberModalDisableBtn.textContent = "Desabilitar";
+    }
     if (el.cellsMemberModal) el.cellsMemberModal.classList.add("hide");
   }
 
@@ -1959,7 +2016,8 @@
       }
       await loadPeopleViewData();
     }
-    setCellsMessage("Frequencia salva com sucesso.", false);
+    setCellsMessage("", false);
+    showCellsToast("Frequencia salva com sucesso.", "success");
   }
 
   async function openCellModal(cell) {
@@ -2024,6 +2082,7 @@
     }
     if (el.cellsMemberModalRoleTag) el.cellsMemberModalRoleTag.value = roleTag;
     if (el.cellsMemberModalId) el.cellsMemberModalId.value = editing ? String(member.id) : "";
+    if (el.cellsMemberModalCellId) el.cellsMemberModalCellId.value = "";
     if (el.cellsMemberModalName) el.cellsMemberModalName.value = editing ? valueOr(member.full_name, "") : "";
     if (el.cellsMemberModalContact) el.cellsMemberModalContact.value = editing ? valueOr(member.contact, "") : "";
     if (el.cellsMemberModalStatus) el.cellsMemberModalStatus.value = editing ? valueOr(member.status, "active") : "active";
@@ -2035,6 +2094,9 @@
 
     syncMemberModalInputMode(roleTag, member);
 
+    if (el.cellsMemberModalDisableBtn) {
+      el.cellsMemberModalDisableBtn.textContent = "Desabilitar";
+    }
     if (el.cellsMemberModalDisableBtn) el.cellsMemberModalDisableBtn.classList.toggle("hide", !editing);
     if (el.cellsMemberModalDeleteBtn) el.cellsMemberModalDeleteBtn.classList.toggle("hide", !editing);
     el.cellsMemberModal.classList.remove("hide");
@@ -2042,6 +2104,7 @@
 
   function closeMemberModal() {
     if (!el.cellsMemberModal) return;
+    if (el.cellsMemberModalCellId) el.cellsMemberModalCellId.value = "";
     el.cellsMemberModal.classList.add("hide");
   }
 
@@ -2226,6 +2289,19 @@
       api(`/lost-sheep`),
     ]);
 
+    const meetingsList = Array.isArray(meetingsData) ? meetingsData : [];
+    const meetingsWithAttendance = meetingsList.length
+      ? await Promise.all(
+        meetingsList.map(async (meeting) => {
+          const attendance = await api(`/cells/meetings/${meeting.id}/attendances`);
+          return {
+            ...meeting,
+            attendance: Array.isArray(attendance) ? attendance : [],
+          };
+        })
+      )
+      : [];
+
     state.peopleByStage = {
       visitor: Array.isArray(visitors) ? visitors : [],
       assiduo: Array.isArray(assiduos) ? assiduos : [],
@@ -2241,7 +2317,7 @@
     renderVisitorRetentionChart(charts && Array.isArray(charts.visitor_retention) ? charts.visitor_retention : []);
     renderCompositionPieChart(charts && Array.isArray(charts.composition) ? charts.composition : []);
     renderStageCountsChart(charts && Array.isArray(charts.stage_counts_by_date) ? charts.stage_counts_by_date : []);
-    renderMissingMembers(Array.isArray(meetingsData) ? meetingsData : []);
+    renderMissingMembers(meetingsWithAttendance);
     renderDashboardLostSheep(cellId, Array.isArray(lostSheepRows) ? lostSheepRows : []);
     renderCellInfoCard();
     setCellsMessage("Dados de celula atualizados.", false);
@@ -2652,6 +2728,7 @@
     let userId = null;
     const status = el.cellsMemberModalStatus ? el.cellsMemberModalStatus.value : "active";
     const countStartDate = el.cellsMemberModalCountStartDate ? el.cellsMemberModalCountStartDate.value : "";
+    const modalCellId = toNumber(el.cellsMemberModalCellId ? el.cellsMemberModalCellId.value : 0, 0);
 
     if (!roleTag) throw new Error("Perfil invalido para o registro.");
     if (!countStartDate) throw new Error("Informe a data de cadastrado.");
@@ -2705,6 +2782,12 @@
         method: "PUT",
         body: JSON.stringify(payload),
       });
+      if (modalCellId) {
+        await api(`/cells/${modalCellId}/members/${memberId}`, {
+          method: "PUT",
+          body: JSON.stringify({ start_date: countStartDate }),
+        });
+      }
       setMemberRoleTag(memberId, roleTag);
       setCellsMessage("Registro atualizado com sucesso.", false);
     } else {
@@ -2726,6 +2809,9 @@
 
     closeMemberModal();
     await refreshCellsAdminData();
+    if (modalCellId || state.currentView === "people") {
+      await loadPeopleViewData();
+    }
   }
 
   async function openCellsModule() {
@@ -3249,8 +3335,24 @@
   if (el.cellsMemberModalDisableBtn) {
     el.cellsMemberModalDisableBtn.addEventListener("click", function () {
       const memberId = toNumber(el.cellsMemberModalId ? el.cellsMemberModalId.value : 0, 0);
+      const modalCellId = toNumber(el.cellsMemberModalCellId ? el.cellsMemberModalCellId.value : 0, 0);
       const roleTag = valueOr(el.cellsMemberModalRoleTag ? el.cellsMemberModalRoleTag.value : "", "");
       if (!memberId) return;
+      if (modalCellId) {
+        if (!canDeletePeopleRecords()) {
+          setCellsMessage("Somente discipulador, pastor de rede ou super admin podem excluir pessoas da celula.", true);
+          return;
+        }
+        openConfirmModal(
+          "Tem certeza que deseja excluir esta pessoa da celula? Esta acao nao pode ser desfeita.",
+          async function () {
+            await removePersonFromSelectedCell(memberId);
+            closeMemberPeopleModal();
+          },
+          "Falha ao excluir pessoa da celula."
+        );
+        return;
+      }
       handleLoadError(async function () {
         await disableMember(memberId, roleTag, false);
         closeMemberModal();
@@ -3528,6 +3630,19 @@
           await promotePersonInSelectedCell(memberId, stage);
           await loadPeopleViewData();
         }, "Falha ao promover pessoa.");
+      }
+
+      if (target.classList.contains("cells-delete-person-btn")) {
+        const memberId = toNumber(target.getAttribute("data-member-id"), 0);
+        const memberName = valueOr(target.getAttribute("data-member-name"), "esta pessoa");
+        if (!memberId) return;
+        openConfirmModal(
+          `Tem certeza que deseja excluir ${memberName} desta celula? Esta acao nao pode ser desfeita.`,
+          async function () {
+            await removePersonFromSelectedCell(memberId);
+          },
+          "Falha ao excluir pessoa da celula."
+        );
       }
     });
   }

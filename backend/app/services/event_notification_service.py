@@ -15,6 +15,30 @@ from app.db.models.event_registration import EventRegistration
 from app.services import qr_service, smtp_settings_service
 
 
+def _normalize_whatsapp_recipient(recipient: str | None) -> str:
+    digits = "".join(char for char in str(recipient or "") if char.isdigit())
+    if len(digits) < 8:
+        raise ValueError("Telefone do destinatario de WhatsApp invalido.")
+    return digits
+
+
+def _extract_gateway_error(response: httpx.Response) -> str:
+    try:
+        data = response.json() if response.content else {}
+    except ValueError:
+        data = None
+
+    if isinstance(data, dict):
+        detail = data.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+
+    raw_text = response.text.strip()
+    if raw_text:
+        return raw_text[:500]
+    return f"WhatsApp gateway returned {response.status_code}."
+
+
 def list_notifications(db: Session, event_id: int, tenant_id: int) -> list[EventNotification]:
     return (
         db.query(EventNotification)
@@ -22,6 +46,75 @@ def list_notifications(db: Session, event_id: int, tenant_id: int) -> list[Event
         .order_by(EventNotification.created_at.desc(), EventNotification.id.desc())
         .all()
     )
+
+
+def _enqueue_dispatch(notification_id: int) -> None:
+    from app.tasks.event_notifications import dispatch_event_notification
+
+    try:
+        dispatch_event_notification.delay(notification_id)
+    except Exception:
+        # Keep retry resilient even when the broker is temporarily unavailable.
+        pass
+
+
+def retry_failed_notifications(db: Session, event_id: int, tenant_id: int) -> list[EventNotification]:
+    notifications = (
+        db.query(EventNotification)
+        .filter(
+            EventNotification.tenant_id == tenant_id,
+            EventNotification.event_id == event_id,
+            EventNotification.status == "failed",
+        )
+        .order_by(EventNotification.created_at.asc(), EventNotification.id.asc())
+        .all()
+    )
+    if not notifications:
+        return []
+
+    for notification in notifications:
+        notification.status = "queued"
+        notification.error_message = None
+        notification.sent_at = None
+    db.commit()
+    for notification in notifications:
+        db.refresh(notification)
+        _enqueue_dispatch(notification.id)
+    return notifications
+
+
+def get_notification(db: Session, notification_id: int, event_id: int, tenant_id: int) -> EventNotification | None:
+    return (
+        db.query(EventNotification)
+        .filter(
+            EventNotification.id == notification_id,
+            EventNotification.event_id == event_id,
+            EventNotification.tenant_id == tenant_id,
+        )
+        .first()
+    )
+
+
+def retry_notification(
+    db: Session,
+    *,
+    notification_id: int,
+    event_id: int,
+    tenant_id: int,
+) -> EventNotification | None:
+    notification = get_notification(db, notification_id, event_id, tenant_id)
+    if notification is None:
+        return None
+    if notification.status != "failed":
+        raise ValueError("Only failed notifications can be retried.")
+
+    notification.status = "queued"
+    notification.error_message = None
+    notification.sent_at = None
+    db.commit()
+    db.refresh(notification)
+    _enqueue_dispatch(notification.id)
+    return notification
 
 
 def build_event_analytics(db: Session, event: Event) -> dict:
@@ -341,6 +434,7 @@ def _send_whatsapp(notification: EventNotification) -> None:
     if not settings.WHATSAPP_WEBHOOK_URL:
         raise ValueError("WhatsApp webhook not configured")
 
+    recipient = _normalize_whatsapp_recipient(notification.recipient)
     headers = {}
     if settings.WHATSAPP_WEBHOOK_TOKEN:
         headers["Authorization"] = f"Bearer {settings.WHATSAPP_WEBHOOK_TOKEN}"
@@ -350,10 +444,11 @@ def _send_whatsapp(notification: EventNotification) -> None:
             settings.WHATSAPP_WEBHOOK_URL,
             headers=headers,
             json={
-                "to": notification.recipient,
+                "to": recipient,
                 "message": (notification.payload or {}).get("message") or "Notificacao de evento",
                 "media": (notification.payload or {}).get("media") or [],
                 "event_notification_id": notification.id,
             },
         )
-        response.raise_for_status()
+        if response.is_error:
+            raise RuntimeError(_extract_gateway_error(response))

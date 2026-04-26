@@ -126,6 +126,18 @@ function normalizePhone(value) {
   return digits;
 }
 
+function normalizeConnectionState(value) {
+  const state = String(value || "").trim().toLowerCase();
+  if (state === "connected") {
+    return "open";
+  }
+  return state;
+}
+
+function isSessionReady(connectionState) {
+  return normalizeConnectionState(connectionState) === "open";
+}
+
 function requireAuth(req) {
   if (!GATEWAY_TOKEN) return;
   const expected = `Bearer ${GATEWAY_TOKEN}`;
@@ -283,7 +295,7 @@ async function createClient() {
   nextClient.on("change_state", (state) => {
     patchStatus({
       instance_exists: true,
-      connection_state: String(state || "unknown").toLowerCase(),
+      connection_state: normalizeConnectionState(state || "unknown"),
       last_error: null
     });
     appendEvent("whatsapp-web.js", "CONNECTION_UPDATE", {
@@ -347,7 +359,7 @@ async function waitForQrOrReady(timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     const status = readStore().status;
-    if (status.qr_image || status.connection_state === "open" || status.connection_state === "auth_failure") {
+    if (status.qr_image || isSessionReady(status.connection_state) || status.connection_state === "auth_failure") {
       return status;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -428,7 +440,7 @@ function buildProviderResponse(response, fallbackBody) {
 async function sendViaClient(recipient, payload) {
   await ensureClientStarted();
   const status = getStatusPayload();
-  if (status.connection_state !== "open") {
+  if (!isSessionReady(status.connection_state)) {
     throw new Error("WhatsApp Web ainda não está conectado. Leia o QR Code em dev antes de enviar mensagens.");
   }
   const chatId = `${recipient}@c.us`;

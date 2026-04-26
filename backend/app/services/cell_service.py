@@ -527,6 +527,33 @@ def unassign_member_from_cell(
     return link
 
 
+def update_member_link(
+    db: Session,
+    tenant_id: int,
+    *,
+    cell_id: int,
+    member_id: int,
+    start_date: Optional[date] = None,
+) -> CellMemberLink:
+    link = (
+        db.query(CellMemberLink)
+        .filter(
+            CellMemberLink.tenant_id == tenant_id,
+            CellMemberLink.cell_id == cell_id,
+            CellMemberLink.member_id == member_id,
+            CellMemberLink.active.is_(True),
+        )
+        .first()
+    )
+    if not link:
+        raise ValueError("Member is not linked to this cell")
+    if start_date is not None:
+        link.start_date = start_date
+    db.commit()
+    db.refresh(link)
+    return link
+
+
 def transfer_member(
     db: Session,
     tenant_id: int,

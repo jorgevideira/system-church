@@ -138,3 +138,51 @@ def test_leader_adds_and_promotes_people_in_own_cell(
     )
     assert promote_to_member.status_code == 200
     assert promote_to_member.json()["stage"] == "member"
+
+
+def test_leader_cannot_delete_or_deactivate_people_in_own_cell(
+    test_client: TestClient,
+    test_admin: User,
+    test_leader: User,
+):
+    admin_headers = auth_headers(test_admin)
+    leader_headers = auth_headers(test_leader)
+
+    owned_cell = _create_cell(test_client, admin_headers, "Celula Restrita")
+    leader_member = _create_member(test_client, admin_headers, "Lider Restrito", user_id=test_leader.id)
+    test_client.post(
+        f"/api/v1/cells/{owned_cell['id']}/members/{leader_member['id']}",
+        json={},
+        headers=admin_headers,
+    )
+    assign_leader_resp = test_client.post(
+        f"/api/v1/cells/{owned_cell['id']}/leaders",
+        json={"member_id": leader_member["id"], "role": "leader", "is_primary": True},
+        headers=admin_headers,
+    )
+    assert assign_leader_resp.status_code == 201
+
+    person = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pessoa Protegida", "contact": "11922223333", "status": "active", "stage": "visitor"},
+        headers=admin_headers,
+    ).json()
+    assign_person = test_client.post(
+        f"/api/v1/cells/{owned_cell['id']}/members/{person['id']}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_person.status_code == 201
+
+    delete_resp = test_client.delete(
+        f"/api/v1/cells/{owned_cell['id']}/members/{person['id']}",
+        headers=leader_headers,
+    )
+    assert delete_resp.status_code == 403
+
+    deactivate_resp = test_client.put(
+        f"/api/v1/cells/members/{person['id']}",
+        json={"status": "inactive"},
+        headers=leader_headers,
+    )
+    assert deactivate_resp.status_code == 403
