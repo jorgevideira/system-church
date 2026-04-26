@@ -2058,6 +2058,60 @@ function hasPermission(permissionName) {
   return state.currentUserPermissionSet.has(permissionName);
 }
 
+function sanitizeBrazilPhoneDigits(value) {
+  let digits = String(value || "").replace(/\D+/g, "");
+  if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2);
+  if (digits.length > 11) digits = digits.slice(-11);
+  return digits;
+}
+
+function formatBrazilPhone(value) {
+  const digits = sanitizeBrazilPhoneDigits(value);
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (!ddd) return "";
+  if (!rest) return `(${ddd})`;
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  if (rest.length <= 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5, 9)}`;
+}
+
+function bindBrazilPhoneMask(input) {
+  if (!input || input.dataset.phoneMaskBound === "true") return;
+  input.dataset.phoneMaskBound = "true";
+  input.setAttribute("inputmode", "tel");
+  const applyMask = () => {
+    const formatted = formatBrazilPhone(input.value);
+    input.value = formatted || "";
+  };
+  input.addEventListener("input", applyMask);
+  input.addEventListener("blur", applyMask);
+  if (input.value) applyMask();
+}
+
+function applyBrazilPhoneMasks() {
+  [
+    el.publicDetailPhone,
+    document.getElementById("cellsPeopleVisitorContact"),
+    document.getElementById("cellsPeopleAssiduoContact"),
+    document.getElementById("cellsPeopleMemberContact"),
+    document.getElementById("cellsMemberModalContact"),
+    document.getElementById("cellsLostSheepModalPhone"),
+    document.getElementById("cellsCreateDisciplerContact"),
+    document.getElementById("cellsCreateLeaderContact"),
+    document.getElementById("kidsQuickVisitorPhone"),
+    document.getElementById("kidsFamilyPhone"),
+    document.getElementById("kidsGuardianPhone"),
+    document.getElementById("kidsVisitorPhone"),
+    document.getElementById("schoolClassContact"),
+    document.getElementById("schoolProfessorContact"),
+    document.getElementById("schoolStudentContact"),
+    document.getElementById("usersWhatsappPairingNumber"),
+    document.getElementById("usersWhatsappTestPhone"),
+    document.getElementById("usersChurchCreateSupportWhatsapp"),
+  ].forEach(bindBrazilPhoneMask);
+}
+
 function hasAnyPermission(permissionNames) {
   return permissionNames.some((permissionName) => hasPermission(permissionName));
 }
@@ -5192,6 +5246,8 @@ el.loginForm.addEventListener("submit", async (event) => {
     setMessage(el.authMessage, error.message, true);
   }
 });
+applyBrazilPhoneMasks();
+
 if (el.toggleLoginPasswordBtn) {
   el.toggleLoginPasswordBtn.addEventListener("click", toggleLoginPasswordVisibility);
 }

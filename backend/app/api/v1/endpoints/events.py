@@ -22,7 +22,11 @@ from app.schemas.event import (
     PublicEventResponse,
     PublicEventRegistrationResponse,
 )
-from app.schemas.event_notification import EventAnalyticsResponse, EventNotificationResponse
+from app.schemas.event_notification import (
+    EventAnalyticsResponse,
+    EventNotificationResponse,
+    EventNotificationRetryResponse,
+)
 from app.schemas.event_checkin import EventCheckInRequest, EventCheckInResponse
 from app.services import event_checkin_service, event_notification_service, event_service, mercadopago_service
 
@@ -202,6 +206,31 @@ def list_event_notifications(
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return event_notification_service.list_notifications(db, event_id, current_tenant.id)
+
+
+@router.post("/{event_id}/notifications/{notification_id}/retry", response_model=EventNotificationRetryResponse)
+def retry_event_notification(
+    event_id: int,
+    notification_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_events_write),
+    current_tenant: Tenant = Depends(get_current_tenant),
+) -> EventNotificationRetryResponse:
+    event = event_service.get_event(db, event_id, current_tenant.id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    try:
+        notification = event_notification_service.retry_notification(
+            db,
+            notification_id=notification_id,
+            event_id=event_id,
+            tenant_id=current_tenant.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if notification is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+    return EventNotificationRetryResponse(notification_id=notification.id, status=notification.status)
 
 
 @router.get("/{event_id}/analytics", response_model=EventAnalyticsResponse)

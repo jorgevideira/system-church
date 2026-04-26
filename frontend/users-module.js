@@ -1755,7 +1755,7 @@
     }
 
     const actionsDisabled = !hasUsersWriteAccess() || status.enabled === false || status.configured === false;
-    const testDisabled = actionsDisabled || status.connection_state !== "open";
+    const testDisabled = actionsDisabled || !["open", "connected"].includes(String(status.connection_state || "").toLowerCase());
     if (el.usersWhatsappSetupBtn) el.usersWhatsappSetupBtn.disabled = actionsDisabled;
     if (el.usersWhatsappConnectBtn) el.usersWhatsappConnectBtn.disabled = actionsDisabled;
     if (el.usersWhatsappRefreshBtn) el.usersWhatsappRefreshBtn.disabled = false;

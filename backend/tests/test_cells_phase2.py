@@ -98,3 +98,38 @@ def test_add_visitor_and_dashboard(test_client: TestClient, test_admin: User):
     summary = test_client.get("/api/v1/cells/dashboard/summary", headers=headers)
     assert summary.status_code == 200
     assert isinstance(summary.json(), list)
+
+
+def test_updating_member_link_start_date_restores_people_visibility_for_meeting_date(test_client: TestClient, test_admin: User):
+    headers = auth_headers(test_admin)
+    cell = _create_cell(test_client, headers, "Bora pro Ceu")
+    member = _create_member(test_client, headers, "Pessoa Ajustada")
+
+    assign = test_client.post(
+        f"/api/v1/cells/{cell['id']}/members/{member['id']}",
+        json={"start_date": "2026-04-20"},
+        headers=headers,
+    )
+    assert assign.status_code == 201
+
+    people_before = test_client.get(
+        f"/api/v1/cells/{cell['id']}/people?on_date=2026-04-10",
+        headers=headers,
+    )
+    assert people_before.status_code == 200
+    assert people_before.json() == []
+
+    update_link = test_client.put(
+        f"/api/v1/cells/{cell['id']}/members/{member['id']}",
+        json={"start_date": "2026-04-01"},
+        headers=headers,
+    )
+    assert update_link.status_code == 200
+    assert update_link.json()["start_date"] == "2026-04-01"
+
+    people_after = test_client.get(
+        f"/api/v1/cells/{cell['id']}/people?on_date=2026-04-10",
+        headers=headers,
+    )
+    assert people_after.status_code == 200
+    assert [item["full_name"] for item in people_after.json()] == ["Pessoa Ajustada"]

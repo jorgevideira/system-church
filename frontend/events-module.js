@@ -1083,7 +1083,7 @@ function populatePaymentAccountOptions() {
 
   async function loadNotifications() {
     if (!state.selectedEventId) {
-      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='6'>Selecione um evento.</td></tr>";
+      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='7'>Selecione um evento.</td></tr>";
       return;
     }
     state.notifications = await fetchJson(`${eventsEndpoint}/${state.selectedEventId}/notifications`, { headers: buildHeaders(false) }, "Falha ao carregar notificacoes.");
@@ -1095,7 +1095,7 @@ function populatePaymentAccountOptions() {
     });
 
     if (!filteredNotifications.length) {
-      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='6'>Nenhuma notificacao registrada.</td></tr>";
+      el.eventsNotificationsBody.innerHTML = "<tr><td colspan='7'>Nenhuma notificacao registrada.</td></tr>";
       return;
     }
     el.eventsNotificationsBody.innerHTML = filteredNotifications.map((notification) => `
@@ -1106,8 +1106,40 @@ function populatePaymentAccountOptions() {
         <td>${escapeHtml(statusLabel(notification.status))}</td>
         <td>${escapeHtml(notification.error_message || "-")}</td>
         <td>${escapeHtml(formatDateTime(notification.sent_at || notification.created_at))}</td>
+        <td>${notification.status === "failed"
+          ? `<button class="btn ghost btn-mini" type="button" data-notification-retry="${Number(notification.id || 0)}">Reenviar</button>`
+          : '<span class="tiny">-</span>'}
+        </td>
       </tr>
     `).join("");
+  }
+
+  async function retryNotification(notificationId) {
+    if (!state.selectedEventId) {
+      setMessage("Selecione um evento para reenviar a notificacao.", true);
+      return;
+    }
+    const target = state.notifications.find((notification) => Number(notification.id) === Number(notificationId));
+    if (!target) {
+      setMessage("Notificacao nao encontrada na lista atual.", true);
+      return;
+    }
+    if (target.status !== "failed") {
+      setMessage("Somente notificacoes com falha podem ser reenviadas.", true);
+      return;
+    }
+
+    const response = await fetchJson(
+      `${eventsEndpoint}/${state.selectedEventId}/notifications/${Number(notificationId)}/retry`,
+      {
+        method: "POST",
+        headers: buildHeaders(false),
+      },
+      "Falha ao reenviar notificacao.",
+    );
+    const queuedStatus = String(response && response.status ? response.status : "queued");
+    setMessage(`Notificacao reenfileirada com status ${queuedStatus}.`, false);
+    await loadNotifications();
   }
 
   function setCheckinResult(message, isError = false) {
@@ -1718,6 +1750,15 @@ function populatePaymentAccountOptions() {
       });
     }
     if (el.eventsNotificationsRefreshBtn) el.eventsNotificationsRefreshBtn.addEventListener("click", () => loadNotifications().catch((error) => setMessage(error.message, true)));
+    if (el.eventsNotificationsBody) {
+      el.eventsNotificationsBody.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-notification-retry]");
+        if (!button) return;
+        const notificationId = Number(button.getAttribute("data-notification-retry") || 0);
+        if (!notificationId) return;
+        retryNotification(notificationId).catch((error) => setMessage(error.message, true));
+      });
+    }
     if (el.eventsCheckinRefreshBtn) el.eventsCheckinRefreshBtn.addEventListener("click", () => loadCheckins().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinSubmitBtn) el.eventsCheckinSubmitBtn.addEventListener("click", () => submitCheckinToken().catch((error) => setMessage(error.message, true)));
     if (el.eventsCheckinScanBtn) el.eventsCheckinScanBtn.addEventListener("click", () => openEventsQrScanner().catch((error) => setMessage(error.message, true)));

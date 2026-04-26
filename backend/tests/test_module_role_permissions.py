@@ -195,3 +195,290 @@ def test_super_admin_role_can_access_users_write(test_client: TestClient, test_d
         headers=headers,
     )
     assert response.status_code == 201
+
+
+def test_discipler_role_can_delete_people_from_supervised_cell(test_client: TestClient, test_db, test_admin: User):
+    admin_headers = auth_headers(test_admin)
+    discipler_user = _create_user_with_role_name(test_db, role_name="Discipler")
+    discipler_headers = auth_headers(discipler_user)
+
+    cell_response = test_client.post(
+        "/api/v1/cells/",
+        json={
+            "name": f"Celula Discipler {uuid4().hex[:6]}",
+            "weekday": "wednesday",
+            "meeting_time": "19:30:00",
+            "address": "Rua Rede, 100",
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    assert cell_response.status_code == 201
+    cell_id = cell_response.json()["id"]
+
+    discipler_member = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Discipulador Vinculado", "contact": "11999990000", "status": "active", "user_id": discipler_user.id},
+        headers=admin_headers,
+    )
+    assert discipler_member.status_code == 201
+    discipler_member_id = discipler_member.json()["id"]
+
+    assign_discipler_member = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{discipler_member_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_discipler_member.status_code == 201
+
+    assign_discipler_role = test_client.post(
+        f"/api/v1/cells/{cell_id}/leaders",
+        json={"member_id": discipler_member_id, "role": "co_leader", "is_primary": False},
+        headers=admin_headers,
+    )
+    assert assign_discipler_role.status_code == 201
+
+    person_response = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pessoa da Celula", "contact": "11911112222", "status": "active", "stage": "assiduo"},
+        headers=admin_headers,
+    )
+    assert person_response.status_code == 201
+    person_id = person_response.json()["id"]
+
+    assign_person = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_person.status_code == 201
+
+    delete_response = test_client.delete(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        headers=discipler_headers,
+    )
+    assert delete_response.status_code == 204
+
+
+def test_network_pastor_role_can_delete_people_from_supervised_cell(test_client: TestClient, test_db, test_admin: User):
+    admin_headers = auth_headers(test_admin)
+    network_pastor_user = _create_user_with_role_name(test_db, role_name="Network_Pastor")
+    network_pastor_headers = auth_headers(network_pastor_user)
+
+    cell_response = test_client.post(
+        "/api/v1/cells/",
+        json={
+            "name": f"Celula Pastor {uuid4().hex[:6]}",
+            "weekday": "thursday",
+            "meeting_time": "20:00:00",
+            "address": "Rua Rede, 200",
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    assert cell_response.status_code == 201
+    cell_id = cell_response.json()["id"]
+
+    network_pastor_member = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pastor Vinculado", "contact": "11988887777", "status": "active", "user_id": network_pastor_user.id},
+        headers=admin_headers,
+    )
+    assert network_pastor_member.status_code == 201
+    network_pastor_member_id = network_pastor_member.json()["id"]
+
+    discipler_member = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Discipulador da Rede", "contact": "11977776666", "status": "active"},
+        headers=admin_headers,
+    )
+    assert discipler_member.status_code == 201
+    discipler_member_id = discipler_member.json()["id"]
+
+    assign_network_member = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{network_pastor_member_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_network_member.status_code == 201
+
+    assign_discipler_member = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{discipler_member_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_discipler_member.status_code == 201
+
+    assign_network_role = test_client.post(
+        f"/api/v1/cells/{cell_id}/leaders",
+        json={
+            "member_id": discipler_member_id,
+            "discipler_member_id": network_pastor_member_id,
+            "role": "co_leader",
+            "is_primary": False,
+        },
+        headers=admin_headers,
+    )
+    assert assign_network_role.status_code == 201
+
+    person_response = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Visitante da Rede", "contact": "11933334444", "status": "active", "stage": "visitor"},
+        headers=admin_headers,
+    )
+    assert person_response.status_code == 201
+    person_id = person_response.json()["id"]
+
+    assign_person = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_person.status_code == 201
+
+    delete_response = test_client.delete(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        headers=network_pastor_headers,
+    )
+    assert delete_response.status_code == 204
+
+
+def test_super_admin_role_can_delete_people_from_cell(test_client: TestClient, test_db, test_admin: User):
+    admin_headers = auth_headers(test_admin)
+    super_admin = _create_user_with_role_name(test_db, role_name="Super_Admin")
+    super_admin_headers = auth_headers(super_admin)
+
+    cell_response = test_client.post(
+        "/api/v1/cells/",
+        json={
+            "name": f"Celula Super {uuid4().hex[:6]}",
+            "weekday": "friday",
+            "meeting_time": "19:00:00",
+            "address": "Rua Admin, 300",
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    assert cell_response.status_code == 201
+    cell_id = cell_response.json()["id"]
+
+    person_response = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pessoa Super", "contact": "11955556666", "status": "active", "stage": "member"},
+        headers=admin_headers,
+    )
+    assert person_response.status_code == 201
+    person_id = person_response.json()["id"]
+
+    assign_person = test_client.post(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_person.status_code == 201
+
+    delete_response = test_client.delete(
+        f"/api/v1/cells/{cell_id}/members/{person_id}",
+        headers=super_admin_headers,
+    )
+    assert delete_response.status_code == 204
+
+
+def test_discipler_role_lists_only_lost_sheep_from_supervised_cells(test_client: TestClient, test_db, test_admin: User):
+    admin_headers = auth_headers(test_admin)
+    discipler_user = _create_user_with_role_name(test_db, role_name="Discipler")
+    discipler_headers = auth_headers(discipler_user)
+
+    supervised_cell_response = test_client.post(
+        "/api/v1/cells/",
+        json={
+            "name": f"Celula Supervisionada {uuid4().hex[:6]}",
+            "weekday": "monday",
+            "meeting_time": "19:00:00",
+            "address": "Rua Escopo, 10",
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    assert supervised_cell_response.status_code == 201
+    supervised_cell_id = supervised_cell_response.json()["id"]
+
+    other_cell_response = test_client.post(
+        "/api/v1/cells/",
+        json={
+            "name": f"Celula Fora {uuid4().hex[:6]}",
+            "weekday": "tuesday",
+            "meeting_time": "19:00:00",
+            "address": "Rua Escopo, 20",
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    assert other_cell_response.status_code == 201
+    other_cell_id = other_cell_response.json()["id"]
+
+    discipler_member_response = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Discipulador Escopo", "contact": "11900001111", "status": "active", "user_id": discipler_user.id},
+        headers=admin_headers,
+    )
+    assert discipler_member_response.status_code == 201
+    discipler_member_id = discipler_member_response.json()["id"]
+
+    assign_discipler_member = test_client.post(
+        f"/api/v1/cells/{supervised_cell_id}/members/{discipler_member_id}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_discipler_member.status_code == 201
+
+    assign_discipler_role = test_client.post(
+        f"/api/v1/cells/{supervised_cell_id}/leaders",
+        json={"member_id": discipler_member_id, "role": "co_leader", "is_primary": False},
+        headers=admin_headers,
+    )
+    assert assign_discipler_role.status_code == 201
+
+    supervised_person = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pessoa da Minha Rede", "contact": "11910000001", "status": "active", "stage": "member"},
+        headers=admin_headers,
+    ).json()
+    other_person = test_client.post(
+        "/api/v1/cells/members/all",
+        json={"full_name": "Pessoa de Outra Rede", "contact": "11910000002", "status": "active", "stage": "member"},
+        headers=admin_headers,
+    ).json()
+
+    assign_supervised_person = test_client.post(
+        f"/api/v1/cells/{supervised_cell_id}/members/{supervised_person['id']}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_supervised_person.status_code == 201
+
+    assign_other_person = test_client.post(
+        f"/api/v1/cells/{other_cell_id}/members/{other_person['id']}",
+        json={},
+        headers=admin_headers,
+    )
+    assert assign_other_person.status_code == 201
+
+    mark_supervised_lost = test_client.post(
+        "/api/v1/lost-sheep",
+        json={"member_id": supervised_person["id"], "cell_id": supervised_cell_id, "phone_number": "11910000001"},
+        headers=admin_headers,
+    )
+    assert mark_supervised_lost.status_code == 200
+
+    mark_other_lost = test_client.post(
+        "/api/v1/lost-sheep",
+        json={"member_id": other_person["id"], "cell_id": other_cell_id, "phone_number": "11910000002"},
+        headers=admin_headers,
+    )
+    assert mark_other_lost.status_code == 200
+
+    lost_sheep_response = test_client.get("/api/v1/lost-sheep", headers=discipler_headers)
+    assert lost_sheep_response.status_code == 200
+    payload = lost_sheep_response.json()
+    assert [item["member_name"] for item in payload] == ["Pessoa da Minha Rede"]

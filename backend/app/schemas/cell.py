@@ -151,6 +151,10 @@ class CellMemberLinkCreate(BaseModel):
     start_date: Optional[date] = None
 
 
+class CellMemberLinkUpdate(BaseModel):
+    start_date: Optional[date] = None
+
+
 class CellMemberLinkResponse(BaseModel):
     id: int
     cell_id: int
