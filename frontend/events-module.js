@@ -103,6 +103,7 @@
     eventsAnalyticsEventSelect: document.getElementById("eventsAnalyticsEventSelect"),
     eventsReservedSlots: document.getElementById("eventsReservedSlots"),
     eventsConfirmedRegistrations: document.getElementById("eventsConfirmedRegistrations"),
+    eventsConfirmedParticipants: document.getElementById("eventsConfirmedParticipants"),
     eventsPendingRegistrations: document.getElementById("eventsPendingRegistrations"),
     eventsRevenueConfirmed: document.getElementById("eventsRevenueConfirmed"),
     eventsRevenuePending: document.getElementById("eventsRevenuePending"),
@@ -1041,6 +1042,7 @@ function populatePaymentAccountOptions() {
     el.eventsAnalyticsHint.textContent = `Analytics atualizados para ${analytics.title}.`;
     el.eventsReservedSlots.textContent = String(analytics.reserved_slots || 0);
     el.eventsConfirmedRegistrations.textContent = String(analytics.confirmed_registrations || 0);
+    el.eventsConfirmedParticipants.textContent = String(analytics.confirmed_participants || 0);
     el.eventsPendingRegistrations.textContent = String(analytics.pending_registrations || 0);
     el.eventsRevenueConfirmed.textContent = formatMoney(analytics.total_revenue_confirmed || 0);
     el.eventsRevenuePending.textContent = formatMoney(analytics.total_revenue_pending || 0);

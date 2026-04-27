@@ -323,6 +323,93 @@ def test_event_registrations_and_payments_listing_supports_pagination_and_event_
     assert payload["items"][0]["can_refund"] is True
 
 
+def test_event_analytics_exposes_confirmed_registrations_and_participants(test_db, test_client, test_admin):
+    unique_suffix = secrets.token_hex(3)
+    tenant = get_or_create_test_tenant(test_db)
+    test_admin.active_tenant_id = tenant.id
+    test_db.add(test_admin)
+
+    event = Event(
+        tenant_id=tenant.id,
+        created_by_user_id=test_admin.id,
+        title="Encontro de Famílias",
+        slug=f"encontro-familias-{unique_suffix}",
+        visibility="public",
+        status="published",
+        start_at=datetime.now(timezone.utc) + timedelta(days=4),
+        end_at=datetime.now(timezone.utc) + timedelta(days=4, hours=3),
+        price_per_registration=Decimal("50.00"),
+        currency="BRL",
+        allow_public_registration=True,
+        require_payment=True,
+        is_active=True,
+    )
+    test_db.add(event)
+    test_db.commit()
+    test_db.refresh(event)
+
+    confirmed_group = EventRegistration(
+        tenant_id=tenant.id,
+        event_id=event.id,
+        registration_code=f"REG-CG-{unique_suffix}",
+        public_token=f"token-cg-{unique_suffix}",
+        attendee_name="Casal 1",
+        attendee_email="casal1@example.com",
+        quantity=3,
+        status="confirmed",
+        payment_method="pix",
+        payment_status="paid",
+        total_amount=Decimal("150.00"),
+        currency="BRL",
+        confirmed_at=datetime.now(timezone.utc),
+    )
+    confirmed_single = EventRegistration(
+        tenant_id=tenant.id,
+        event_id=event.id,
+        registration_code=f"REG-CS-{unique_suffix}",
+        public_token=f"token-cs-{unique_suffix}",
+        attendee_name="Pessoa 2",
+        attendee_email="pessoa2@example.com",
+        quantity=1,
+        status="confirmed",
+        payment_method="card",
+        payment_status="paid",
+        total_amount=Decimal("50.00"),
+        currency="BRL",
+        confirmed_at=datetime.now(timezone.utc),
+    )
+    pending_group = EventRegistration(
+        tenant_id=tenant.id,
+        event_id=event.id,
+        registration_code=f"REG-PG-{unique_suffix}",
+        public_token=f"token-pg-{unique_suffix}",
+        attendee_name="Grupo Pendente",
+        attendee_email="grupo@example.com",
+        quantity=2,
+        status="pending_payment",
+        payment_method="pix",
+        payment_status="pending",
+        total_amount=Decimal("100.00"),
+        currency="BRL",
+    )
+    test_db.add_all([confirmed_group, confirmed_single, pending_group])
+    test_db.commit()
+
+    response = test_client.get(
+        f"/api/v1/events/{event.id}/analytics",
+        headers=auth_headers(test_admin),
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["confirmed_registrations"] == 2
+    assert payload["confirmed_participants"] == 4
+    assert payload["pending_registrations"] == 1
+    assert payload["reserved_slots"] == 6
+    assert payload["total_revenue_confirmed"] == 200.0
+    assert payload["total_revenue_pending"] == 100.0
+
+
 def test_refund_event_payment_creates_refund_transaction(test_db, test_client, test_admin):
     unique_suffix = secrets.token_hex(3)
     tenant = get_or_create_test_tenant(test_db)

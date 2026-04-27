@@ -34,6 +34,7 @@ class EventAnalyticsResponse(BaseModel):
     capacity: Optional[int] = None
     reserved_slots: int
     confirmed_registrations: int
+    confirmed_participants: int
     pending_registrations: int
     total_revenue_confirmed: float
     total_revenue_pending: float

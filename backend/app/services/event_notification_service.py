@@ -126,6 +126,7 @@ def build_event_analytics(db: Session, event: Event) -> dict:
     reserved_slots = int(sum(item.quantity for item in registrations if item.status in {"pending_payment", "confirmed"}))
     confirmed = [item for item in registrations if item.status == "confirmed"]
     pending = [item for item in registrations if item.status == "pending_payment"]
+    confirmed_participants = int(sum(item.quantity for item in confirmed))
 
     payment_status_rows = (
         db.query(
@@ -162,6 +163,7 @@ def build_event_analytics(db: Session, event: Event) -> dict:
         "capacity": event.capacity,
         "reserved_slots": reserved_slots,
         "confirmed_registrations": len(confirmed),
+        "confirmed_participants": confirmed_participants,
         "pending_registrations": len(pending),
         "total_revenue_confirmed": float(sum(item.total_amount for item in confirmed)),
         "total_revenue_pending": float(sum(item.total_amount for item in pending)),
