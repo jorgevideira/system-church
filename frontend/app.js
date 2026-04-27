@@ -941,16 +941,16 @@ function updateShellBranding(branding = {}) {
 
 function getLoginTenantSlug() {
   const querySlug = new URLSearchParams(window.location.search).get("tenant");
-  return String(querySlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
+  return String(querySlug || "").trim();
 }
 
 function getCurrentTenantLandingUrl() {
   const tenantSlug = String(
     localStorage.getItem("activeTenantSlug")
     || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY)
-    || "default"
-  ).trim() || "default";
-  return `/t/${encodeURIComponent(tenantSlug)}`;
+    || ""
+  ).trim();
+  return tenantSlug ? `/t/${encodeURIComponent(tenantSlug)}` : "/";
 }
 
 function resolveBrandingAssetUrl(value, cacheKey = "") {
@@ -974,13 +974,27 @@ function rememberTenantSlug(tenantSlug) {
   localStorage.setItem(LAST_TENANT_SLUG_STORAGE_KEY, normalized);
 }
 
-function syncTenantLinks(tenantSlug) {
-  const slug = String(tenantSlug || localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "default").trim() || "default";
-  if (el.loginPublicCatalogLink) el.loginPublicCatalogLink.href = `/events/${encodeURIComponent(slug)}`;
-  if (el.tenantLandingLoginLink) el.tenantLandingLoginLink.href = `/?tenant=${encodeURIComponent(slug)}`;
-  if (el.tenantLandingEventsLink) el.tenantLandingEventsLink.href = `/events/${encodeURIComponent(slug)}`;
-  if (el.tenantLandingCatalogLink) el.tenantLandingCatalogLink.href = `/events/${encodeURIComponent(slug)}`;
-  if (el.tenantOnboardingPreviewLink) el.tenantOnboardingPreviewLink.href = `/events/${encodeURIComponent(slug)}`;
+function syncTenantLinks(tenantSlug, { allowStoredFallback = true } = {}) {
+  let slug = String(tenantSlug || "").trim();
+  if (!slug && allowStoredFallback) {
+    slug = String(localStorage.getItem("activeTenantSlug") || localStorage.getItem(LAST_TENANT_SLUG_STORAGE_KEY) || "").trim();
+  }
+
+  if (el.loginPublicCatalogLink) {
+    el.loginPublicCatalogLink.href = slug ? `/events/${encodeURIComponent(slug)}` : "#";
+  }
+  if (el.tenantLandingLoginLink) {
+    el.tenantLandingLoginLink.href = slug ? `/?tenant=${encodeURIComponent(slug)}` : "/";
+  }
+  if (el.tenantLandingEventsLink) {
+    el.tenantLandingEventsLink.href = slug ? `/events/${encodeURIComponent(slug)}` : "/";
+  }
+  if (el.tenantLandingCatalogLink) {
+    el.tenantLandingCatalogLink.href = slug ? `/events/${encodeURIComponent(slug)}` : "/";
+  }
+  if (el.tenantOnboardingPreviewLink) {
+    el.tenantOnboardingPreviewLink.href = slug ? `/events/${encodeURIComponent(slug)}` : "/";
+  }
 }
 
 function setLoginBranding(branding = {}, tenantSlug = "default") {
@@ -1022,7 +1036,7 @@ function setLoginBranding(branding = {}, tenantSlug = "default") {
     const logoUrl = resolveBrandingAssetUrl(branding.logo_url, branding.updated_at || "");
     setBrandImage(el.loginBrandLogo, logoUrl);
   }
-  syncTenantLinks(tenantSlug);
+  syncTenantLinks(tenantSlug, { allowStoredFallback: false });
   if (el.loginPublicCatalogLink) el.loginPublicCatalogLink.classList.toggle("hide", !tenantSlug);
 }
 
@@ -1210,6 +1224,10 @@ window.applyTenantBranding = applyTenantBranding;
 
 async function initializeLoginExperience() {
   const tenantSlug = getLoginTenantSlug();
+  if (!tenantSlug) {
+    setLoginBranding({}, "");
+    return;
+  }
   const branding = await loadPublicTenantBranding(tenantSlug);
   setLoginBranding(branding || {}, tenantSlug);
 }

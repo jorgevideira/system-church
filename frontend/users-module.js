@@ -322,6 +322,7 @@
     usersFormRoleId: document.getElementById("usersFormRoleId"),
     usersFormIsActive: document.getElementById("usersFormIsActive"),
     usersFormPassword: document.getElementById("usersFormPassword"),
+    toggleUsersFormPasswordBtn: document.getElementById("toggleUsersFormPasswordBtn"),
     usersFormPasswordHint: document.getElementById("usersFormPasswordHint"),
     usersFormMessage: document.getElementById("usersFormMessage"),
     usersFormCloseBtn: document.getElementById("usersFormCloseBtn"),
@@ -601,6 +602,20 @@
     el.usersFormMessage.textContent = message || "";
     el.usersFormMessage.style.color = isError ? "#b42318" : "#5f6b6d";
     if (message && window.showUiAlert) window.showUiAlert(message, isError ? "error" : "success");
+  }
+
+  function setUsersFormPasswordVisibility(isVisible) {
+    if (!el.usersFormPassword || !el.toggleUsersFormPasswordBtn) return;
+    el.usersFormPassword.type = isVisible ? "text" : "password";
+    el.toggleUsersFormPasswordBtn.classList.toggle("is-visible", isVisible);
+    el.toggleUsersFormPasswordBtn.setAttribute("aria-label", isVisible ? "Ocultar senha" : "Mostrar senha");
+    el.toggleUsersFormPasswordBtn.setAttribute("title", isVisible ? "Ocultar senha" : "Mostrar senha");
+    el.toggleUsersFormPasswordBtn.setAttribute("aria-pressed", String(isVisible));
+  }
+
+  function toggleUsersFormPasswordVisibility() {
+    if (!el.usersFormPassword) return;
+    setUsersFormPasswordVisibility(el.usersFormPassword.type !== "text");
   }
 
   function setRoleMessage(message, isError) {
@@ -2576,6 +2591,7 @@
       el.usersFormPassword.required = mode === "create";
       el.usersFormPassword.placeholder = mode === "create" ? "Informe a senha" : "Opcional";
     }
+    setUsersFormPasswordVisibility(false);
 
     if (el.usersFormPasswordHint) {
       el.usersFormPasswordHint.textContent = mode === "create"
@@ -2589,6 +2605,7 @@
   }
 
   function closeUserForm() {
+    setUsersFormPasswordVisibility(false);
     if (el.usersFormModal) el.usersFormModal.classList.add("hide");
     setFormMessage("", false);
   }
@@ -3358,6 +3375,9 @@
 
     if (el.usersFormCloseBtn) el.usersFormCloseBtn.addEventListener("click", closeUserForm);
     if (el.usersFormCancelBtn) el.usersFormCancelBtn.addEventListener("click", closeUserForm);
+    if (el.toggleUsersFormPasswordBtn) {
+      el.toggleUsersFormPasswordBtn.addEventListener("click", toggleUsersFormPasswordVisibility);
+    }
 
     if (el.usersInviteCloseBtn) el.usersInviteCloseBtn.addEventListener("click", closeInviteModal);
     if (el.usersInviteCancelBtn) el.usersInviteCancelBtn.addEventListener("click", closeInviteModal);

@@ -1,5 +1,23 @@
 services:
+  backend:
+    # Build prod from the frozen release snapshot, not from the mutable workspace.
+    build:
+      context: /home/ubuntu/system-church-prod-release/current/backend
+
+  celery_worker:
+    # Keep worker/beat aligned with the same backend release snapshot.
+    build:
+      context: /home/ubuntu/system-church-prod-release/current/backend
+
+  celery_beat:
+    build:
+      context: /home/ubuntu/system-church-prod-release/current/backend
+
   nginx:
+    # Frontend served in prod comes from the same frozen release snapshot.
+    build:
+      context: /home/ubuntu/system-church-prod-release/current
+      dockerfile: Dockerfile.nginx
     ports:
       - "${NGINX_PORT}:80"
     networks:

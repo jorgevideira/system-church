@@ -1952,6 +1952,7 @@ select:focus {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 14px;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
 }
@@ -2974,6 +2975,10 @@ th {
   gap: 1.2rem;
 }
 
+.cells-module-grid > * {
+  min-width: 0;
+}
+
 .school-module-grid {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -3012,8 +3017,7 @@ th {
 .school-sidebar,
 .users-sidebar,
 .events-sidebar {
-  position: sticky;
-  top: 84px;
+  position: static;
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -3063,6 +3067,7 @@ th {
 .cells-content-stack {
   display: grid;
   gap: 0.9rem;
+  min-width: 0;
 }
 
 .orgchart-toolbar {
@@ -3477,6 +3482,14 @@ th {
   border-radius: 26px;
   background: #ffffff;
   border-color: #ece7dd;
+  min-width: 0;
+}
+
+.cells-grid > .panel,
+.cells-form,
+.dash-filters,
+.section-title {
+  min-width: 0;
 }
 
 .cells-view.hide {
@@ -3903,28 +3916,52 @@ th {
     justify-content: flex-start;
   }
 
+  .cells-sidebar,
+  .school-sidebar,
+  .users-sidebar,
+  .events-sidebar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0;
+  }
+
+  .cells-sidebar .sidebar-title,
+  .school-sidebar .sidebar-title,
+  .users-sidebar .sidebar-title,
+  .events-sidebar .sidebar-title {
+    width: 100%;
+    margin-bottom: 0.15rem;
+  }
+
   .cells-sidebar .nav-btn {
-    display: inline-block;
+    display: inline-flex;
     width: auto;
     margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
   }
 
   .school-sidebar .nav-btn {
-    display: inline-block;
+    display: inline-flex;
     width: auto;
     margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
   }
 
   .users-sidebar .nav-btn {
-    display: inline-block;
+    display: inline-flex;
     width: auto;
     margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
   }
 
   .events-sidebar .nav-btn {
-    display: inline-block;
+    display: inline-flex;
     width: auto;
     margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
   }
 }
 
@@ -3944,6 +3981,54 @@ th {
   .school-view .dash-filters-grid,
   .events-view .dash-filters-grid {
     grid-template-columns: 1fr;
+  }
+
+  .module-panel {
+    width: calc(100vw - 0.75rem);
+    padding: 0.65rem;
+  }
+
+  .cells-sidebar,
+  .school-sidebar,
+  .users-sidebar,
+  .events-sidebar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .cells-sidebar .sidebar-title,
+  .school-sidebar .sidebar-title,
+  .users-sidebar .sidebar-title,
+  .events-sidebar .sidebar-title {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .cells-sidebar .nav-btn,
+  .school-sidebar .nav-btn,
+  .users-sidebar .nav-btn,
+  .events-sidebar .nav-btn {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    justify-content: center;
+    text-align: center;
+    padding: 0.75rem 0.65rem;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .cells-sidebar,
+  .school-sidebar,
+  .users-sidebar,
+  .events-sidebar {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
