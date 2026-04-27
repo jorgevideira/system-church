@@ -1,9 +1,11 @@
 from datetime import date
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.core.security import get_password_hash
 from app.db.models.user import User
-from tests.conftest import auth_headers
+from tests.conftest import auth_headers, ensure_membership, get_or_create_test_tenant
 
 
 def _create_cell(test_client: TestClient, headers: dict, name: str) -> dict:
@@ -33,18 +35,36 @@ def _create_member(test_client: TestClient, headers: dict, name: str, user_id: i
     return response.json()
 
 
+def _create_cells_user(test_db, *, role: str) -> User:
+    tenant = get_or_create_test_tenant(test_db)
+    user = User(
+        email=f"{role}-{uuid4().hex[:8]}@test.com",
+        full_name=f"{role.title()} Test",
+        role=role,
+        hashed_password=get_password_hash("testpass123"),
+        is_active=True,
+        active_tenant_id=tenant.id,
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+    ensure_membership(test_db, user, tenant, role=role, is_default=True)
+    return user
+
+
 def test_leader_sees_only_owned_cells_and_can_create_meeting(
     test_client: TestClient,
+    test_db,
     test_admin: User,
-    test_leader: User,
 ):
     admin_headers = auth_headers(test_admin)
-    leader_headers = auth_headers(test_leader)
+    leader_user = _create_cells_user(test_db, role="leader")
+    leader_headers = auth_headers(leader_user)
 
     owned_cell = _create_cell(test_client, admin_headers, "Celula Lider")
     other_cell = _create_cell(test_client, admin_headers, "Celula Outra")
 
-    leader_member = _create_member(test_client, admin_headers, "Lider Vinculado", user_id=test_leader.id)
+    leader_member = _create_member(test_client, admin_headers, "Lider Vinculado", user_id=leader_user.id)
     test_client.post(
         f"/api/v1/cells/{owned_cell['id']}/members/{leader_member['id']}",
         json={},
@@ -80,14 +100,15 @@ def test_leader_sees_only_owned_cells_and_can_create_meeting(
 
 def test_leader_adds_and_promotes_people_in_own_cell(
     test_client: TestClient,
+    test_db,
     test_admin: User,
-    test_leader: User,
 ):
     admin_headers = auth_headers(test_admin)
-    leader_headers = auth_headers(test_leader)
+    leader_user = _create_cells_user(test_db, role="leader")
+    leader_headers = auth_headers(leader_user)
 
     owned_cell = _create_cell(test_client, admin_headers, "Celula Promocao")
-    leader_member = _create_member(test_client, admin_headers, "Lider Promotor", user_id=test_leader.id)
+    leader_member = _create_member(test_client, admin_headers, "Lider Promotor", user_id=leader_user.id)
     test_client.post(
         f"/api/v1/cells/{owned_cell['id']}/members/{leader_member['id']}",
         json={},
@@ -142,14 +163,15 @@ def test_leader_adds_and_promotes_people_in_own_cell(
 
 def test_leader_cannot_delete_or_deactivate_people_in_own_cell(
     test_client: TestClient,
+    test_db,
     test_admin: User,
-    test_leader: User,
 ):
     admin_headers = auth_headers(test_admin)
-    leader_headers = auth_headers(test_leader)
+    leader_user = _create_cells_user(test_db, role="leader")
+    leader_headers = auth_headers(leader_user)
 
     owned_cell = _create_cell(test_client, admin_headers, "Celula Restrita")
-    leader_member = _create_member(test_client, admin_headers, "Lider Restrito", user_id=test_leader.id)
+    leader_member = _create_member(test_client, admin_headers, "Lider Restrito", user_id=leader_user.id)
     test_client.post(
         f"/api/v1/cells/{owned_cell['id']}/members/{leader_member['id']}",
         json={},

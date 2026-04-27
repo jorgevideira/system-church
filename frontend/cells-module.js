@@ -1468,7 +1468,9 @@
         if (canDeletePeopleRecords()) {
           actions.push(`<button class="btn ghost btn-inline cells-delete-person-btn" type="button" data-member-id="${member.id}" data-stage="${stage}" data-member-name="${escapeHtml(valueOr(member.full_name, ''))}">Excluir</button>`);
         }
-        const renderedActions = actions.length ? actions.join(" ") : "-";
+        const renderedActions = actions.length
+          ? `<div class="cells-people-actions">${actions.join("")}</div>`
+          : "-";
 
         return `<tr>
           <td>${escapeHtml(valueOr(member.full_name, `Membro ${member.id}`))}</td>
@@ -1505,7 +1507,7 @@
             <td>${escapeHtml(valueOr(member.contact, "-"))}</td>
             <td>${escapeHtml(memberStageLabel(member))}</td>
             <td>${escapeHtml(formatDatePtBr(valueOr(member.count_start_date, "")))}</td>
-            <td>${actions.join(" ")}</td>
+            <td><div class="cells-people-actions cells-people-actions--members">${actions.join("")}</div></td>
           </tr>`;
         }).join("")
         : '<tr><td colspan="5">Sem registros.</td></tr>';
@@ -2777,6 +2779,12 @@
         closeMemberModal();
         await refreshCellsAdminData();
         return;
+      }
+
+      if (existingMemberForUser && memberId) {
+        throw new Error(
+          "Este usuario ja esta vinculado a outra pessoa. Para trocar o lider da celula, edite a celula e selecione o cadastro ja existente."
+        );
       }
     }
 

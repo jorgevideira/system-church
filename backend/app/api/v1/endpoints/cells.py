@@ -326,7 +326,10 @@ def create_member(
     current_tenant: Tenant = Depends(get_current_tenant),
 ) -> CellMemberResponse:
     _require_editor_or_leader(current_user, current_membership)
-    return cell_service.create_member(db, payload, current_tenant.id)
+    try:
+        return cell_service.create_member(db, payload, current_tenant.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/members/user-candidates", response_model=list[UserResponse])
@@ -362,7 +365,10 @@ def update_member(
     member = cell_service.get_member(db, member_id, current_tenant.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
-    return cell_service.update_member(db, member, payload)
+    try:
+        return cell_service.update_member(db, member, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/{cell_id}/members", response_model=list[CellMemberLinkResponse])

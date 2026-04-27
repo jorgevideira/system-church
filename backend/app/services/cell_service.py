@@ -318,6 +318,11 @@ def delete_cell(db: Session, cell: Cell) -> None:
 
 def create_member(db: Session, payload: CellMemberCreate, tenant_id: int) -> CellMember:
     data = payload.model_dump()
+    user_id = data.get("user_id")
+    if user_id is not None:
+        existing_member = get_member_by_user_id(db, tenant_id, user_id)
+        if existing_member is not None:
+            raise ValueError("This user is already linked to another person record")
     data["count_start_date"] = data.get("count_start_date") or date.today()
     member = CellMember(**data, tenant_id=tenant_id, is_active=(data.get("status", "active") == "active"))
     db.add(member)
@@ -370,8 +375,33 @@ def get_member(db: Session, member_id: int, tenant_id: int) -> Optional[CellMemb
     return db.query(CellMember).filter(CellMember.id == member_id, CellMember.tenant_id == tenant_id).first()
 
 
+def get_member_by_user_id(
+    db: Session,
+    tenant_id: int,
+    user_id: int,
+    *,
+    exclude_member_id: Optional[int] = None,
+) -> Optional[CellMember]:
+    q = db.query(CellMember).filter(
+        CellMember.tenant_id == tenant_id,
+        CellMember.user_id == user_id,
+    )
+    if exclude_member_id is not None:
+        q = q.filter(CellMember.id != exclude_member_id)
+    return q.order_by(CellMember.is_active.desc(), CellMember.id.asc()).first()
+
+
 def update_member(db: Session, member: CellMember, payload: CellMemberUpdate) -> CellMember:
     changes = payload.model_dump(exclude_unset=True)
+    if "user_id" in changes and changes["user_id"] is not None:
+        existing_member = get_member_by_user_id(
+            db,
+            member.tenant_id,
+            changes["user_id"],
+            exclude_member_id=member.id,
+        )
+        if existing_member is not None:
+            raise ValueError("This user is already linked to another person record")
     if "status" in changes and "is_active" not in changes:
         changes["is_active"] = changes["status"] == "active"
     if (
@@ -382,6 +412,10 @@ def update_member(db: Session, member: CellMember, payload: CellMemberUpdate) ->
         changes["count_start_date"] = date.today()
     for field, value in changes.items():
         setattr(member, field, value)
+
+    if member.status != "active" or not member.is_active:
+        _deactivate_member_leadership_assignments(db, member.tenant_id, member.id)
+
     db.commit()
     db.refresh(member)
     return member
@@ -687,6 +721,23 @@ def get_leader_assignment(db: Session, assignment_id: int, tenant_id: int) -> Op
         .filter(CellLeaderAssignment.id == assignment_id, CellLeaderAssignment.tenant_id == tenant_id)
         .first()
     )
+
+
+def _deactivate_member_leadership_assignments(db: Session, tenant_id: int, member_id: int) -> None:
+    assignments = (
+        db.query(CellLeaderAssignment)
+        .filter(
+            CellLeaderAssignment.tenant_id == tenant_id,
+            CellLeaderAssignment.member_id == member_id,
+            CellLeaderAssignment.active.is_(True),
+        )
+        .all()
+    )
+    today = date.today()
+    for assignment in assignments:
+        assignment.active = False
+        if assignment.end_date is None:
+            assignment.end_date = today
 
 
 def _disable_other_primary_assignments(

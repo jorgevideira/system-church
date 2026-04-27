@@ -1113,6 +1113,28 @@ label {
   white-space: nowrap;
 }
 
+.cells-people-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.42rem;
+  min-width: 210px;
+}
+
+.cells-people-actions .btn-inline {
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.cells-people-actions--members {
+  min-width: 230px;
+}
+
 .autocomplete-list {
   margin-top: 0.35rem;
   border: 1px solid var(--line);
